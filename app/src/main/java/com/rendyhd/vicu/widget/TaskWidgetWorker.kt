@@ -34,7 +34,11 @@ class TaskWidgetWorker(
             if (!states.isSignedIn()) {
                 Log.d(TAG, "User not logged in, showing login prompt on all widgets")
                 for (glanceId in glanceIds) {
-                    write(glanceId, states.signedOut())
+                    val appWidgetId = manager.getAppWidgetId(glanceId)
+                    val config = WidgetConfigStore.getConfig(applicationContext, appWidgetId)
+                    val state = states.signedOut()
+                        .copy(transparentBackground = config?.transparentBackground ?: false)
+                    write(glanceId, state)
                     TaskListWidget().update(applicationContext, glanceId)
                 }
                 return Result.success()
@@ -61,6 +65,7 @@ class TaskWidgetWorker(
                 val config = WidgetConfigStore.getConfig(applicationContext, appWidgetId)
                 Log.d(TAG, "Widget $appWidgetId config=$config (null means default TODAY)")
                 val state = batch.build(config ?: WidgetConfig())
+                    .copy(transparentBackground = config?.transparentBackground ?: false)
                 write(glanceId, state)
                 TaskListWidget().update(applicationContext, glanceId)
                 Log.d(TAG, "Widget $appWidgetId updated with ${state.tasks.size} of ${state.totalCount} tasks")

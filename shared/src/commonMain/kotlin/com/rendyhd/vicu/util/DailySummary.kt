@@ -20,6 +20,13 @@ import kotlinx.datetime.toLocalDateTime
  */
 object DailySummary {
 
+    /** The two summaries a day: the morning one ("daily") and the optional afternoon one. */
+    const val SLOT_MORNING = "morning"
+    const val SLOT_AFTERNOON = "afternoon"
+
+    /** The notification title of [slot]'s summary. */
+    fun heading(slot: String): String = if (slot == SLOT_AFTERNOON) "Afternoon Summary" else "Daily Summary"
+
     /** What the summary reports; a category the user switched off is 0. */
     data class Counts(val overdue: Int, val dueToday: Int, val dueTomorrow: Int) {
         val total: Int get() = overdue + dueToday + dueTomorrow

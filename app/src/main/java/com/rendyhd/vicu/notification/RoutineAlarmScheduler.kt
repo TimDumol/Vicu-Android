@@ -8,19 +8,10 @@ import android.os.Build
 import android.util.Log
 import androidx.core.content.edit
 import com.rendyhd.vicu.data.local.RoutinePrefsStore
-import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.repository.RoutineRepository
-import com.rendyhd.vicu.util.RoutineScheduleEngine
+import com.rendyhd.vicu.util.RoutineAlarmPlanner
 import com.rendyhd.vicu.util.TimeSource
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atTime
-import kotlinx.datetime.plus
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.toInstant
 
 class RoutineAlarmScheduler(
     private val context: Context,
@@ -30,7 +21,7 @@ class RoutineAlarmScheduler(
 ) {
     companion object {
         private const val TAG = "RoutineAlarmScheduler"
-        private const val HORIZON_DAYS = 45
+        private const val HORIZON_DAYS = RoutineAlarmPlanner.ANDROID_HORIZON_DAYS
         private const val PREFS = "routine_alarm_ids"
         private const val KEY_IDS = "request_codes"
     }
@@ -42,33 +33,11 @@ class RoutineAlarmScheduler(
         // Paused from the Routines screen, or routines turned off in Settings.
         if (!prefsStore.remindersEnabled.first() || !prefsStore.enabled.first()) return
 
-        val timeZone = time.zone()
-        val nowInstant = time.now()
-        val today = nowInstant.toLocalDateTime(timeZone).date
-        val now = nowInstant.toEpochMilliseconds()
         val requestCodes = mutableSetOf<String>()
         val routines = repository.observeActive().first()
-
-        routines.forEach { routine ->
-            for (offset in 0..HORIZON_DAYS) {
-                val date = today.plus(offset, DateTimeUnit.DAY)
-                RoutineScheduleEngine.occurrencesForDate(routine, date, timeZone, today)
-                    .filter { it.status == OccurrenceStatus.PENDING && it.slot.reminderEnabled }
-                    .forEach { occurrence ->
-                        val hour = (occurrence.slot.reminderMinutes / 60).coerceIn(0, 23)
-                        val minute = (occurrence.slot.reminderMinutes % 60).coerceIn(0, 59)
-                        val trigger = LocalDateTime(date, LocalTime(hour, minute)).toInstant(timeZone).toEpochMilliseconds()
-                        if (trigger > now) {
-                            schedule(occurrence.key, routine.definition.name, occurrence.scheduledDate, occurrence.slot.id, trigger, false)
-                            requestCodes += requestCode(occurrence.key, false).toString()
-                            if (occurrence.slot.followUpMinutes > 0) {
-                                val followUp = trigger + occurrence.slot.followUpMinutes * 60_000L
-                                schedule(occurrence.key, routine.definition.name, occurrence.scheduledDate, occurrence.slot.id, followUp, true)
-                                requestCodes += requestCode(occurrence.key, true).toString()
-                            }
-                        }
-                    }
-            }
+        RoutineAlarmPlanner.plan(routines, time.now(), time.zone(), HORIZON_DAYS).forEach { alarm ->
+            schedule(alarm.occurrenceKey, alarm.title, alarm.date, alarm.slotId, alarm.triggerAt.toEpochMilliseconds(), alarm.followUp)
+            requestCodes += requestCode(alarm.occurrenceKey, alarm.followUp).toString()
         }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putStringSet(KEY_IDS, requestCodes) }
         Log.d(TAG, "Scheduled ${requestCodes.size} routine alarms")

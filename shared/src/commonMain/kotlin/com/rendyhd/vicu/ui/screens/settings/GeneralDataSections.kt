@@ -33,6 +33,7 @@ internal fun LazyListScope.dataSyncSection(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     openDialog: (SettingsDialog) -> Unit,
+    backgroundActivity: Boolean = false,
 ) {
     item(key = "data_header") {
         SectionHeader(icon = Icons.Outlined.Sync, title = "Data & Sync")
@@ -121,6 +122,35 @@ internal fun LazyListScope.dataSyncSection(
                 )
                 Text(
                     text = "Delete local data and fetch everything from the server",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+
+    if (backgroundActivity) item(key = "background_activity") {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = { openDialog(SettingsDialog.BackgroundActivity) })
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "Background activity",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = "When the app last synced while it was closed",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

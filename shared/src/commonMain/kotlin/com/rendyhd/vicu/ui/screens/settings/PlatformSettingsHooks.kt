@@ -8,4 +8,12 @@ interface PlatformSettingsHooks {
     fun sendTestNotification(): String?
     fun requestQuickAddTile(onResult: (String) -> Unit)
     fun triggerImmediateSync()
+
+    /**
+     * A record of the work the platform ran in the background (iOS decides when its background
+     * refresh runs), shown in Settings when there is one.
+     */
+    val hasBackgroundActivityLog: Boolean get() = false
+
+    suspend fun readBackgroundActivityLog(): String = ""
 }

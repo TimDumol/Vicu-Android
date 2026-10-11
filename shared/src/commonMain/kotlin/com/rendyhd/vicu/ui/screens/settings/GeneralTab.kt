@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import org.koin.compose.koinInject
 import androidx.compose.ui.Modifier
 
 /**
@@ -20,6 +21,8 @@ internal fun GeneralTab(
     onPickCompletionSound: () -> Unit,
     listState: LazyListState,
 ) {
+    // Only iOS keeps a record of its background runs.
+    val backgroundActivity = koinInject<PlatformSettingsHooks>().hasBackgroundActivityLog
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
@@ -32,7 +35,7 @@ internal fun GeneralTab(
         logbookSection(state, viewModel, openDialog)
         inputParsingSection(state, viewModel)
         behaviorSection(state, viewModel, onPickCompletionSound)
-        dataSyncSection(state, viewModel, openDialog)
+        dataSyncSection(state, viewModel, openDialog, backgroundActivity)
         signOutSection(openDialog)
     }
 }

@@ -5,8 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
-import com.rendyhd.vicu.domain.repository.TaskRepository
-import com.rendyhd.vicu.widget.WidgetUpdateScheduler
+import com.rendyhd.vicu.util.NotificationActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,8 +20,7 @@ class NotificationActionReceiver : BroadcastReceiver(), KoinComponent {
         const val ACTION_SNOOZE = "com.rendyhd.vicu.ACTION_SNOOZE"
     }
 
-    private val alarmScheduler: AlarmScheduler by inject()
-    private val taskRepository: TaskRepository by inject()
+    private val actions: NotificationActions by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val taskId = intent.getLongExtra(AlarmReceiver.EXTRA_TASK_ID, 0L)
@@ -32,25 +30,19 @@ class NotificationActionReceiver : BroadcastReceiver(), KoinComponent {
         NotificationManagerCompat.from(context).cancel(taskId.toInt())
 
         when (intent.action) {
-            ACTION_COMPLETE -> handleComplete(context, taskId)
-            ACTION_SNOOZE -> handleSnooze(context, taskId, intent)
+            ACTION_COMPLETE -> handleComplete(taskId)
+            ACTION_SNOOZE -> handleSnooze(taskId, intent)
         }
     }
 
-    private fun handleComplete(context: Context, taskId: Long) {
+    private fun handleComplete(taskId: Long) {
         Log.d(TAG, "Completing task $taskId")
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Explicit completion, never a toggle: if sync already stored the task as done
-                // (completed on another device) this must leave it done, not reopen it. It is
-                // stored and queued here, not sent: a receiver may be stopped at any moment, and a
-                // completion still in flight then would be recorded nowhere. The queued change
-                // triggers a sync, which WorkManager runs even if this process is gone.
-                taskRepository.setDoneInBackground(taskId, true)
-
-                alarmScheduler.cancelForTask(taskId)
-                WidgetUpdateScheduler.enqueueImmediateUpdateAll(context)
+                // Stored and queued, not sent (see NotificationActions.completeTask): the queued
+                // change triggers a sync, which WorkManager runs even if this process is gone.
+                actions.completeTask(taskId)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to complete task $taskId", e)
             } finally {
@@ -59,13 +51,13 @@ class NotificationActionReceiver : BroadcastReceiver(), KoinComponent {
         }
     }
 
-    private fun handleSnooze(context: Context, taskId: Long, intent: Intent) {
+    private fun handleSnooze(taskId: Long, intent: Intent) {
         val taskTitle = intent.getStringExtra(AlarmReceiver.EXTRA_TASK_TITLE) ?: "Task Reminder"
         Log.d(TAG, "Snoozing task $taskId for 15 minutes")
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                alarmScheduler.snooze(taskId, taskTitle)
+                actions.snoozeTask(taskId, taskTitle)
             } finally {
                 pendingResult.finish()
             }

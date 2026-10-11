@@ -5,7 +5,6 @@ import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationOpenNotificationSettingsURLString
 import platform.UserNotifications.UNAuthorizationOptionAlert
-import platform.UserNotifications.UNAuthorizationOptionBadge
 import platform.UserNotifications.UNAuthorizationOptionSound
 import platform.UserNotifications.UNAuthorizationStatus
 import platform.UserNotifications.UNAuthorizationStatusAuthorized
@@ -40,7 +39,7 @@ class IosNotificationPermissionPlatform : NotificationPermissionPlatform {
             return true
         }
         UNUserNotificationCenter.currentNotificationCenter().requestAuthorizationWithOptions(
-            UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge,
+            UNAuthorizationOptionAlert or UNAuthorizationOptionSound,
         ) { _, _ -> refresh() }
         return true
     }

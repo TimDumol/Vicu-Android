@@ -14,8 +14,11 @@ import org.koin.mp.KoinPlatform
 import platform.UIKit.UIUserInterfaceStyle
 import platform.UIKit.UIViewController
 
-/** The Compose UI of the app, shown by the Swift app's window. */
-fun MainViewController(): UIViewController = ComposeUIViewController {
+/**
+ * The Compose UI of the app, shown by the Swift app's window. [restoredUiState] is what the scene
+ * kept from [com.rendyhd.vicu.ios.IosApp.saveUiState] the last time (empty for a fresh start).
+ */
+fun MainViewController(restoredUiState: String): UIViewController = ComposeUIViewController {
     val koin = remember { KoinPlatform.getKoin() }
     val authManager = remember { koin.get<AuthManager>() }
     val themePrefs = remember { koin.get<ThemePrefsStore>() }
@@ -33,7 +36,7 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
     }
 
     VicuTheme(themeMode = themeMode, dynamicColor = false) {
-        RestorableUiState {
+        RestorableUiState(restoredUiState) {
             VicuApp(
                 authManager = authManager,
                 initialTaskId = inputs.initialTaskId,

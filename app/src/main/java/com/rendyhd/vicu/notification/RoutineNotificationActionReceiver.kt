@@ -5,8 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
-import com.rendyhd.vicu.domain.repository.RoutineRepository
-import com.rendyhd.vicu.widget.RoutineWidget
+import com.rendyhd.vicu.util.NotificationActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,8 +18,7 @@ class RoutineNotificationActionReceiver : BroadcastReceiver(), KoinComponent {
         const val ACTION_SKIP = "com.rendyhd.vicu.routine.SKIP"
     }
 
-    private val repository: RoutineRepository by inject()
-    private val scheduler: RoutineAlarmScheduler by inject()
+    private val actions: NotificationActions by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val routineId = intent.getStringExtra(RoutineAlarmReceiver.EXTRA_ROUTINE_ID) ?: return
@@ -31,9 +29,8 @@ class RoutineNotificationActionReceiver : BroadcastReceiver(), KoinComponent {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val status = if (intent.action == ACTION_SKIP) OccurrenceStatus.SKIPPED else OccurrenceStatus.COMPLETED
-                repository.setOccurrenceStatus(routineId, date, slotId, status)
-                scheduler.rescheduleAll()
-                RoutineWidget().updateAllWidgets(context)
+                // Reschedules the routine alarms and updates the widgets (routinesChanged).
+                actions.setRoutineStatus(routineId, date, slotId, status)
                 NotificationManagerCompat.from(context).cancel("routine:$key".hashCode())
             } finally {
                 pending.finish()

@@ -43,6 +43,7 @@ internal sealed interface SettingsDialog {
     data object ClearCache : SettingsDialog
     data object ClearFailedActions : SettingsDialog
     data object AuthDebugLog : SettingsDialog
+    data object BackgroundActivity : SettingsDialog
     data object InboxPicker : SettingsDialog
     data class BottomBarSlot(val index: Int) : SettingsDialog
 }
@@ -70,6 +71,7 @@ internal fun SettingsDialog.encode(): String = when (this) {
     SettingsDialog.ClearCache -> "clear_cache"
     SettingsDialog.ClearFailedActions -> "clear_failed"
     SettingsDialog.AuthDebugLog -> "auth_log"
+    SettingsDialog.BackgroundActivity -> "background_activity"
     SettingsDialog.InboxPicker -> "inbox_picker"
     is SettingsDialog.BottomBarSlot -> withArg("bottom_bar_slot", index.toString())
 }
@@ -104,6 +106,7 @@ internal fun decodeSettingsDialog(encoded: String): SettingsDialog? {
         "clear_cache" -> SettingsDialog.ClearCache
         "clear_failed" -> SettingsDialog.ClearFailedActions
         "auth_log" -> SettingsDialog.AuthDebugLog
+        "background_activity" -> SettingsDialog.BackgroundActivity
         "inbox_picker" -> SettingsDialog.InboxPicker
         "bottom_bar_slot" -> arg?.toIntOrNull()?.let { SettingsDialog.BottomBarSlot(it) }
         else -> null

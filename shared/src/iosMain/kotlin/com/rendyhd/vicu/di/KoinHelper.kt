@@ -13,7 +13,10 @@ import com.rendyhd.vicu.data.remote.BaseUrlHolder
 import com.rendyhd.vicu.data.remote.VikunjaImageInterceptor
 import com.rendyhd.vicu.data.repository.IosRepositoryHooks
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
+import com.rendyhd.vicu.ios.BackgroundActivityLog
 import com.rendyhd.vicu.ios.IosAppLifecycle
+import com.rendyhd.vicu.ios.IosBackgroundTasks
+import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
 import com.rendyhd.vicu.permission.NotificationPermissionPlatform
 import com.rendyhd.vicu.ui.AppInputs
@@ -25,6 +28,7 @@ import com.rendyhd.vicu.util.IosPaths
 import com.rendyhd.vicu.util.IosPlatformFiles
 import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.util.PlatformFiles
+import com.rendyhd.vicu.util.TaskReminderNotifications
 import com.rendyhd.vicu.worker.SyncEngine
 import com.rendyhd.vicu.worker.SyncRequester
 import io.ktor.client.HttpClient
@@ -51,7 +55,7 @@ val iosModule = module {
     single { PlatformContext() }
     single<HttpClientEngine> { darwinEngine() }
     single<TokenStorage> { IosKeychainTokenStorage() }
-    single<PlatformAuthHooks> { IosAuthHooks() }
+    single<PlatformAuthHooks> { IosAuthHooks(backgroundTasks = { get() }) }
     single<PlatformFiles> { IosPlatformFiles() }
     single<NetworkMonitor> { IosNetworkMonitor() }
     single { AppInputs() }
@@ -65,10 +69,48 @@ val iosModule = module {
             },
         )
     }
-    single<PlatformSettingsHooks> { IosSettingsHooks(syncRequester = { get() }) }
+    single<PlatformSettingsHooks> {
+        IosSettingsHooks(syncRequester = { get() }, notifications = { get() }, permission = get(), backgroundLog = get())
+    }
     single { IosCompletionSoundPlayer(get()) }
     single<PlatformRepositoryHooks> {
-        IosRepositoryHooks(syncRequester = { get() }, soundPlayer = get(), appScope = get())
+        IosRepositoryHooks(
+            syncRequester = { get() },
+            soundPlayer = get(),
+            notifications = { get() },
+            backgroundTasks = { get() },
+            appScope = get(),
+        )
+    }
+    single {
+        IosNotificationScheduler(
+            taskDao = get(),
+            taskMapper = get(),
+            snoozeStore = get(),
+            routineRepository = get(),
+            routinePrefs = get(),
+            notificationPrefs = get(),
+            summaryReader = get(),
+            authManager = get(),
+            time = get(),
+            appScope = get(),
+        )
+    }
+    single<TaskReminderNotifications> { get<IosNotificationScheduler>() }
+    single { BackgroundActivityLog(get()) }
+    single {
+        IosBackgroundTasks(
+            tokenRefreshRun = get(),
+            syncEngine = get(),
+            notifications = get(),
+            repositoryHooks = { get() },
+            authManager = get(),
+            baseUrlHolder = get(),
+            pendingActionDao = get(),
+            activityLog = get(),
+            time = get(),
+            appScope = get(),
+        )
     }
     single { IosNotificationPermissionPlatform() }
     single<NotificationPermissionPlatform> { get<IosNotificationPermissionPlatform>() }
@@ -81,6 +123,8 @@ val iosModule = module {
             networkMonitor = get(),
             dayClock = get(),
             notificationPermission = get(),
+            notifications = get(),
+            backgroundTasks = get(),
             appScope = get(),
         )
     }

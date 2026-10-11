@@ -73,7 +73,7 @@ class DailySummaryWorker(
     private suspend fun postSummary(slot: String) {
         val isAfternoon = slot == SLOT_AFTERNOON
         val notificationId = if (isAfternoon) NOTIFICATION_ID_AFTERNOON else NOTIFICATION_ID
-        val heading = if (isAfternoon) "Afternoon Summary" else "Daily Summary"
+        val heading = DailySummary.heading(slot)
 
         // The day is re-read first: this may run long after the clock last ticked.
         dayClock.refresh()
@@ -102,17 +102,7 @@ class DailySummaryWorker(
         )
 
         val style = NotificationCompat.InboxStyle().setBigContentTitle(heading)
-        content.dueTodayTitles.forEach { style.addLine(it) }
-        val remaining = counts.dueToday - content.dueTodayTitles.size
-        if (remaining > 0) {
-            style.addLine("+$remaining more today")
-        }
-        if (counts.overdue > 0) {
-            style.addLine("${counts.overdue} overdue tasks need attention")
-        }
-        if (counts.dueTomorrow > 0) {
-            style.addLine("${counts.dueTomorrow} due tomorrow")
-        }
+        content.lines().forEach { style.addLine(it) }
 
         val notification = NotificationCompat.Builder(
             applicationContext,

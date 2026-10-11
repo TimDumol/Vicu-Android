@@ -25,6 +25,7 @@ import com.rendyhd.vicu.util.BuildInfo
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.NetworkMonitor
+import com.rendyhd.vicu.util.NotificationActions
 import com.rendyhd.vicu.data.sync.CarrierFinder
 import com.rendyhd.vicu.data.sync.LabelRefresher
 import com.rendyhd.vicu.data.sync.ProjectRefresher
@@ -211,6 +212,8 @@ val repositoryModule = module {
 
 val commonModule = module {
     single { DailySummaryReader(get()) }
+    single { NotificationActions(taskRepository = get(), routineRepository = get(), reminders = get(), hooks = get()) }
+    single { TokenRefreshRun(authManager = get(), tokenStorage = get(), baseUrlHolder = get()) }
     single {
         ProjectTaskCounts(
             api = get(),

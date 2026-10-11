@@ -330,6 +330,7 @@ internal fun SettingsDialogHost(
         )
 
         SettingsDialog.AuthDebugLog -> AuthDebugLogDialog(onDismiss = dismiss)
+        SettingsDialog.BackgroundActivity -> BackgroundActivityDialog(onDismiss = dismiss)
     }
 }
 

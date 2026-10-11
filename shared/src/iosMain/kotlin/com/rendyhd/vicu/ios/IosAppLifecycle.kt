@@ -5,6 +5,7 @@ import com.rendyhd.vicu.auth.AuthState
 import com.rendyhd.vicu.auth.AuthTransitionAction
 import com.rendyhd.vicu.auth.AuthTransitions
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
+import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.Logger
@@ -13,11 +14,8 @@ import com.rendyhd.vicu.util.reconnections
 import com.rendyhd.vicu.worker.SyncEngine
 import com.rendyhd.vicu.worker.SyncRequester
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-import platform.UIKit.UIApplication
-import platform.UIKit.UIBackgroundTaskIdentifier
-import platform.UIKit.UIBackgroundTaskInvalid
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -33,26 +31,41 @@ class IosAppLifecycle(
     private val networkMonitor: NetworkMonitor,
     private val dayClock: DayClock,
     private val notificationPermission: IosNotificationPermissionPlatform,
+    private val notifications: IosNotificationScheduler,
+    private val backgroundTasks: IosBackgroundTasks,
     private val appScope: CoroutineScope,
 ) {
     private val signedIn: Boolean get() = authManager.authState.value == AuthState.Authenticated
 
     fun start() {
         notificationPermission.refresh()
+        notifications.start()
         appScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
             if (!storedUrl.isNullOrBlank()) baseUrlHolder.baseUrl = storedUrl
             authManager.initialize()
             if (signedIn) syncRequester.request()
+            // From the data on the device, before the sync: an app started for a notification
+            // action or a background task plans at once.
+            if (!storedUrl.isNullOrBlank()) {
+                notifications.requestReplan()
+                backgroundTasks.scheduleRefresh()
+            }
         }
+        // The summaries are planned per day, so a new day (or a change of zone) plans again.
+        appScope.launch { dayClock.day.drop(1).collect { notifications.requestReplan() } }
         appScope.launch {
             val rules = AuthTransitions()
             authManager.authState.collect { state ->
                 for (action in rules.on(state)) {
                     when (action) {
                         AuthTransitionAction.SYNC_NOW -> syncRequester.request()
-                        AuthTransitionAction.ENSURE_SUMMARIES,
-                        AuthTransitionAction.RESCHEDULE_ACCOUNT_WORK -> Unit
+                        // The summaries are part of the planned notifications.
+                        AuthTransitionAction.ENSURE_SUMMARIES -> notifications.requestReplan()
+                        AuthTransitionAction.RESCHEDULE_ACCOUNT_WORK -> {
+                            notifications.requestReplan()
+                            backgroundTasks.scheduleRefresh()
+                        }
                     }
                 }
             }
@@ -70,27 +83,19 @@ class IosAppLifecycle(
         dayClock.refresh()
         notificationPermission.refresh()
         if (signedIn) syncRequester.request()
+        // Also after the permission prompt: requests added before it was answered are refused.
+        notifications.requestReplan()
     }
 
     /** The app went to the background: send what is queued while iOS still lets it run. */
     fun onBackground() {
         if (!signedIn) return
-        val app = UIApplication.sharedApplication
-        var task: UIBackgroundTaskIdentifier = UIBackgroundTaskInvalid
-        val job = appScope.launch {
-            try {
-                withTimeoutOrNull(BACKGROUND_SYNC_TIMEOUT) { syncEngine.performSync() }
-            } catch (e: Exception) {
-                Logger.w(TAG, "Background sync failed: ${e.message}")
-            } finally {
-                if (task != UIBackgroundTaskInvalid) app.endBackgroundTask(task)
-                task = UIBackgroundTaskInvalid
-            }
-        }
-        task = app.beginBackgroundTaskWithName("Vicu sync") {
-            job.cancel()
-            if (task != UIBackgroundTaskInvalid) app.endBackgroundTask(task)
-            task = UIBackgroundTaskInvalid
+        backgroundTasks.scheduleRefresh()
+        appScope.launchInBackgroundTask("Vicu sync", BACKGROUND_SYNC_TIMEOUT) {
+            syncEngine.performSync()
+            notifications.replan()
+            // What could not be sent goes out with the next connection, even if the app stays closed.
+            backgroundTasks.scheduleQueueSyncIfNeeded()
         }
     }
 

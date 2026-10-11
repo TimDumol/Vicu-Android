@@ -29,7 +29,7 @@ class RefreshCookieExtractorTest {
     }
 
     @Test
-    fun `an empty refresh cookie (a sign-out) is no token`() {
+    fun `an empty refresh cookie as sent on sign-out is no token`() {
         assertNull(RefreshCookieExtractor.extractRefreshToken(listOf("vikunja_refresh_token=; Max-Age=0")))
     }
 }

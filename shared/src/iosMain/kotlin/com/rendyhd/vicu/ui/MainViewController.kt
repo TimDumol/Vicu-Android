@@ -33,20 +33,22 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
     }
 
     VicuTheme(themeMode = themeMode, dynamicColor = false) {
-        VicuApp(
-            authManager = authManager,
-            initialTaskId = inputs.initialTaskId,
-            onInitialTaskConsumed = { inputs.initialTaskId.value = null },
-            showTaskEntry = inputs.showTaskEntry,
-            showTaskEntryProjectId = inputs.showTaskEntryProjectId,
-            onShowTaskEntryConsumed = {
-                inputs.showTaskEntry.value = false
-                inputs.showTaskEntryProjectId.value = null
-            },
-            navigateToView = inputs.navigateToView,
-            onNavigateToViewConsumed = { inputs.navigateToView.value = null },
-            sharedContent = inputs.sharedContent,
-            onSharedContentConsumed = { inputs.sharedContent.value = null },
-        )
+        RestorableUiState {
+            VicuApp(
+                authManager = authManager,
+                initialTaskId = inputs.initialTaskId,
+                onInitialTaskConsumed = { inputs.initialTaskId.value = null },
+                showTaskEntry = inputs.showTaskEntry,
+                showTaskEntryProjectId = inputs.showTaskEntryProjectId,
+                onShowTaskEntryConsumed = {
+                    inputs.showTaskEntry.value = false
+                    inputs.showTaskEntryProjectId.value = null
+                },
+                navigateToView = inputs.navigateToView,
+                onNavigateToViewConsumed = { inputs.navigateToView.value = null },
+                sharedContent = inputs.sharedContent,
+                onSharedContentConsumed = { inputs.sharedContent.value = null },
+            )
+        }
     }
 }

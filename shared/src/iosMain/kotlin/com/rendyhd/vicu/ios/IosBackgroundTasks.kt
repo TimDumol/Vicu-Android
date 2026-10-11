@@ -5,10 +5,11 @@ import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.auth.TokenRefreshRun
 import com.rendyhd.vicu.data.local.dao.PendingActionDao
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
-import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.notification.IosNotificationScheduler
+import com.rendyhd.vicu.share.IosShareInbox
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.TimeSource
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import com.rendyhd.vicu.worker.PeriodicSyncRunner
 import com.rendyhd.vicu.worker.SyncEngine
 import kotlinx.cinterop.ObjCObjectVar
@@ -46,7 +47,8 @@ class IosBackgroundTasks(
     private val tokenRefreshRun: TokenRefreshRun,
     private val syncEngine: SyncEngine,
     private val notifications: IosNotificationScheduler,
-    private val repositoryHooks: () -> PlatformRepositoryHooks,
+    private val widgets: IosWidgetSnapshots,
+    private val shareInbox: IosShareInbox,
     private val authManager: AuthManager,
     private val baseUrlHolder: BaseUrlHolder,
     private val pendingActionDao: PendingActionDao,
@@ -90,11 +92,14 @@ class IosBackgroundTasks(
         scheduleRefresh()
         run(task, "refresh") {
             val token = tokenRefreshRun.run("iOS background refresh")
+            // What was shared to Vicu and what the widget buttons did go out with this sync.
+            shareInbox.import()
+            widgets.drainActions()
             val outcome = PeriodicSyncRunner(
                 isSignedIn = ::isSignedIn,
                 sync = syncEngine::performSync,
                 rescheduleAlarms = notifications::replan,
-                updateWidgets = { repositoryHooks().updateWidgets() },
+                updateWidgets = widgets::write,
             ).run()
             "session ${token.name.lowercase()}, ${outcome.name.lowercase()}"
         }
@@ -105,6 +110,7 @@ class IosBackgroundTasks(
             if (!isSignedIn()) return@run "skipped"
             val synced = syncEngine.performSync()
             notifications.replan()
+            widgets.write()
             if (!synced) scheduleQueueSyncIfNeeded()
             if (synced) "synced" else "incomplete"
         }

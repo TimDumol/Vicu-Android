@@ -7,10 +7,12 @@ import com.rendyhd.vicu.auth.AuthTransitions
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
+import com.rendyhd.vicu.share.IosShareInbox
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.util.reconnections
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import com.rendyhd.vicu.worker.SyncEngine
 import com.rendyhd.vicu.worker.SyncRequester
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,8 @@ class IosAppLifecycle(
     private val notificationPermission: IosNotificationPermissionPlatform,
     private val notifications: IosNotificationScheduler,
     private val backgroundTasks: IosBackgroundTasks,
+    private val widgets: IosWidgetSnapshots,
+    private val shareInbox: IosShareInbox,
     private val appScope: CoroutineScope,
 ) {
     private val signedIn: Boolean get() = authManager.authState.value == AuthState.Authenticated
@@ -40,20 +44,31 @@ class IosAppLifecycle(
     fun start() {
         notificationPermission.refresh()
         notifications.start()
+        widgets.start()
         appScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
             if (!storedUrl.isNullOrBlank()) baseUrlHolder.baseUrl = storedUrl
             authManager.initialize()
-            if (signedIn) syncRequester.request()
+            if (signedIn) {
+                shareInbox.import()
+                syncRequester.request()
+            }
             // From the data on the device, before the sync: an app started for a notification
             // action or a background task plans at once.
             if (!storedUrl.isNullOrBlank()) {
                 notifications.requestReplan()
                 backgroundTasks.scheduleRefresh()
             }
+            // Also takes in what the widget buttons did while the app was not running.
+            widgets.requestWrite()
         }
-        // The summaries are planned per day, so a new day (or a change of zone) plans again.
-        appScope.launch { dayClock.day.drop(1).collect { notifications.requestReplan() } }
+        // The summaries and the widgets' days are per local day: a new day (or zone) plans again.
+        appScope.launch {
+            dayClock.day.drop(1).collect {
+                notifications.requestReplan()
+                widgets.requestWrite()
+            }
+        }
         appScope.launch {
             val rules = AuthTransitions()
             authManager.authState.collect { state ->
@@ -73,7 +88,11 @@ class IosAppLifecycle(
         // A sync that failed offline waits out its backoff; start it as soon as the network is back.
         appScope.launch {
             networkMonitor.isOnline.reconnections().collect {
-                if (!authManager.getVikunjaUrl().isNullOrBlank()) syncRequester.request()
+                if (!authManager.getVikunjaUrl().isNullOrBlank()) {
+                    // Shares with files wait for a connection.
+                    shareInbox.import()
+                    syncRequester.request()
+                }
             }
         }
     }
@@ -82,9 +101,15 @@ class IosAppLifecycle(
     fun onActive() {
         dayClock.refresh()
         notificationPermission.refresh()
-        if (signedIn) syncRequester.request()
+        if (signedIn) {
+            syncRequester.request()
+            // Something shared to Vicu from another app while it was away.
+            appScope.launch { shareInbox.import() }
+        }
         // Also after the permission prompt: requests added before it was answered are refused.
         notifications.requestReplan()
+        // A widget button tapped while the app was in the background.
+        widgets.requestWrite()
     }
 
     /** The app went to the background: send what is queued while iOS still lets it run. */
@@ -94,6 +119,7 @@ class IosAppLifecycle(
         appScope.launchInBackgroundTask("Vicu sync", BACKGROUND_SYNC_TIMEOUT) {
             syncEngine.performSync()
             notifications.replan()
+            widgets.write()
             // What could not be sent goes out with the next connection, even if the app stays closed.
             backgroundTasks.scheduleQueueSyncIfNeeded()
         }

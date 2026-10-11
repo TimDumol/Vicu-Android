@@ -49,6 +49,17 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Vicu connects to your Vikunja server, which may be on your local network.</string>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconType</key>
+			<string>UIApplicationShortcutIconTypeAdd</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Add task</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.rendyhd.vicu.add</string>
+		</dict>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

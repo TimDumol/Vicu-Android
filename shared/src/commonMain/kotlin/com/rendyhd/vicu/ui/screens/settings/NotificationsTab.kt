@@ -112,6 +112,24 @@ internal fun NotificationsTab(
             item(key = "notif_divider_quick_settings") {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
+        } else if (state.quickAddHint != null) {
+            item(key = "notif_quick_add_hint") {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "Quick add",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = state.quickAddHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            item(key = "notif_divider_quick_settings") {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            }
         }
 
         item(key = "notif_task_reminders") {

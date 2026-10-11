@@ -3,6 +3,7 @@ package com.rendyhd.vicu.ui.screens.settings
 import com.rendyhd.vicu.ios.BackgroundActivityLog
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.NotificationPermissionPlatform
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import com.rendyhd.vicu.worker.SyncRequester
 
 /** The iOS side of Settings. */
@@ -11,11 +12,17 @@ class IosSettingsHooks(
     private val notifications: () -> IosNotificationScheduler,
     private val permission: NotificationPermissionPlatform,
     private val backgroundLog: BackgroundActivityLog,
+    private val widgets: () -> IosWidgetSnapshots,
 ) : PlatformSettingsHooks {
     // The Control Center control takes the tile's place on iOS.
     override val supportsQuickAddTile: Boolean = false
 
+    override val quickAddHint: String =
+        "Add a task from Control Center, the Lock Screen or the Action Button: open Control Center, " +
+            "tap +, then Add a Control, and search for Vicu. You can also ask Siri to \"Add a task in Vicu\"."
+
     override fun updateWidgets() {
+        widgets().requestWrite()
         notifications().requestReplan()
     }
 

@@ -12,13 +12,13 @@ import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
 
 // The "j" template expands to the locale's preferred hour format; a 12-hour one has an AM/PM marker.
-private fun is24Hour(): Boolean =
+internal fun deviceUses24Hour(): Boolean =
     NSDateFormatter.dateFormatFromTemplate("j", 0u, NSLocale.currentLocale)?.contains("a") != true
 
 @Composable
 actual fun rememberIs24HourFormat(): Boolean {
-    var value by remember { mutableStateOf(is24Hour()) }
+    var value by remember { mutableStateOf(deviceUses24Hour()) }
     // The setting is changed in the Settings app, so look again when the user comes back.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { value = is24Hour() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { value = deviceUses24Hour() }
     return value
 }

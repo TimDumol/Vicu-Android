@@ -10,6 +10,8 @@ import com.rendyhd.vicu.notification.IosNotificationDelegate
 import com.rendyhd.vicu.ui.UiStateStore
 import com.rendyhd.vicu.ui.navigation.AppLink
 import com.rendyhd.vicu.util.BuildInfo
+import com.rendyhd.vicu.widget.AppleWidgetBridge
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import org.koin.core.context.startKoin
 import org.koin.mp.KoinPlatform
 import kotlin.experimental.ExperimentalNativeApi
@@ -25,8 +27,9 @@ object IosApp {
     // declare a subclass of an Objective-C class.
     private var notificationDelegate: IosNotificationDelegate? = null
 
+    /** [widgetBridge] reloads the widgets through WidgetKit, which only Swift can call. */
     @OptIn(ExperimentalNativeApi::class)
-    fun start() {
+    fun start(widgetBridge: AppleWidgetBridge?) {
         if (started) return
         started = true
         // Before anything logs or builds the HTTP client: release builds log no requests.
@@ -44,6 +47,7 @@ object IosApp {
             appScope = koin.get(),
         ).also { it.install() }
         koin.get<IosBackgroundTasks>().register()
+        koin.get<IosWidgetSnapshots>().bridge = widgetBridge
         lifecycle().start()
     }
 
@@ -59,6 +63,11 @@ object IosApp {
         val link = AppLink.parse(url) ?: return false
         KoinPlatform.getKoin().get<AppInputs>().open(link)
         return true
+    }
+
+    /** Opens the task entry (the Control Center control, the Add task shortcut, the quick action). */
+    fun openQuickAdd() {
+        KoinPlatform.getKoin().get<AppInputs>().open(AppLink.AddTask())
     }
 
     private fun lifecycle(): IosAppLifecycle = KoinPlatform.getKoin().get()

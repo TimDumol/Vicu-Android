@@ -17,7 +17,7 @@ class PeriodicSyncRunner(
     /** Syncs with the server; true when everything went through, false when a retry is due. */
     private val sync: suspend () -> Boolean,
     private val rescheduleAlarms: suspend () -> Unit,
-    private val updateWidgets: () -> Unit,
+    private val updateWidgets: suspend () -> Unit,
 ) {
     enum class Outcome { SYNCED, SYNC_INCOMPLETE, SKIPPED }
 

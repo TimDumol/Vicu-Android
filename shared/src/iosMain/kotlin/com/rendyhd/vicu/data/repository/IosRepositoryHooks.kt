@@ -5,6 +5,7 @@ import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.ios.IosBackgroundTasks
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.util.IosCompletionSoundPlayer
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import com.rendyhd.vicu.worker.SyncRequester
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -20,6 +21,7 @@ class IosRepositoryHooks(
     private val soundPlayer: IosCompletionSoundPlayer,
     private val notifications: () -> IosNotificationScheduler,
     private val backgroundTasks: () -> IosBackgroundTasks,
+    private val widgets: () -> IosWidgetSnapshots,
     private val appScope: CoroutineScope,
 ) : PlatformRepositoryHooks {
 
@@ -27,8 +29,9 @@ class IosRepositoryHooks(
         syncRequester().request()
     }
 
-    /** Task data changed: the summaries planned ahead count it. */
+    /** Task data changed: the widgets show it and the summaries planned ahead count it. */
     override fun updateWidgets() {
+        widgets().requestWrite()
         notifications().requestReplan()
     }
 
@@ -61,6 +64,7 @@ class IosRepositoryHooks(
     }
 
     override suspend fun routinesChanged() {
+        widgets().requestWrite()
         notifications().requestReplan()
     }
 }

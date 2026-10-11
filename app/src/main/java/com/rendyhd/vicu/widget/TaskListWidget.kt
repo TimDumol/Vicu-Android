@@ -241,14 +241,15 @@ private fun ScrollableWidget(state: TaskWidgetState) {
     ) {
         WidgetHeader(state)
         Spacer(modifier = GlanceModifier.height(8.dp))
-        if (state.error != null) {
+        val error = state.error
+        if (error != null) {
             Box(
                 modifier = GlanceModifier.fillMaxSize()
                     .clickable(actionStartActivity<MainActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = state.error,
+                    text = error,
                     style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 14.sp),
                 )
             }

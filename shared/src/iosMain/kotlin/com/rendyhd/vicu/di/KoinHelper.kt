@@ -19,6 +19,7 @@ import com.rendyhd.vicu.ios.IosBackgroundTasks
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
 import com.rendyhd.vicu.permission.NotificationPermissionPlatform
+import com.rendyhd.vicu.share.IosShareInbox
 import com.rendyhd.vicu.ui.AppInputs
 import com.rendyhd.vicu.ui.screens.settings.IosSettingsHooks
 import com.rendyhd.vicu.ui.screens.settings.PlatformSettingsHooks
@@ -29,6 +30,7 @@ import com.rendyhd.vicu.util.IosPlatformFiles
 import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.util.PlatformFiles
 import com.rendyhd.vicu.util.TaskReminderNotifications
+import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import com.rendyhd.vicu.worker.SyncEngine
 import com.rendyhd.vicu.worker.SyncRequester
 import io.ktor.client.HttpClient
@@ -55,7 +57,7 @@ val iosModule = module {
     single { PlatformContext() }
     single<HttpClientEngine> { darwinEngine() }
     single<TokenStorage> { IosKeychainTokenStorage() }
-    single<PlatformAuthHooks> { IosAuthHooks(backgroundTasks = { get() }) }
+    single<PlatformAuthHooks> { IosAuthHooks(backgroundTasks = { get() }, widgets = { get() }) }
     single<PlatformFiles> { IosPlatformFiles() }
     single<NetworkMonitor> { IosNetworkMonitor() }
     single { AppInputs() }
@@ -70,7 +72,13 @@ val iosModule = module {
         )
     }
     single<PlatformSettingsHooks> {
-        IosSettingsHooks(syncRequester = { get() }, notifications = { get() }, permission = get(), backgroundLog = get())
+        IosSettingsHooks(
+            syncRequester = { get() },
+            notifications = { get() },
+            permission = get(),
+            backgroundLog = get(),
+            widgets = { get() },
+        )
     }
     single { IosCompletionSoundPlayer(get()) }
     single<PlatformRepositoryHooks> {
@@ -79,7 +87,30 @@ val iosModule = module {
             soundPlayer = get(),
             notifications = { get() },
             backgroundTasks = { get() },
+            widgets = { get() },
             appScope = get(),
+        )
+    }
+    single {
+        IosWidgetSnapshots(
+            states = get(),
+            customListStore = get(),
+            routineRepository = get(),
+            routinePrefs = get(),
+            taskRepository = get(),
+            dayClock = get(),
+            syncRequester = { get() },
+            appScope = get(),
+        )
+    }
+    single {
+        IosShareInbox(
+            taskRepository = get(),
+            attachmentRepository = get(),
+            tokenStorage = get(),
+            networkMonitor = get(),
+            appMessages = get(),
+            syncRequester = { get() },
         )
     }
     single {
@@ -103,7 +134,8 @@ val iosModule = module {
             tokenRefreshRun = get(),
             syncEngine = get(),
             notifications = get(),
-            repositoryHooks = { get() },
+            widgets = get(),
+            shareInbox = get(),
             authManager = get(),
             baseUrlHolder = get(),
             pendingActionDao = get(),
@@ -125,6 +157,8 @@ val iosModule = module {
             notificationPermission = get(),
             notifications = get(),
             backgroundTasks = get(),
+            widgets = get(),
+            shareInbox = get(),
             appScope = get(),
         )
     }

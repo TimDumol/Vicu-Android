@@ -2,6 +2,13 @@ package com.rendyhd.vicu.ui.screens.settings
 
 interface PlatformSettingsHooks {
     val supportsQuickAddTile: Boolean
+
+    /**
+     * Where the platform without a quick-add tile offers quick add instead (the iOS Control
+     * Center control), shown in Settings in place of the tile; null shows nothing.
+     */
+    val quickAddHint: String? get() = null
+
     fun updateWidgets()
     fun scheduleSync(enabled: Boolean)
     fun scheduleDailySummary(slot: String, enabled: Boolean, hour: Int, minute: Int)

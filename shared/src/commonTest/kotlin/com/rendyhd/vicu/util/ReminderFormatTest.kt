@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  */
 class ReminderFormatTest {
 
-    private val dateFormat = DateDisplayFormat(java.util.Locale.US, hour12 = true)
+    private val dateFormat = DateDisplayFormat("en-US", hour12 = true)
 
     private fun relative(seconds: Long, to: String) = TaskReminder(relativePeriod = seconds, relativeTo = to)
 

@@ -4,7 +4,6 @@ import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.util.DateDisplayFormat
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -12,7 +11,7 @@ class LogbookGroupsTest {
 
     private val zone = TimeZone.UTC
     private val today = LocalDate(2026, 10, 7)
-    private val gb24 = DateDisplayFormat(Locale.UK, hour12 = false)
+    private val gb24 = DateDisplayFormat("en-GB", hour12 = false)
 
     private fun done(id: Long, at: String) = Task(id = id, title = "t$id", done = true, doneAt = at)
 

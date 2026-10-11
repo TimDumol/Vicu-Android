@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -51,7 +50,7 @@ class DateDisplayFixtureTest {
         else -> error("unknown context $name")
     }
 
-    private fun formatOf(v: Vector) = DateDisplayFormat(Locale.forLanguageTag(v.locale), v.hour12)
+    private fun formatOf(v: Vector) = DateDisplayFormat(v.locale, v.hour12)
 
     @Test
     fun `the fixture has the vectors`() {
@@ -100,8 +99,8 @@ class DateDisplayFixtureTest {
 
 class DateDisplayTest {
 
-    private val us = DateDisplayFormat(Locale.US, hour12 = true)
-    private val gb = DateDisplayFormat(Locale.UK, hour12 = false)
+    private val us = DateDisplayFormat("en-US", hour12 = true)
+    private val gb = DateDisplayFormat("en-GB", hour12 = false)
     private val today = LocalDate(2026, 10, 7)
 
     @Test
@@ -124,7 +123,7 @@ class DateDisplayTest {
     fun `an English locale without a region follows en-US and other regions follow en-GB`() {
         val value = LocalDateTime(2026, 10, 10, 15, 0)
         fun chip(tag: String) =
-            DateDisplay.format(DateContext.CHIP, value, today, false, DateDisplayFormat(Locale.forLanguageTag(tag), true))
+            DateDisplay.format(DateContext.CHIP, value, today, false, DateDisplayFormat(tag, true))
         assertEquals("Sat, Oct 10, 3:00 PM", chip("en"))
         assertEquals("Sat, Oct 10, 3:00 PM", chip("en-CA"))
         assertEquals("Sat 10 Oct, 3:00 pm", chip("en-AU"))
@@ -134,7 +133,7 @@ class DateDisplayTest {
     @Test
     fun `another language keeps the phrase structure with its own names`() {
         val value = LocalDateTime(2026, 10, 10, 15, 0)
-        val de = DateDisplayFormat(Locale.GERMANY, hour12 = false)
+        val de = DateDisplayFormat("de-DE", hour12 = false)
         val text = DateDisplay.format(DateContext.CHIP, value, today, false, de)
         assertTrue(text.endsWith(", 15:00"), text)
         assertTrue("10" in text, text)

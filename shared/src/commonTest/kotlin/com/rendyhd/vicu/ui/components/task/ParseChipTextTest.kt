@@ -32,8 +32,8 @@ class ParseChipTextTest {
         Locale.setDefault(savedLocale)
     }
 
-    private val gb24 = DateDisplayFormat(Locale.UK, hour12 = false)
-    private val us12 = DateDisplayFormat(Locale.US, hour12 = true)
+    private val gb24 = DateDisplayFormat("en-GB", hour12 = false)
+    private val us12 = DateDisplayFormat("en-US", hour12 = true)
 
     @Test
     fun `a time keeps its minutes`() {

@@ -5,25 +5,16 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
-import java.time.DayOfWeek
-import java.time.LocalTime
-import java.time.Month
-import java.time.chrono.IsoChronology
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
-import java.time.format.FormatStyle
-import java.time.format.TextStyle
-import java.util.Locale
 
-/** What the UI needs to phrase a date: the region locale and the clock. */
+/** What the UI needs to phrase a date: the region locale (a language tag such as "en-GB") and the clock. */
 data class DateDisplayFormat(
-    val locale: Locale,
+    val localeTag: String,
     /** True for the 12-hour clock ("3:00 PM"), false for the 24-hour clock ("15:00"). */
     val hour12: Boolean,
 ) {
     companion object {
         /** The device locale with the device's 12/24 hour setting ([is24Hour]). */
-        fun system(is24Hour: Boolean): DateDisplayFormat = DateDisplayFormat(Locale.getDefault(), hour12 = !is24Hour)
+        fun system(is24Hour: Boolean): DateDisplayFormat = DateDisplayFormat(deviceLocaleTag(), hour12 = !is24Hour)
     }
 }
 
@@ -138,25 +129,21 @@ object DateDisplay {
     /** Patterns and names for one locale. */
     private class Phrases(val pattern: Pattern, val names: Names)
 
-    private fun phrasesFor(locale: Locale): Phrases {
-        if (locale.language.equals("en", ignoreCase = true)) {
-            val region = locale.country.uppercase()
+    private fun phrasesFor(localeTag: String): Phrases {
+        if (languageOf(localeTag) == "en") {
+            val region = regionOf(localeTag)
             return if (region.isEmpty() || region in MONTH_FIRST_REGIONS) Phrases(US, US_NAMES) else Phrases(GB, GB_NAMES)
         }
-        val shortPattern = DateTimeFormatterBuilder.getLocalizedDateTimePattern(
-            FormatStyle.SHORT, null, IsoChronology.INSTANCE, locale,
-        )
-        val monthFirst = shortPattern.indexOf('M').let { m -> m >= 0 && m < shortPattern.indexOf('d') }
-        val marker = DateTimeFormatter.ofPattern("a", locale)
+        val symbols = localeDateSymbols(localeTag)
         return Phrases(
-            pattern = if (monthFirst) US else GB,
+            pattern = if (symbols.monthFirst) US else GB,
             names = Names(
-                weekdaysShort = DayOfWeek.entries.map { it.getDisplayName(TextStyle.SHORT, locale) },
-                weekdaysLong = DayOfWeek.entries.map { it.getDisplayName(TextStyle.FULL, locale) },
-                monthsShort = Month.entries.map { it.getDisplayName(TextStyle.SHORT, locale) },
-                monthsLong = Month.entries.map { it.getDisplayName(TextStyle.FULL, locale) },
-                am = marker.format(LocalTime.of(1, 0)),
-                pm = marker.format(LocalTime.of(13, 0)),
+                weekdaysShort = symbols.weekdaysShort,
+                weekdaysLong = symbols.weekdaysLong,
+                monthsShort = symbols.monthsShort,
+                monthsLong = symbols.monthsLong,
+                am = symbols.am,
+                pm = symbols.pm,
             ),
         )
     }
@@ -229,7 +216,7 @@ object DateDisplay {
         dateOnly: Boolean,
         fmt: DateDisplayFormat,
     ): String {
-        val p = phrasesFor(fmt.locale)
+        val p = phrasesFor(fmt.localeTag)
         val diff = today.daysUntil(value.date)
         return when (context) {
             DateContext.ROW -> p.withTime(p.rowDay(diff, value, today), value, dateOnly, fmt)
@@ -286,15 +273,15 @@ object DateDisplay {
 
     /** The short weekday of a day ("Wed"); the hint of a quick choice in the When sheet. */
     fun formatWeekdayShort(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.locale).weekdayShort(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+        phrasesFor(fmt.localeTag).weekdayShort(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
 
     /** The short weekday and day of the month of a day ("Mon 12"). */
     fun formatWeekdayDay(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.locale).weekdayDay(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+        phrasesFor(fmt.localeTag).weekdayDay(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
 
     /** The clock text of a time of day ("3:00 PM", "15:00"). */
     fun formatTime(time: kotlinx.datetime.LocalTime, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.locale).time(LocalDateTime(2000, 1, 1, time.hour, time.minute), fmt.hour12)
+        phrasesFor(fmt.localeTag).time(LocalDateTime(2000, 1, 1, time.hour, time.minute), fmt.hour12)
 
     /** The short date with its year of a stored instant, read in [zone]; empty for no date. */
     fun formatDayMonthYear(isoDate: String?, zone: TimeZone, fmt: DateDisplayFormat): String {
@@ -304,13 +291,13 @@ object DateDisplay {
 
     /** The short date with its year ("Mar 1, 2026", "1 Mar 2026"), for details such as Created. */
     fun formatDayMonthYear(date: LocalDate, fmt: DateDisplayFormat): String {
-        val p = phrasesFor(fmt.locale)
+        val p = phrasesFor(fmt.localeTag)
         return p.dayMonth(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0), true)
     }
 
     /** The year, the short date and the time ("Jan 1, 2030, 9:00 AM", "1 Jan 2030, 09:00"); nothing relative. */
     fun formatAbsolute(value: LocalDateTime, fmt: DateDisplayFormat): String {
-        val p = phrasesFor(fmt.locale)
+        val p = phrasesFor(fmt.localeTag)
         return "${p.dayMonth(value, true)}, ${p.time(value, fmt.hour12)}"
     }
 }

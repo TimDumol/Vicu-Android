@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.util.deviceLocaleTag
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test

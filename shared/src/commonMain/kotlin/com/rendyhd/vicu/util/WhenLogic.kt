@@ -1,7 +1,6 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.util.parser.DateOptions
-import com.rendyhd.vicu.util.parser.deviceLocaleTag
 import com.rendyhd.vicu.util.parser.extractDate
 import com.rendyhd.vicu.util.parser.isDayFirstLocale
 import kotlinx.datetime.DateTimeUnit

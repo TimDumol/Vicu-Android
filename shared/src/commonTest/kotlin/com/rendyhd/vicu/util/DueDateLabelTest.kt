@@ -4,7 +4,6 @@ import com.rendyhd.vicu.util.CrossAppFixture.date
 import com.rendyhd.vicu.util.CrossAppFixture.local
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,8 +17,8 @@ class DueDateLabelTest {
 
     private val zone = TimeZone.of("Europe/Amsterdam")
     private val today = date("2026-10-06") // a Tuesday
-    private val us12 = DateDisplayFormat(Locale.US, hour12 = true)
-    private val us24 = DateDisplayFormat(Locale.US, hour12 = false)
+    private val us12 = DateDisplayFormat("en-US", hour12 = true)
+    private val us24 = DateDisplayFormat("en-US", hour12 = false)
 
     private fun label(local: String, format: DateDisplayFormat = us12) =
         DateDisplay.formatDue(DateContext.ROW, local(local, zone).toString(), today, zone, format)

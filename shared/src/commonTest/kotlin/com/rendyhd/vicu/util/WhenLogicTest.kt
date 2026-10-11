@@ -6,7 +6,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -15,8 +14,8 @@ import kotlin.test.assertNull
 class WhenLogicTest {
 
     private val zones = listOf(TimeZone.of("Pacific/Auckland"), TimeZone.of("America/New_York"))
-    private val us12 = DateDisplayFormat(Locale.US, hour12 = true)
-    private val gb24 = DateDisplayFormat(Locale.UK, hour12 = false)
+    private val us12 = DateDisplayFormat("en-US", hour12 = true)
+    private val gb24 = DateDisplayFormat("en-GB", hour12 = false)
 
     // Thursday, October 8 2026.
     private val thursday = LocalDate(2026, 10, 8)

@@ -68,6 +68,7 @@ kotlin {
             implementation(libs.androidx.navigation.compose)
             implementation(libs.reorderable)
             implementation(libs.coil.compose)
+            implementation(libs.coil.network.core)
         }
 
         androidMain.dependencies {
@@ -78,6 +79,7 @@ kotlin {
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+            implementation(libs.coil.network.ktor3)
         }
 
         // The platform.* bindings (Foundation, UIKit, Security) are marked experimental. Every iOS

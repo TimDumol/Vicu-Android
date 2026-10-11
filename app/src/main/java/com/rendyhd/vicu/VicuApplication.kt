@@ -14,7 +14,7 @@ import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.widget.WidgetUpdateScheduler
 import com.rendyhd.vicu.worker.RoutineMaintenanceScheduler
 import com.rendyhd.vicu.worker.SyncScheduler
-import com.rendyhd.vicu.worker.reconnections
+import com.rendyhd.vicu.util.reconnections
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext

@@ -1,23 +1,52 @@
 package com.rendyhd.vicu.ui
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.uikit.LocalUIViewController
 import androidx.compose.ui.window.ComposeUIViewController
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.ThemeMode
 import com.rendyhd.vicu.data.local.ThemePrefsStore
-import com.rendyhd.vicu.ui.VicuApp
 import com.rendyhd.vicu.ui.theme.VicuTheme
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
+import org.koin.mp.KoinPlatform
+import platform.UIKit.UIUserInterfaceStyle
 import platform.UIKit.UIViewController
 
+/** The Compose UI of the app, shown by the Swift app's window. */
 fun MainViewController(): UIViewController = ComposeUIViewController {
-    val koinComponent = object : KoinComponent {}
-    val authManager: AuthManager by koinComponent.inject()
-    val themePrefsStore: ThemePrefsStore by koinComponent.inject()
+    val koin = remember { KoinPlatform.getKoin() }
+    val authManager = remember { koin.get<AuthManager>() }
+    val themePrefs = remember { koin.get<ThemePrefsStore>() }
+    val inputs = remember { koin.get<AppInputs>() }
+    val themeMode by themePrefs.themeMode.collectAsState(initial = ThemeMode.System)
 
-    VicuTheme(themeMode = ThemeMode.System, dynamicColor = false) {
+    // The window follows the app's theme, so the status bar and system sheets match it.
+    val controller = LocalUIViewController.current
+    LaunchedEffect(themeMode, controller) {
+        controller.view.window?.overrideUserInterfaceStyle = when (themeMode) {
+            ThemeMode.Dark -> UIUserInterfaceStyle.UIUserInterfaceStyleDark
+            ThemeMode.Light -> UIUserInterfaceStyle.UIUserInterfaceStyleLight
+            ThemeMode.System -> UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified
+        }
+    }
+
+    VicuTheme(themeMode = themeMode, dynamicColor = false) {
         VicuApp(
-            authManager = authManager
+            authManager = authManager,
+            initialTaskId = inputs.initialTaskId,
+            onInitialTaskConsumed = { inputs.initialTaskId.value = null },
+            showTaskEntry = inputs.showTaskEntry,
+            showTaskEntryProjectId = inputs.showTaskEntryProjectId,
+            onShowTaskEntryConsumed = {
+                inputs.showTaskEntry.value = false
+                inputs.showTaskEntryProjectId.value = null
+            },
+            navigateToView = inputs.navigateToView,
+            onNavigateToViewConsumed = { inputs.navigateToView.value = null },
+            sharedContent = inputs.sharedContent,
+            onSharedContentConsumed = { inputs.sharedContent.value = null },
         )
     }
 }

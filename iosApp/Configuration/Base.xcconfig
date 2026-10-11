@@ -1,0 +1,6 @@
+// Settings shared by Debug and Release. Version.xcconfig is written by scripts/generate.sh from
+// version.properties at the repository root (the version of both apps).
+#include? "Version.xcconfig"
+
+VICU_BUNDLE_ID_BASE = com.rendyhd.vicu
+VICU_APP_GROUP_BASE = group.com.rendyhd.vicu

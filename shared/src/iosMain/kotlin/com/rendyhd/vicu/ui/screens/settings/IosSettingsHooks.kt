@@ -1,30 +1,27 @@
 package com.rendyhd.vicu.ui.screens.settings
 
-class IosSettingsHooks : PlatformSettingsHooks {
+import com.rendyhd.vicu.worker.SyncRequester
+
+/** The iOS side of Settings. */
+class IosSettingsHooks(
+    private val syncRequester: () -> SyncRequester,
+) : PlatformSettingsHooks {
+    // The Control Center control takes the tile's place on iOS.
     override val supportsQuickAddTile: Boolean = false
 
-    override fun updateWidgets() {
-        // TODO: Implement for iOS
-    }
+    override fun updateWidgets() {}
 
     override fun scheduleSync(enabled: Boolean) {
-        // TODO: Implement for iOS
+        if (enabled) syncRequester().request()
     }
 
-    override fun scheduleDailySummary(slot: String, enabled: Boolean, hour: Int, minute: Int) {
-        // TODO: Implement for iOS
-    }
+    override fun scheduleDailySummary(slot: String, enabled: Boolean, hour: Int, minute: Int) {}
 
-    override fun sendTestNotification(): String? {
-        // TODO: Implement for iOS
-        return "Test notification scheduled on iOS"
-    }
+    override fun sendTestNotification(): String? = "Notifications are not available on iOS yet"
 
-    override fun requestQuickAddTile(onResult: (String) -> Unit) {
-        // Quick Settings tiles are an Android feature.
-    }
+    override fun requestQuickAddTile(onResult: (String) -> Unit) {}
 
     override fun triggerImmediateSync() {
-        // TODO: Implement for iOS
+        syncRequester().request()
     }
 }

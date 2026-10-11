@@ -1,0 +1,86 @@
+# The Xcode project is generated from this file: run scripts/generate.sh (XcodeGen), then open
+# Vicu.xcodeproj. The generated project is not checked in.
+name: Vicu
+options:
+  bundleIdPrefix: com.rendyhd
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+configFiles:
+  Debug: Configuration/Debug.xcconfig
+  Release: Configuration/Release.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEAD_CODE_STRIPPING: YES
+targets:
+  Vicu:
+    type: application
+    platform: iOS
+    sources:
+      - path: Vicu
+    info:
+      path: Vicu/Info.plist
+      properties:
+        CFBundleDisplayName: $(VICU_DISPLAY_NAME)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.productivity
+        ITSAppUsesNonExemptEncryption: false
+        # Compose Multiplatform draws at the display's full refresh rate only with this key.
+        CADisableMinimumFrameDurationOnPhone: true
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Self-hosted Vikunja servers often run on plain http on a home network. Only
+        # NSAllowsArbitraryLoads is set: with NSAllowsLocalNetworking or
+        # NSAllowsArbitraryLoadsInWebContent present as well, iOS ignores it.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: Vicu connects to your Vikunja server, which may be on your local network.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.rendyhd.vicu
+            CFBundleURLSchemes:
+              - $(VICU_URL_SCHEME)
+        # Read by the shared Kotlin code and the extensions.
+        VicuUrlScheme: $(VICU_URL_SCHEME)
+        VicuAppGroup: $(VICU_APP_GROUP)
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.rendyhd.vicu.refresh
+          - com.rendyhd.vicu.sync
+        UIBackgroundModes:
+          - fetch
+          - processing
+    entitlements:
+      path: Vicu/Vicu.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - $(VICU_APP_GROUP)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(VICU_BUNDLE_ID)
+        PRODUCT_NAME: Vicu
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS: $(inherited) -framework shared
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
+    preBuildScripts:
+      - name: Build the shared Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          "$SRCROOT/scripts/build-shared-framework.sh"

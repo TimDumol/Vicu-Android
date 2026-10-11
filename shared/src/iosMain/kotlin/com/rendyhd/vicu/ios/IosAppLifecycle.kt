@@ -38,6 +38,7 @@ class IosAppLifecycle(
     private val signedIn: Boolean get() = authManager.authState.value == AuthState.Authenticated
 
     fun start() {
+        notificationPermission.refresh()
         appScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
             if (!storedUrl.isNullOrBlank()) baseUrlHolder.baseUrl = storedUrl

@@ -18,17 +18,15 @@ import platform.darwin.dispatch_get_main_queue
 
 /**
  * The notification permission on iOS. The system answers asynchronously while the shared code
- * asks synchronously, so the answer is cached and read again when the app comes to the front
- * ([refresh]). iOS shows its prompt only once; after that the settings page is the way back.
+ * asks synchronously, so the answer is cached: [refresh] reads it at start and each time the app
+ * comes to the front (IosAppLifecycle). Building this does not touch the notification center, which
+ * exists only in a running app. iOS shows its prompt only once; after that the settings page is
+ * the way back.
  */
 class IosNotificationPermissionPlatform : NotificationPermissionPlatform {
 
     @Volatile
     private var status: UNAuthorizationStatus = UNAuthorizationStatusNotDetermined
-
-    init {
-        refresh()
-    }
 
     override val needsRuntimePermission: Boolean = true
 

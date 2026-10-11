@@ -52,6 +52,8 @@ cascade-editor = { group = "io.github.linreal", name = "cascade-editor", version
 compose-runtime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "compose-multiplatform" }
 compose-foundation = { group = "org.jetbrains.compose.foundation", name = "foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "compose-material3" }
+# Multiplatform BackHandler and PredictiveBackHandler (the androidx.activity ones are Android only).
+compose-ui-backhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandler", version.ref = "compose-multiplatform" }
 # The last release of the multiplatform icon set. JetBrains stopped publishing it, and the AndroidX
 # artifact (1.7.8) has no iOS variants, so the shared module cannot move to it.
 compose-material-icons-extended = { group = "org.jetbrains.compose.material", name = "material-icons-extended", version = "1.7.3" }

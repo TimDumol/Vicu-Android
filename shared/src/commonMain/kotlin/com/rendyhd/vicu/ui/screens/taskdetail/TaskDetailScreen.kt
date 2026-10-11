@@ -1,6 +1,8 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.rendyhd.vicu.ui.screens.taskdetail
 
-import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.ui.backhandler.PredictiveBackHandler
 import kotlin.coroutines.cancellation.CancellationException
 import com.rendyhd.vicu.ui.rememberImagePicker
 import com.rendyhd.vicu.ui.rememberFilePicker

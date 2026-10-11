@@ -169,7 +169,7 @@ private fun buildWorkingText(input: String, consumed: List<IntRange>): String {
             if (i in chars.indices) chars[i] = ' '
         }
     }
-    return String(chars)
+    return chars.concatToString()
 }
 
 private fun overlapsConsumed(start: Int, end: Int, consumed: List<IntRange>): Boolean =

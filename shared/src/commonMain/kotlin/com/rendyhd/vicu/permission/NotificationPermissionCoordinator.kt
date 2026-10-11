@@ -14,6 +14,12 @@ interface NotificationPermissionPlatform {
 
     fun isGranted(): Boolean
 
+    /**
+     * Whether the system shows this app's notifications at all. On Android a user can switch them
+     * off even with the runtime permission granted; elsewhere this is the permission itself.
+     */
+    fun areNotificationsEnabled(): Boolean = isGranted()
+
     /** Shows the system prompt. False when there is no screen to show it on right now. */
     fun launchSystemRequest(): Boolean
 

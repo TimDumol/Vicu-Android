@@ -45,6 +45,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.ui.backhandler)
             implementation(libs.compose.material.icons.extended)
             implementation(libs.cascade.editor)
 
@@ -77,6 +78,13 @@ kotlin {
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+        }
+
+        // The platform.* bindings (Foundation, UIKit, Security) are marked experimental. Every iOS
+        // source set opts in, since a source set must use the opt-ins of the ones it depends on.
+        matching { it.name.startsWith("ios") }.configureEach {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+            languageSettings.optIn("kotlinx.cinterop.BetaInteropApi")
         }
 
         getByName("androidHostTest").dependencies {

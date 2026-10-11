@@ -162,7 +162,7 @@ class SetupViewModel(
                 Logger.e(TAG, "Server discovery failed", e)
                 baseUrlHolder.baseUrl = ""
                 _uiState.update {
-                    it.copy(isLoading = false, error = "Could not connect to server: ${e.localizedMessage}")
+                    it.copy(isLoading = false, error = "Could not connect to server: ${e.message}")
                 }
             }
         }
@@ -191,7 +191,7 @@ class SetupViewModel(
             _uiState.update { it.copy(step = SetupStep.OidcInProgress) }
             oidcHandler.prepareAuthParams(provider, url)
         } catch (e: Exception) {
-            _uiState.update { it.copy(error = "Failed to start OIDC: ${e.localizedMessage}", step = SetupStep.AuthMethodPicker) }
+            _uiState.update { it.copy(error = "Failed to start OIDC: ${e.message}", step = SetupStep.AuthMethodPicker) }
             null
         }
     }
@@ -321,7 +321,7 @@ class SetupViewModel(
             throw e
         } catch (e: Exception) {
             Logger.e(TAG, "Could not verify the account", e)
-            _uiState.update { it.copy(isLoading = false, error = "$failurePrefix: ${e.localizedMessage}") }
+            _uiState.update { it.copy(isLoading = false, error = "$failurePrefix: ${e.message}") }
             return
         }
 
@@ -376,7 +376,7 @@ class SetupViewModel(
             throw e
         } catch (e: Exception) {
             Logger.e(TAG, "Sign-in failed after verification", e)
-            _uiState.update { it.copy(isLoading = false, error = "Sign-in failed: ${e.localizedMessage}") }
+            _uiState.update { it.copy(isLoading = false, error = "Sign-in failed: ${e.message}") }
             return
         }
         _uiState.update { it.copy(password = "", totpPasscode = "", apiToken = "") }
@@ -434,7 +434,7 @@ class SetupViewModel(
                 )
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = "Failed to fetch projects: ${e.localizedMessage}") }
+            _uiState.update { it.copy(isLoading = false, error = "Failed to fetch projects: ${e.message}") }
         }
     }
 

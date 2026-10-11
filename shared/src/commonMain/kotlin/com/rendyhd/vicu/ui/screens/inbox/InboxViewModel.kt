@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.ui.screens.inbox
 
-import android.util.Log
+import com.rendyhd.vicu.util.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rendyhd.vicu.auth.AuthManager
@@ -72,12 +72,12 @@ class InboxViewModel(
         viewModelScope.launch {
             completions.heldIds.collect { ids -> _uiState.update { it.copy(completedTaskIds = ids) } }
         }
-        Log.d(TAG, "init: InboxViewModel created")
+        Logger.d(TAG, "init: InboxViewModel created")
         viewModelScope.launch {
             // The Inbox project can change while this screen is open (picked in Settings, or set
             // by the setup that follows a sign-in), so it is observed, not read once.
             authManager.inboxProjectId.collectLatest { inboxId ->
-                Log.d(TAG, "inboxProjectId=$inboxId")
+                Logger.d(TAG, "inboxProjectId=$inboxId")
                 _uiState.update { it.copy(inboxProjectId = inboxId) }
                 if (inboxId == null) {
                     // Signed in but not set up (the app was closed between sign-in and choosing the
@@ -94,7 +94,7 @@ class InboxViewModel(
                     // same order the desktop app shows. Held rows go back where they were.
                     completions.merge(sortProjectTasks(tasks)) to activeProjects.any { it.id == inboxId }
                 }.collect { (tasks, inboxIsActive) ->
-                    Log.d(TAG, "Flow emission: ${tasks.size} tasks for inboxId=$inboxId, active=$inboxIsActive")
+                    Logger.d(TAG, "Flow emission: ${tasks.size} tasks for inboxId=$inboxId, active=$inboxIsActive")
                     askForUnknownPositions(inboxId, tasks)
                     _uiState.update {
                         it.copy(

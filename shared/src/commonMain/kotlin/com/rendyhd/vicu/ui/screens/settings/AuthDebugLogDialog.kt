@@ -19,23 +19,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.auth.AuthDebugLog
 import com.rendyhd.vicu.ui.components.shared.copyPlainText
-import kotlinx.coroutines.Dispatchers
+import com.rendyhd.vicu.util.AppDispatchers
+import org.koin.compose.koinInject
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
 internal fun AuthDebugLogDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
+    val dispatchers: AppDispatchers = koinInject()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     // The log is a file: read it off the main thread. Null while it loads.
     val logText by produceState<String?>(initialValue = null) {
-        value = withContext(Dispatchers.IO) { AuthDebugLog.readLog() }
+        value = withContext(dispatchers.io) { AuthDebugLog.readLog() }
     }
 
     AlertDialog(

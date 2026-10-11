@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.data.local.ThemeMode
+import com.rendyhd.vicu.ui.theme.supportsDeviceColors
 
 internal fun LazyListScope.accountSection(
     state: SettingsUiState,
@@ -115,7 +116,7 @@ internal fun LazyListScope.appearanceSection(
         }
     }
 
-    item(key = "use_device_colors") {
+    if (supportsDeviceColors) item(key = "use_device_colors") {
         SwitchRow(
             label = "Use device colours",
             description = "Follow your wallpaper's Material You palette instead of the Vicu colours (Android 12 and later)",

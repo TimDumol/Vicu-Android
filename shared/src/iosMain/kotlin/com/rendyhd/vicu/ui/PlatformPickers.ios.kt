@@ -11,3 +11,8 @@ actual fun rememberImagePicker(onImagePicked: (String) -> Unit): () -> Unit {
 actual fun rememberFilePicker(onFilePicked: (String) -> Unit): () -> Unit {
     return {}
 }
+
+@Composable
+actual fun rememberCompletionSoundPicker(onSoundPicked: (String) -> Unit): () -> Unit {
+    return {}
+}

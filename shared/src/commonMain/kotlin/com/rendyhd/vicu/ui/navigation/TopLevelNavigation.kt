@@ -3,6 +3,7 @@ package com.rendyhd.vicu.ui.navigation
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.toRoute
 import com.rendyhd.vicu.auth.AuthState
 
 /** How a move to a top-level destination treats the back stack. */
@@ -96,9 +97,9 @@ internal fun currentRouteKey(entry: NavBackStackEntry?): String? {
         dest.hasRoute(ReviewRoute::class) -> "ReviewRoute"
         dest.hasRoute(RoutinesRoute::class) -> "RoutinesRoute"
         dest.hasRoute(SettingsRoute::class) -> "SettingsRoute"
-        dest.hasRoute(ProjectRoute::class) -> "ProjectRoute/${entry.arguments?.getLong("projectId")}"
-        dest.hasRoute(TagRoute::class) -> "TagRoute/${entry.arguments?.getLong("labelId")}"
-        dest.hasRoute(CustomListRoute::class) -> "CustomListRoute/${entry.arguments?.getString("listId")}"
+        dest.hasRoute(ProjectRoute::class) -> "ProjectRoute/${entry.toRoute<ProjectRoute>().projectId}"
+        dest.hasRoute(TagRoute::class) -> "TagRoute/${entry.toRoute<TagRoute>().labelId}"
+        dest.hasRoute(CustomListRoute::class) -> "CustomListRoute/${entry.toRoute<CustomListRoute>().listId}"
         else -> null
     }
 }

@@ -152,12 +152,8 @@ internal fun TimePickerRow(
     minute: Int,
     onClick: () -> Unit,
 ) {
-    val timeText = String.format(
-        "%d:%02d %s",
-        if (hour % 12 == 0) 12 else hour % 12,
-        minute,
-        if (hour < 12) "AM" else "PM",
-    )
+    val hour12 = if (hour % 12 == 0) 12 else hour % 12
+    val timeText = "$hour12:${minute.toString().padStart(2, '0')} ${if (hour < 12) "AM" else "PM"}"
     Row(
         modifier = Modifier
             .fillMaxWidth()

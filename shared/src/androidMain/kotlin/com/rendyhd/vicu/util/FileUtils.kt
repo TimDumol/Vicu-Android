@@ -31,6 +31,11 @@ object FileUtils {
      * before the request starts; that copy is removed when the source is closed.
      */
     fun openForUpload(context: Context, uri: Uri, maxBytes: Long): UploadOpen {
+        // Shared intents are untrusted. Never let them nominate our private files or
+        // our own FileProvider; a sender must grant access through an external provider.
+        if (!isExternalUploadUri(uri.scheme, uri.authority, context.packageName)) {
+            return UploadOpen.Unreadable
+        }
         val resolver = context.contentResolver
         val name = getFileName(context, uri) ?: "file"
         val size = querySize(context, uri)
@@ -97,7 +102,7 @@ object FileUtils {
         pruneOld(root)
         val dir = File(root, attachmentId.toString()).apply { mkdirs() }
         val target = File(dir, safeFileName(fileName))
-        val partial = File(dir, "${target.name}.part")
+        val partial = File(dir, "${UUID.randomUUID()}.part")
         try {
             partial.outputStream().use { content.copyTo(it) }
             target.delete()

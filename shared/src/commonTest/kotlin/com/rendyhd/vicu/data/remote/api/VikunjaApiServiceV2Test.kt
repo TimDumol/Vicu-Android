@@ -160,6 +160,37 @@ class VikunjaApiServiceV2Test {
     }
 
     @Test
+    fun `snapshot pagination does not chase a growing total`() = runTest {
+        val seenPages = mutableListOf<Int>()
+        val engine = MockEngine { request ->
+            val page = request.url.parameters["page"]!!.toInt()
+            seenPages += page
+            respond(
+                content = """{"items":[{"id":$page}],"page":$page,"total_pages":${page + 1}}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        }
+        assertEquals(listOf(1L, 2L), service(engine).getAllTasks().map { it.id })
+        assertEquals(listOf(1, 2), seenPages)
+    }
+
+    @Test
+    fun `oversized pagination fails without returning a partial snapshot`() = runTest {
+        var requests = 0
+        val engine = MockEngine {
+            requests++
+            respond(
+                content = """{"items":[{"id":1}],"page":1,"total_pages":2147483647}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        }
+        assertFailsWith<IllegalStateException> { service(engine).getAllTasks() }
+        assertEquals(1, requests)
+    }
+
+    @Test
     fun `project view tasks request complete subtask hierarchies`() = runTest {
         val engine = MockEngine { request ->
             assertEquals("/projects/7/views/11/tasks", request.url.encodedPath)

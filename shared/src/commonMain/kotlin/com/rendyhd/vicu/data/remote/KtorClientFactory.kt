@@ -4,6 +4,7 @@ import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.HttpSend
 import io.ktor.client.plugins.Sender
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -113,6 +114,11 @@ object KtorClientFactory {
         tokenCheck: ApiTokenCheck = ApiTokenCheck(),
     ): HttpClient {
         val client = HttpClient(engine) {
+            install(HttpTimeout) {
+                connectTimeoutMillis = 30_000
+                socketTimeoutMillis = 60_000
+                // Streaming attachments may take minutes; limit stalls, not total transfer time.
+            }
             install(ContentNegotiation) {
                 json(json)
             }
@@ -172,7 +178,7 @@ object KtorClientFactory {
             var response = execute(request)
 
             if (response.response.status == HttpStatusCode.Unauthorized &&
-                !isTokenRefreshPath(path, apiBasePathOf(baseUrlHolder))
+                !isAuthExemptPath(path, apiBasePathOf(baseUrlHolder))
             ) {
                 val failedToken = request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")
                 // An API token without the permission for a collaboration request is answered 401

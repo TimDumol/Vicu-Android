@@ -102,6 +102,37 @@ class KtorClientFactoryAuthPathsTest {
         assertEquals("Bearer secret-token", authHeaders["/api/v2/tasks/5"])
     }
 
+    @Test
+    fun `a public endpoint 401 is never retried with the existing account token`() = runTest {
+        val storage = InMemoryTokenStorage()
+        val authManager = AuthManager(
+            platformAuthHooks = RecordingAuthHooks(),
+            tokenStorage = storage,
+            apiServiceProvider = { error("public requests must not refresh the session") },
+            appScope = backgroundScope,
+            networkMonitor = FakeNetworkMonitor(),
+        )
+        authManager.onApiTokenLogin("secret-token", "https://vikunja.test")
+        val holder = BaseUrlHolder(storage).apply { baseUrl = "https://vikunja.test" }
+        val headers = mutableListOf<String?>()
+        val client = KtorClientFactory.create(
+            engine = MockEngine { request ->
+                headers += request.headers[HttpHeaders.Authorization]
+                respond("{}", HttpStatusCode.Unauthorized)
+            },
+            json = createApiJson(),
+            baseUrlHolder = holder,
+            authManager = authManager,
+        )
+        try {
+            assertEquals(HttpStatusCode.Unauthorized, client.get("info").status)
+            assertEquals(listOf<String?>(null), headers)
+            assertEquals("secret-token", authManager.getBestTokenSync())
+        } finally {
+            client.close()
+        }
+    }
+
     // ---- JSON --------------------------------------------------------------------------------
 
     @Test

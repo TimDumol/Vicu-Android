@@ -51,6 +51,7 @@ class VikunjaApiService(
 ) {
     companion object {
         private const val DEFAULT_PAGE_SIZE = 100
+        private const val MAX_SNAPSHOT_PAGES = 10_000
         private const val SUBTASK_EXPANSION = "subtasks"
         /** Comments come 50 to a page, newest first (cross-app semantics 9.5). */
         const val COMMENT_PAGE_SIZE = 50
@@ -515,8 +516,11 @@ class VikunjaApiService(
         var totalPages = 1
         do {
             val response = fetchPage(base + ("page" to page.toString()))
+            check(response.totalPages <= MAX_SNAPSHOT_PAGES) { "Server pagination exceeds the safety limit" }
+            // Bound this snapshot to the first response. A growing dataset must not keep
+            // moving the finish line while sync holds its process-wide mutex.
+            if (page == 1) totalPages = response.totalPages.coerceAtLeast(1)
             all += response.items
-            totalPages = maxOf(totalPages, response.totalPages.coerceAtLeast(1))
             page++
         } while (page <= totalPages)
         return all

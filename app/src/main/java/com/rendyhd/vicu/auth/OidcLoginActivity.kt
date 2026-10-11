@@ -39,7 +39,7 @@ class OidcLoginActivity : ComponentActivity() {
         val redirectPrefix = intent.getStringExtra(EXTRA_REDIRECT_PREFIX)
         expectedState = intent.getStringExtra(EXTRA_EXPECTED_STATE)
 
-        if (authUrl == null || redirectPrefix == null) {
+        if (authUrl == null || redirectPrefix == null || expectedState.isNullOrBlank()) {
             setResult(Activity.RESULT_CANCELED)
             finish()
             return
@@ -57,8 +57,9 @@ class OidcLoginActivity : ComponentActivity() {
                     view: WebView,
                     request: WebResourceRequest,
                 ): Boolean {
-                    val url = request.url.toString()
-                    if (url.startsWith(redirectPrefix)) {
+                    if (request.isForMainFrame &&
+                        OidcRedirect.matches(request.url.toString(), redirectPrefix)
+                    ) {
                         handleRedirect(request.url)
                         return true
                     }
@@ -72,6 +73,11 @@ class OidcLoginActivity : ComponentActivity() {
     }
 
     private fun handleRedirect(uri: Uri) {
+        if (uri.getQueryParameter("state") != expectedState) {
+            setResult(Activity.RESULT_CANCELED, Intent().putExtra(EXTRA_ERROR, "OIDC state mismatch"))
+            finish()
+            return
+        }
         val error = uri.getQueryParameter("error")
         if (error != null) {
             val desc = uri.getQueryParameter("error_description") ?: error

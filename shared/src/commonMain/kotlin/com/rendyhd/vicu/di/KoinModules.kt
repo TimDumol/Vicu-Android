@@ -210,6 +210,7 @@ val repositoryModule = module {
 }
 
 val commonModule = module {
+    single { DailySummaryReader(get()) }
     single {
         ProjectTaskCounts(
             api = get(),
@@ -331,5 +332,6 @@ val sharedModules = listOf(
     databaseModule,
     networkModule,
     repositoryModule,
-    commonModule
+    commonModule,
+    viewModelModule,
 )

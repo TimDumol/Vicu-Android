@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -84,6 +85,18 @@ fun TodayScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val topBarScroll = rememberVicuTopBarScroll(listState)
+
+    // The routines are read apart from the tasks and can come in after them. LazyColumn keeps the
+    // first visible row where it is, so a list still at its top would then start at the first
+    // task with the routines above it, out of sight; it goes back to the top instead.
+    val openRoutineCount = state.routineDay.open.size
+    LaunchedEffect(openRoutineCount > 0) {
+        if (openRoutineCount == 0) return@LaunchedEffect
+        withFrameNanos { }
+        if (listState.firstVisibleItemIndex == openRoutineCount + 1 && listState.firstVisibleItemScrollOffset == 0) {
+            listState.scrollToItem(0)
+        }
+    }
 
     // All clear warms in only when Today had tasks during this visit and the last one has just gone.
     val hasContent = state.projectGroups.isNotEmpty() || state.overdueGroups.isNotEmpty() || state.routineDay.open.isNotEmpty()

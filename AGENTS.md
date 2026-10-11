@@ -57,7 +57,7 @@ Versions live in `gradle/libs.versions.toml`. Compose Multiplatform dependencies
 
 Two Gradle modules:
 
-- **`:shared`** - Kotlin Multiplatform library (`com.android.kotlin.multiplatform.library` plugin, namespace `com.rendyhd.vicu.shared`). Almost all code lives in `commonMain`: data layer, sync engine, repositories, ViewModels, Compose screens and components. `androidMain` has the platform actuals (token storage, DataStore and Room builders, files, network monitor, OIDC launcher, pickers). `iosMain` has stubs (see `docs/ios-status.md`). Tests: `commonTest` (the bulk, run on the JVM) and `androidHostTest` (SQL against sqlite-jdbc using the exported Room schemas).
+- **`:shared`** - Kotlin Multiplatform library (`com.android.kotlin.multiplatform.library` plugin, namespace `com.rendyhd.vicu.shared`). Almost all code lives in `commonMain`: data layer, sync engine, repositories, ViewModels, Compose screens and components. `androidMain` has the platform actuals (token storage, DataStore and Room builders, files, network monitor, OIDC launcher, pickers). `iosMain` has the iOS implementations (see `docs/ios.md`). Tests: `commonTest` (the bulk, run on the JVM) and `androidHostTest` (SQL against sqlite-jdbc using the exported Room schemas).
 - **`:app`** - the Android application (`com.rendyhd.vicu`): `MainActivity`, `VicuApplication`, the Android DI modules, alarms and notifications, Glance widgets, WorkManager workers, the OIDC login activity, the quick-add tile. Tests: `src/test` (JVM) and `src/androidTest` (instrumented).
 
 Package map (`com.rendyhd.vicu`):
@@ -232,7 +232,7 @@ Android classes are stubbed in JVM tests with `isReturnDefaultValues = true`. Co
 
 ## Platforms
 
-Android 8.0+ (minSdk 26, compile and target SDK 36). The shared module declares iOS targets, but they do not compile: the UI in `commonMain` imports Android APIs. No iOS work is planned; see `docs/ios-status.md`.
+Android 8.0+ (minSdk 26, compile and target SDK 36). iOS 17+ on iPhone and iPad from the same shared code; see `docs/ios.md`.
 
 ## Key Gotchas
 

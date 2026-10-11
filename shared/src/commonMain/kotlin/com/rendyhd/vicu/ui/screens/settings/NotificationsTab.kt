@@ -113,10 +113,20 @@ internal fun NotificationsTab(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
         } else if (state.quickAddHint != null) {
+            item(key = "notif_quick_settings_header") {
+                Text(
+                    text = "Quick add",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                )
+            }
+
             item(key = "notif_quick_add_hint") {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Text(
-                        text = "Quick add",
+                        text = "Add task control",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Text(

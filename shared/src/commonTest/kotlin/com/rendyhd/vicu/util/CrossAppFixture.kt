@@ -1,7 +1,7 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.CustomListWireFilter
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone

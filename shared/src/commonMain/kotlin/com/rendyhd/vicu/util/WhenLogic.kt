@@ -5,7 +5,7 @@ import com.rendyhd.vicu.util.parser.deviceLocaleTag
 import com.rendyhd.vicu.util.parser.extractDate
 import com.rendyhd.vicu.util.parser.isDayFirstLocale
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime

@@ -7,7 +7,7 @@ import com.rendyhd.vicu.util.CrossAppFixture.date
 import com.rendyhd.vicu.util.CrossAppFixture.local
 import com.rendyhd.vicu.util.CrossAppFixture.zones
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus

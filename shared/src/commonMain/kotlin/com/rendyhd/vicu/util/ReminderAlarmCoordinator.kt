@@ -4,7 +4,7 @@ import com.rendyhd.vicu.data.local.ReminderAlarmRegistry
 import com.rendyhd.vicu.domain.model.Task
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 /** The platform half of reminder alarms: set and cancel one alarm by request code. */
 interface ReminderAlarmBackend {

@@ -13,7 +13,7 @@ import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.FixedTimeSource
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.SchedulerTimeSource
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

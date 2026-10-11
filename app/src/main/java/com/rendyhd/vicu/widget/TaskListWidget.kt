@@ -57,7 +57,7 @@ import com.rendyhd.vicu.util.DateContext
 import com.rendyhd.vicu.util.DateDisplay
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DateUtils
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 

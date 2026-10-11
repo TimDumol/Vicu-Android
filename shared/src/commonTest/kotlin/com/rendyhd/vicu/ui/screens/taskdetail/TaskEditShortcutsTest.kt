@@ -7,7 +7,7 @@ import com.rendyhd.vicu.util.parser.SyntaxMode
 import com.rendyhd.vicu.util.parser.TaskParser
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.parser.TokenType
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.junit.Assert.assertEquals

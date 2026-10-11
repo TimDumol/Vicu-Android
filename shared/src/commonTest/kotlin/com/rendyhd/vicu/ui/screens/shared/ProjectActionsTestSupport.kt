@@ -12,7 +12,7 @@ import com.rendyhd.vicu.util.FixedTimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
 /** An [AuthManager] with nothing behind it: it holds the Inbox id and never goes to the network. */

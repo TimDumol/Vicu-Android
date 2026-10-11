@@ -11,7 +11,7 @@ import com.rendyhd.vicu.data.local.NotificationPrefs
 import com.rendyhd.vicu.util.DailySummary
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.worker.DailySummaryWorker
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**

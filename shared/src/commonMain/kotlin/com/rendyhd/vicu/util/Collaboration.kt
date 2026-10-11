@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Collaboration rules shared with the desktop app (docs/cross-app-semantics-v1.md section 9, pinned

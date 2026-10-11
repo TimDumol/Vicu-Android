@@ -5,7 +5,7 @@ import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.util.DueDates
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -10,7 +10,7 @@ import platform.UserNotifications.*
 import platform.Foundation.*
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 class IosRepositoryHooks(
     private val taskDao: TaskDao,

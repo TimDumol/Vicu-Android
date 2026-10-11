@@ -44,7 +44,7 @@ import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.ReminderFormat
 import com.rendyhd.vicu.util.ReminderPickerStart
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant

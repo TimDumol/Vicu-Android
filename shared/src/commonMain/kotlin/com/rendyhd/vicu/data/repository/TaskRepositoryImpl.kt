@@ -50,7 +50,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskRepositoryImpl(

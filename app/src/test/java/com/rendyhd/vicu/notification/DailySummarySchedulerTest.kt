@@ -2,7 +2,7 @@ package com.rendyhd.vicu.notification
 
 import androidx.work.ExistingWorkPolicy
 import com.rendyhd.vicu.data.local.NotificationPrefs
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

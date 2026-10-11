@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * A tiny interpreter for the part of Vikunja's filter language the custom lists generate, so a

@@ -20,7 +20,7 @@ import com.rendyhd.vicu.util.DailySummary
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.TimeSource
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
 /**

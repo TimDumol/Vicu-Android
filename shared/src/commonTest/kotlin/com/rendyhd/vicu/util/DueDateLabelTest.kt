@@ -2,7 +2,7 @@ package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.util.CrossAppFixture.date
 import com.rendyhd.vicu.util.CrossAppFixture.local
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import java.util.Locale
 import kotlin.test.Test

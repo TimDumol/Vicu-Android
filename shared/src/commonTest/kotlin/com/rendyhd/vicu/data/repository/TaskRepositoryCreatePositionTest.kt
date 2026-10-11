@@ -12,7 +12,7 @@ import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test

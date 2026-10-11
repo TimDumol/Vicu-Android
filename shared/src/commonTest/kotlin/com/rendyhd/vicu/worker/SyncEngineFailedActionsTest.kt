@@ -247,7 +247,7 @@ class SyncEngineFailedActionsTest {
     // ---- nothing to change ------------------------------------------------------------------
 
     @Test
-    fun `a change the server already has is done, not failed`() = runTest {
+    fun `a change the server already has is done - not failed`() = runTest {
         val h = SyncEngineHarness(taskDao = FakeTaskDao(listOf(localTask(11)))) { request ->
             when {
                 // Vikunja's answer to a merge patch that changes nothing.

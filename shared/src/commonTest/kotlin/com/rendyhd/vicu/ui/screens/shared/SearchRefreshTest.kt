@@ -46,7 +46,7 @@ class SearchRefreshTest {
     }
 
     @Test
-    fun `typing quickly asks the server once, about the last text`() = runTest {
+    fun `typing quickly asks the server once - about the last text`() = runTest {
         val texts = MutableStateFlow("")
         val run = Run()
         collect(texts, run)
@@ -65,7 +65,7 @@ class SearchRefreshTest {
     }
 
     @Test
-    fun `a text that rests is asked, then the next one`() = runTest {
+    fun `a text that rests is asked - then the next one`() = runTest {
         val texts = MutableStateFlow("")
         val run = Run()
         collect(texts, run)
@@ -115,7 +115,7 @@ class SearchRefreshTest {
     }
 
     @Test
-    fun `blank and padded texts are trimmed, and the same text twice asks once`() = runTest {
+    fun `blank and padded texts are trimmed - and the same text twice asks once`() = runTest {
         val texts = MutableStateFlow("")
         val run = Run()
         collect(texts, run)

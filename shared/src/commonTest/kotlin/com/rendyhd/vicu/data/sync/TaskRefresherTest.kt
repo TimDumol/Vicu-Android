@@ -128,7 +128,7 @@ class TaskRefresherTest {
     // ---- deletions on the server are noticed by the open count ------------------------------------
 
     @Test
-    fun `a task deleted on the server leaves the cache at the next refresh, not a day later`() = runTest {
+    fun `a task deleted on the server leaves the cache at the next refresh - not a day later`() = runTest {
         val h = harness()
         h.refresher.refresh()
         h.server.remove(2)
@@ -539,7 +539,7 @@ class TaskRefresherTest {
     // ---- change detection ---------------------------------------------------------------------------
 
     @Test
-    fun `reminder relevance looks at reminders, dates and completion only`() {
+    fun `reminder relevance looks at reminders - dates and completion only`() {
         val base = TaskEntity(id = 1, title = "A", projectId = 7, dueDate = "2026-10-07T09:00:00Z", remindersJson = reminderJson)
 
         assertFalse(remindersAffected(base, base.copy(title = "B", priority = 3, description = "x")))

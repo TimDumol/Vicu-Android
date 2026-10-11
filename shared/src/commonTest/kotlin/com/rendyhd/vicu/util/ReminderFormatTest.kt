@@ -55,7 +55,7 @@ class ReminderFormatTest {
     }
 
     @Test
-    fun `a date this version does not know is shown as it is, never as the due time`() {
+    fun `a date this version does not know is shown as it is - never as the due time`() {
         assertEquals("At custom_date", ReminderFormat.format(relative(0, "custom_date"), dateFormat))
         assertEquals("1 hour before custom_date", ReminderFormat.format(relative(-3600, "custom_date"), dateFormat))
     }

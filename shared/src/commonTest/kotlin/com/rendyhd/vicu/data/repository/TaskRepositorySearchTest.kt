@@ -45,7 +45,7 @@ class TaskRepositorySearchTest {
     }
 
     @Test
-    fun `title and description match, completed tasks are included, open ones first`() = runTest {
+    fun `title and description match - completed tasks are included - open ones first`() = runTest {
         val h = harness()
 
         assertEquals(listOf(5L, 3L), h.repository.searchTasks("milk").first().map { it.id })

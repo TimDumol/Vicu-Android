@@ -139,7 +139,7 @@ class ReviewViewModelContentTest {
     }
 
     @Test
-    fun `a collapsed row stops following, and opening it again shows what is there now`() = runTest {
+    fun `a collapsed row stops following - and opening it again shows what is there now`() = runTest {
         val rig = rig()
         rig.tasks.put(task(1, 7))
         rig.vm.toggleExpanded(7)

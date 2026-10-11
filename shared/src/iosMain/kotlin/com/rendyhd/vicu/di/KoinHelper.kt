@@ -26,7 +26,7 @@ val iosModule = module {
     single<PlatformSettingsHooks> { IosSettingsHooks() }
     single<PlatformFiles> { IosPlatformFiles() }
     single<NetworkMonitor> { IosNetworkMonitor() }
-    single<PlatformRepositoryHooks> { IosRepositoryHooks(get(), get()) }
+    single<PlatformRepositoryHooks> { IosRepositoryHooks() }
 }
 
 fun initKoin() {

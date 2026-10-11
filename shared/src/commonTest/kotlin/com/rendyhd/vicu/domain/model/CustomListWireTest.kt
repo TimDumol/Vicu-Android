@@ -84,7 +84,7 @@ class CustomListWireTest {
     }
 
     @Test
-    fun `an absent include_overdue is never written, with or without encodeDefaults`() {
+    fun `an absent include_overdue is never written - with or without encodeDefaults`() {
         val value = decode(withDefaults, """{"id":"a","name":"A","filter":{"due_date_filter":"today"}}""")
         for (json in listOf(withDefaults, withoutDefaults)) {
             assertFalse("include_overdue" in encode(json, value).getValue("filter").jsonObject, "encodeDefaults=${json.configuration.encodeDefaults}")
@@ -132,7 +132,7 @@ class CustomListWireTest {
     }
 
     @Test
-    fun `unknown fields are kept as raw json, including nulls and nested values`() {
+    fun `unknown fields are kept as raw json - including nulls and nested values`() {
         val value = decode(withDefaults)
 
         assertEquals(setOf("color", "pinned"), value.unknown.keys)

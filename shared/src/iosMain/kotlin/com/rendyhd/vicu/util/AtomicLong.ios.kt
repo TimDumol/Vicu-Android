@@ -1,26 +1,17 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.AtomicLong as KotlinAtomicLong
 
+@OptIn(ExperimentalAtomicApi::class)
 actual class AtomicLong actual constructor(initialValue: Long) {
-    private val lock = SynchronizedObject()
-    private var value = initialValue
+    private val value = KotlinAtomicLong(initialValue)
 
-    actual fun get(): Long = synchronized(lock) { value }
-    
-    actual fun set(newValue: Long) = synchronized(lock) {
-        value = newValue
-    }
-    
-    actual fun getAndIncrement(): Long = synchronized(lock) {
-        val current = value
-        value++
-        current
-    }
-    
-    actual fun decrementAndGet(): Long = synchronized(lock) {
-        value--
-        value
-    }
+    actual fun get(): Long = value.load()
+
+    actual fun set(newValue: Long) = value.store(newValue)
+
+    actual fun getAndIncrement(): Long = value.fetchAndAdd(1)
+
+    actual fun decrementAndGet(): Long = value.addAndFetch(-1)
 }

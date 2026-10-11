@@ -78,7 +78,7 @@ class InboxViewModelOrderTest {
     // --- the order ---
 
     @Test
-    fun `tasks are listed in position order, dated ones first`() = runTest {
+    fun `tasks are listed in position order - dated ones first`() = runTest {
         val rig = rig(
             task(1, 300.0),
             task(2, 100.0),
@@ -121,7 +121,7 @@ class InboxViewModelOrderTest {
     }
 
     @Test
-    fun `a dated task cannot be dragged, nor dropped onto`() = runTest {
+    fun `a dated task cannot be dragged - nor dropped onto`() = runTest {
         val rig = rig(task(1, 100.0, due = "2026-10-08T21:59:59Z"), task(2, 200.0), task(3, 300.0))
         val vm = rig.viewModel()
         runCurrent()

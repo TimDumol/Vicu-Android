@@ -60,7 +60,7 @@ class TaskEntryChipsTest {
     }
 
     @Test
-    fun `tags are listed up to two and counted after that, each once`() {
+    fun `tags are listed up to two and counted after that - each once`() {
         assertNull(entryLabelsWords(emptyList(), emptyList()))
         assertEquals("errand", entryLabelsWords(listOf("errand"), emptyList()))
         assertEquals("errand, call", entryLabelsWords(listOf("errand"), listOf("Errand", "call")))

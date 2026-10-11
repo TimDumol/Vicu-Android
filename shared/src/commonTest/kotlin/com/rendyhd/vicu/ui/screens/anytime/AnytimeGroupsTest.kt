@@ -137,7 +137,7 @@ class AnytimeGroupsTest {
     }
 
     @Test
-    fun `a header counts open tasks only, not the ones completed on screen`() {
+    fun `a header counts open tasks only - not the ones completed on screen`() {
         val projects = listOf(project(1, "Root"))
         val tasks = listOf(task(10, 1), task(11, 1), task(12, 1))
 

@@ -1,8 +1,8 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.Task
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class CustomListSortTest {
 
@@ -42,7 +42,7 @@ class CustomListSortTest {
     }
 
     @Test
-    fun `due dates compare as instants, not as strings`() {
+    fun `due dates compare as instants - not as strings`() {
         val tasks = listOf(
             task(1, due = "2026-06-10T22:00:00.500Z"),
             task(2, due = "2026-06-10T22:00:00Z"),

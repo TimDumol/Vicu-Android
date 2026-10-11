@@ -1,10 +1,10 @@
 package com.rendyhd.vicu.util.parser
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -78,7 +78,7 @@ class TaskParserTest {
     }
 
     @Test
-    fun `ignores hash followed by number (issue reference)`() {
+    fun `ignores hash followed by number - issue reference`() {
         val r = TaskParser.parse("review PR #142", todoist)
         assertNull(r.project)
         assertEquals("review PR #142", r.title)
@@ -108,21 +108,21 @@ class TaskParserTest {
     // ─── Priority ─────────────────────────────────────────────
 
     @Test
-    fun `extracts Todoist p1 as Vikunja 4 (urgent)`() {
+    fun `extracts Todoist p1 as Vikunja 4 - urgent`() {
         val r = TaskParser.parse("urgent task p1", todoist)
         assertEquals(4, r.priority)
         assertEquals("urgent task", r.title)
     }
 
     @Test
-    fun `extracts Todoist p3 as Vikunja 2 (medium)`() {
+    fun `extracts Todoist p3 as Vikunja 2 - medium`() {
         val r = TaskParser.parse("task p3", todoist)
         assertEquals(2, r.priority)
         assertEquals("task", r.title)
     }
 
     @Test
-    fun `does not match p2p (word boundary)`() {
+    fun `does not match p2p - word boundary`() {
         val r = TaskParser.parse("p3 talk about p2p", todoist)
         assertEquals(2, r.priority)
         assertEquals("talk about p2p", r.title)
@@ -330,7 +330,7 @@ class TaskParserTest {
     // ─── Edge Cases ───────────────────────────────────────────
 
     @Test
-    fun `task bang4 in Vikunja = priority 4, NOT today shortcut`() {
+    fun `task bang4 in Vikunja = priority 4 - NOT today shortcut`() {
         val r = TaskParser.parse("task !4", vikunja)
         assertEquals(4, r.priority)
         assertEquals("task", r.title)
@@ -344,14 +344,14 @@ class TaskParserTest {
     }
 
     @Test
-    fun `review PR hash142 = no project, hash142 stays in title`() {
+    fun `review PR hash142 = no project - hash142 stays in title`() {
         val r = TaskParser.parse("review PR #142", todoist)
         assertNull(r.project)
         assertEquals("review PR #142", r.title)
     }
 
     @Test
-    fun `p3 talk about p2p = priority 2, p2p in title`() {
+    fun `p3 talk about p2p = priority 2 - p2p in title`() {
         val r = TaskParser.parse("p3 talk about p2p", todoist)
         assertEquals(2, r.priority) // p3 → Vikunja 2
         assertEquals("talk about p2p", r.title)
@@ -365,14 +365,14 @@ class TaskParserTest {
     }
 
     @Test
-    fun `email at-john in Vikunja = no labels, at-john in title`() {
+    fun `email at-john in Vikunja = no labels - at-john in title`() {
         val r = TaskParser.parse("email @john", vikunja)
         assertEquals(emptyList<String>(), r.labels)
         assertEquals("email @john", r.title)
     }
 
     @Test
-    fun `dangling at in Todoist = no labels, at in title`() {
+    fun `dangling at in Todoist = no labels - at in title`() {
         val r = TaskParser.parse("dangling @", todoist)
         assertEquals(emptyList<String>(), r.labels)
         assertEquals("dangling @", r.title)
@@ -453,9 +453,9 @@ class TaskParserTest {
 
     private fun assertDateOnly(input: String) {
         val r = TaskParser.parse(input, todoist)
-        assertNotNull("'$input' should have a date", r.dueDate)
-        assertEquals("'$input' has no time of day", false, r.dueDateHasTime)
-        assertEquals("'$input' is carried at 23:59:59", 23, r.dueDate!!.hour)
+        assertNotNull(r.dueDate, "'$input' should have a date")
+        assertEquals(false, r.dueDateHasTime, "'$input' has no time of day")
+        assertEquals(23, r.dueDate!!.hour, "'$input' is carried at 23:59:59")
         assertEquals(59, r.dueDate.minute)
         assertEquals(59, r.dueDate.second)
     }

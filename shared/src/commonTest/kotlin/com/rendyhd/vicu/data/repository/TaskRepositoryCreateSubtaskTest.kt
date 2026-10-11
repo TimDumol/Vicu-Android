@@ -30,7 +30,7 @@ class TaskRepositoryCreateSubtaskTest {
     private fun parentIdsOf(task: Task) = task.relatedTasks[RelationKind.PARENTTASK].orEmpty().map { it.id }
 
     @Test
-    fun `offline, the subtask is stored under its parent and a create is queued`() = runTest {
+    fun `offline - the subtask is stored under its parent and a create is queued`() = runTest {
         val h = TaskRepositoryHarness(taskDao = FakeTaskDao(listOf(cachedTaskEntity(id = 42)))) { serviceUnavailable() }
 
         val result = h.repository.createSubtask(42, child)
@@ -98,7 +98,7 @@ class TaskRepositoryCreateSubtaskTest {
     }
 
     @Test
-    fun `online, the subtask is created and linked on the server as before`() = runTest {
+    fun `online - the subtask is created and linked on the server as before`() = runTest {
         val h = TaskRepositoryHarness(taskDao = FakeTaskDao(listOf(cachedTaskEntity(id = 42)))) { request ->
             when {
                 request.method == HttpMethod.Post && request.url.encodedPath == "/projects/7/tasks" -> createdTask()

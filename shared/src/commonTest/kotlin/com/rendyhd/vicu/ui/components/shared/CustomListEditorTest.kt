@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 class CustomListEditorTest {
 
     @Test
-    fun `a list without the key, or with true, opens with the switch on`() {
+    fun `a list without the key - or with true - opens with the switch on`() {
         assertTrue(includeOverdueSwitchOn(null))
         assertTrue(includeOverdueSwitchOn(true))
         assertFalse(includeOverdueSwitchOn(false))
@@ -70,7 +70,7 @@ class CustomListEditorTest {
     }
 
     @Test
-    fun `the switch is shown for today, this week and this month only`() {
+    fun `the switch is shown for today - this week and this month only`() {
         for (window in listOf("today", "this_week", "this_month")) {
             assertTrue(CustomListFilterBuilder.windowHonorsIncludeOverdue(window), window)
         }

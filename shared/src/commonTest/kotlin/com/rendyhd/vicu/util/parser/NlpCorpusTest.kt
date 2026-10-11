@@ -1,12 +1,12 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.util.readRepoFile
 import com.rendyhd.vicu.util.CrossAppFixture
 import com.rendyhd.vicu.util.DueDates
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -43,18 +43,7 @@ object NlpCorpusFixture {
 
     val corpus: Corpus by lazy { json.decodeFromString(Corpus.serializer(), readText()) }
 
-    private fun readText(): String {
-        // Gradle runs the tests with the module directory as the working directory; search
-        // upward so running them from the repo root or an IDE works too.
-        val start: String = System.getProperty("user.dir") ?: "."
-        var dir: File? = File(start).absoluteFile
-        while (dir != null) {
-            val candidate = File(dir, "test-fixtures/nlp-corpus-v1.json")
-            if (candidate.isFile) return candidate.readText(Charsets.UTF_8)
-            dir = dir.parentFile
-        }
-        error("test-fixtures/nlp-corpus-v1.json not found above $start")
-    }
+    private fun readText(): String = readRepoFile("test-fixtures/nlp-corpus-v1.json")
 }
 
 /** A local date and time as `YYYY-MM-DDTHH:mm:ss`, the notation of the corpus. */

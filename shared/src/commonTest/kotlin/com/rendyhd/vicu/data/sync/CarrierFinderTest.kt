@@ -238,7 +238,7 @@ class CarrierFinderTest {
     }
 
     @Test
-    fun `a failed first scan is an error, never an empty answer`() = runTest {
+    fun `a failed first scan is an error - never an empty answer`() = runTest {
         val rig = rig()
         rig.tasks.override = { req ->
             if (req.method == "GET" && req.path == "/tasks") respond("", HttpStatusCode.InternalServerError) else null

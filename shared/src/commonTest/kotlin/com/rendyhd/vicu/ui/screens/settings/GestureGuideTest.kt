@@ -27,7 +27,7 @@ class GestureGuideTest {
     }
 
     @Test
-    fun `the undo tip describes the held row, not a snackbar`() {
+    fun `the undo tip describes the held row - not a snackbar`() {
         assertTrue("snackbar" !in UNDO_TIP.lowercase())
         assertTrue("checkbox" in UNDO_TIP.lowercase())
     }

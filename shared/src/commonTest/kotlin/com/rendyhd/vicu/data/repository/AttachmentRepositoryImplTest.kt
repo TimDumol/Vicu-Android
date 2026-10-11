@@ -208,7 +208,7 @@ class AttachmentRepositoryImplTest {
     }
 
     @Test
-    fun `the limit is 20 MB when the server cannot be asked, and is asked again next time`() = runTest {
+    fun `the limit is 20 MB when the server cannot be asked - and is asked again next time`() = runTest {
         var infoCalls = 0
         val h = Harness { request, _ ->
             if (request.url.encodedPath == "/info") {

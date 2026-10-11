@@ -67,7 +67,8 @@ androidx-navigation-compose = { group = "org.jetbrains.androidx.navigation", nam
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0-alpha11" }
+# The stable line Room 2.7.1 is built against (androidx.sqlite 2.5.0).
+sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0" }
 
 # Networking
 

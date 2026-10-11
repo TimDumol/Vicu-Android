@@ -121,7 +121,7 @@ class TaskRepositoryListPositionsTest {
     }
 
     @Test
-    fun `a drag the server refuses is reported, and the local order stays until a refresh`() = runTest {
+    fun `a drag the server refuses is reported - and the local order stays until a refresh`() = runTest {
         val server = Server().apply { failPositionOnCall = setOf(1) }
         val h = harness(server, cached = listOf(Task(id = 3, title = "T", position = 10.0)))
 

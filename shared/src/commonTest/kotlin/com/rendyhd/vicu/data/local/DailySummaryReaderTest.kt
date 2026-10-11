@@ -34,7 +34,7 @@ class DailySummaryReaderTest {
         read(day, includeOverdue = true, includeDueToday = true, includeTomorrow = true)
 
     @Test
-    fun `it counts overdue, today and tomorrow only`() = runTest {
+    fun `it counts overdue - today and tomorrow only`() = runTest {
         val content = reader(
             task(1, dateOnly("2026-10-24")), // yesterday: overdue
             task(2, dateOnly("2026-10-20")), // days ago: overdue
@@ -78,7 +78,7 @@ class DailySummaryReaderTest {
     }
 
     @Test
-    fun `the local day decides, not the UTC date, on the 25 hour autumn change day`() = runTest {
+    fun `the local day decides - not the UTC date - on the 25 hour autumn change day`() = runTest {
         val content = reader(
             task(1, "2026-10-24T22:30:00Z"), // 00:30 CEST on the 25th: today
             task(2, "2026-10-25T22:59:59Z"), // 23:59:59 CET on the 25th: today
@@ -92,7 +92,7 @@ class DailySummaryReaderTest {
     }
 
     @Test
-    fun `it lists up to three titles due today, earliest first, without overdue ones`() = runTest {
+    fun `it lists up to three titles due today - earliest first - without overdue ones`() = runTest {
         val content = reader(
             task(1, "2026-10-25T09:00:00Z", title = "Late"),
             task(2, "2026-10-25T07:00:00Z", title = "Early"),

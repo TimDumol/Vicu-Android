@@ -23,7 +23,7 @@ class ProjectsTabTest {
     ).map { it.label to it.destructive }
 
     @Test
-    fun `a project's menu offers edit, a subproject, the inbox, archive and a destructive delete`() {
+    fun `a project's menu offers edit - a subproject - the inbox - archive and a destructive delete`() {
         assertEquals(
             listOf(
                 "Edit" to false,
@@ -57,7 +57,7 @@ class ProjectsTabTest {
     }
 
     @Test
-    fun `add subproject starts with the project as the parent, an edit with the project's own`() {
+    fun `add subproject starts with the project as the parent - an edit with the project's own`() {
         assertEquals(6L, startingParentId(project = null, initialParentId = 6))
         assertEquals(0L, startingParentId(project = null, initialParentId = 0))
         assertEquals(2L, startingParentId(project = work, initialParentId = 9))
@@ -73,7 +73,7 @@ class ProjectsTabTest {
     }
 
     @Test
-    fun `the excluded row names the one project, or counts several`() {
+    fun `the excluded row names the one project - or counts several`() {
         assertEquals("Someday", excludedFromReviewSummary(listOf(Project(1, "Someday"))))
         assertEquals("3 projects", excludedFromReviewSummary(listOf(Project(1, "a"), Project(2, "b"), Project(3, "c"))))
     }

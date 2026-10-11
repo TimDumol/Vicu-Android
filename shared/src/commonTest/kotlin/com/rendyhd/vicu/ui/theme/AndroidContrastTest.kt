@@ -113,7 +113,7 @@ class AndroidContrastTest {
     }
 
     @Test
-    fun `due today, done, swipe and priority colours are readable where they are used`() {
+    fun `due today - done - swipe and priority colours are readable where they are used`() {
         for ((theme, scheme, colors) in themes) {
             val surfaces = listOf(scheme.surface, scheme.surfaceContainerLowest, scheme.surfaceContainerLow)
             for (surface in surfaces) {

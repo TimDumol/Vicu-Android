@@ -237,7 +237,7 @@ class TaskEntryViewModelDueDateTest {
     }
 
     @Test
-    fun `clearing the date by hand wins over a typed date, and the words stay in the title`() = runTest {
+    fun `clearing the date by hand wins over a typed date - and the words stay in the title`() = runTest {
         val rig = rig()
         rig.vm.initWithDefaults(defaultProjectId = 1, defaultDueDate = todayDue)
         runCurrent()

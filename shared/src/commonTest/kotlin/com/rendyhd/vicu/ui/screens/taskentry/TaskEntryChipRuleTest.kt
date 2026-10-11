@@ -262,7 +262,7 @@ class TaskEntryChipRuleTest {
     }
 
     @Test
-    fun `a dismissed chip still lifts when its words are deleted, a pinned one does not`() = runTest {
+    fun `a dismissed chip still lifts when its words are deleted - a pinned one does not`() = runTest {
         val rig = rig()
         rig.vm.setTitle("Call Ana !high")
         rig.vm.suppressType(TokenType.PRIORITY)

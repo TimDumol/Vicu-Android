@@ -3,9 +3,9 @@ package com.rendyhd.vicu.data.local.dao
 import com.rendyhd.vicu.data.local.entity.PendingActionEntity
 import com.rendyhd.vicu.domain.model.Task
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class QueueMergeTest {
 
@@ -26,7 +26,7 @@ class QueueMergeTest {
     }
 
     @Test
-    fun `empty queue - replace (plain insert path)`() {
+    fun `empty queue - replace - plain insert path`() {
         val op = resolveTaskQueueMerge(emptyList(), "update", "{new}")
         assertEquals(QueueMergeOp.ReplaceForEntity, op)
     }

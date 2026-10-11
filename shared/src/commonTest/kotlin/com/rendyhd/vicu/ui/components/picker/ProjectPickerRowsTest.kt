@@ -19,7 +19,7 @@ class ProjectPickerRowsTest {
     private fun ids(rows: List<PickerProjectRow>) = rows.map { it.project.id }
 
     @Test
-    fun `without a query the projects are a tree, the inbox first, archived ones left out`() {
+    fun `without a query the projects are a tree - the inbox first - archived ones left out`() {
         val rows = projectPickerRows(all, inboxProjectId = 1, query = "")
         assertEquals(listOf(1L, 2L, 3L, 4L, 5L), ids(rows))
         assertEquals(listOf(0, 0, 1, 0, 1), rows.map { it.depth })
@@ -27,7 +27,7 @@ class ProjectPickerRowsTest {
     }
 
     @Test
-    fun `a query lists the matches flat, each with the project it sits in`() {
+    fun `a query lists the matches flat - each with the project it sits in`() {
         val rows = projectPickerRows(all, inboxProjectId = 1, query = "sprint")
         assertEquals(listOf(3L, 5L), ids(rows))
         assertEquals(listOf(0, 0), rows.map { it.depth })

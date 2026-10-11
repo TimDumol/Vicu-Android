@@ -11,15 +11,20 @@ object TaskLinkParser {
         data class BrowserPage(val url: String, val displayName: String) : TaskLink()
     }
 
+    // The marks are put in as characters, not as \uD83D\uDCCE escapes inside the pattern: the
+    // Kotlin/Native regex engine reads an escaped surrogate pair as two separate characters.
+    private const val NOTE_MARK = "\uD83D\uDCCE" // 📎
+    private const val PAGE_MARK = "\uD83D\uDD17" // 🔗
+
     private val noteLinkRegex = Regex("""<!-- notelink:(obsidian://[^">\s]+) -->""")
-    private val noteLinkNameRegex = Regex("""\uD83D\uDCCE\s*([^<]+)</a>""")
+    private val noteLinkNameRegex = Regex(NOTE_MARK + """\s*([^<]+)</a>""")
     private val noteLinkCommentRegex = Regex("""<!-- notelink:obsidian://[^>]+ -->""")
-    private val noteLinkAnchorRegex = Regex("""<p><a href="obsidian://[^"]*">\uD83D\uDCCE\s*[^<]*</a></p>""")
+    private val noteLinkAnchorRegex = Regex("""<p><a href="obsidian://[^"]*">""" + NOTE_MARK + """\s*[^<]*</a></p>""")
 
     private val pageLinkRegex = Regex("""<!-- pagelink:(https?://[^">\s]+) -->""")
-    private val pageLinkNameRegex = Regex("""\uD83D\uDD17\s*([^<]+)</a>""")
+    private val pageLinkNameRegex = Regex(PAGE_MARK + """\s*([^<]+)</a>""")
     private val pageLinkCommentRegex = Regex("""<!-- pagelink:https?://[^>]+ -->""")
-    private val pageLinkAnchorRegex = Regex("""<p><a href="https?://[^"]*">\uD83D\uDD17\s*[^<]*</a></p>""")
+    private val pageLinkAnchorRegex = Regex("""<p><a href="https?://[^"]*">""" + PAGE_MARK + """\s*[^<]*</a></p>""")
 
     fun extractLinks(description: String?): List<TaskLink> {
         if (description.isNullOrEmpty()) return emptyList()

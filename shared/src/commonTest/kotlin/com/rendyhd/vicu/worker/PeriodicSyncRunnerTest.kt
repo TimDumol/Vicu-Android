@@ -35,7 +35,7 @@ class PeriodicSyncRunnerTest {
     }
 
     @Test
-    fun `a run syncs first, then reschedules alarms, then updates the widgets`() = runTest {
+    fun `a run syncs first - then reschedules alarms - then updates the widgets`() = runTest {
         val rig = Rig()
 
         val outcome = rig.runner.run()

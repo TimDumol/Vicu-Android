@@ -128,7 +128,7 @@ class DayFollowingViewModelsTest {
     }
 
     @Test
-    fun `the routines screen starts on the clock's day, not a frozen one`() = runTest {
+    fun `the routines screen starts on the clock's day - not a frozen one`() = runTest {
         val repository = FakeRoutineRepository()
         val vm = RoutinesViewModel(
             repository = repository,

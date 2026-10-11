@@ -42,7 +42,7 @@ class ProjectActionsTest {
     }
 
     @Test
-    fun `an edit changes the title, colour and parent and nothing else`() = runTest {
+    fun `an edit changes the title - colour and parent and nothing else`() = runTest {
         val project = Project(id = 7, title = "Work", description = "notes", position = 300.0)
         val rig = Rig(listOf(project))
 
@@ -64,7 +64,7 @@ class ProjectActionsTest {
     // --- the Inbox ---
 
     @Test
-    fun `set as inbox makes the project the inbox, the same as the inbox picker`() = runTest {
+    fun `set as inbox makes the project the inbox - the same as the inbox picker`() = runTest {
         val rig = Rig(listOf(Project(id = 5, title = "Inbox"), Project(id = 6, title = "Work")))
         rig.auth.onInboxProjectSelected(5)
 
@@ -149,7 +149,7 @@ class ProjectActionsTest {
     }
 
     @Test
-    fun `mark reviewed records today and keeps a cadence of its own, and undo puts the project back`() = runTest {
+    fun `mark reviewed records today and keeps a cadence of its own - and undo puts the project back`() = runTest {
         val project = Project(id = 6, title = "Work", description = "x\n\n---\n**Vicu review**: never · every 30 days")
         val rig = Rig(listOf(project))
 
@@ -177,7 +177,7 @@ class ProjectActionsTest {
     }
 
     @Test
-    fun `siblings that share a position are renumbered, the moved one last`() = runTest {
+    fun `siblings that share a position are renumbered - the moved one last`() = runTest {
         val rig = Rig()
 
         rig.actions.moveAmongSiblings(3, listOf(project(1, 0.0), project(3, 0.0), project(2, 0.0)))

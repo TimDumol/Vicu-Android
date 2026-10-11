@@ -28,7 +28,7 @@ class KtorClientFactoryAuthPathsTest {
     private val base = "/api/v2/"
 
     @Test
-    fun `the sign-in, server info, refresh and OIDC endpoints are exempt`() {
+    fun `the sign-in - server info - refresh and OIDC endpoints are exempt`() {
         assertTrue(KtorClientFactory.isAuthExemptPath("/api/v2/login", base))
         assertTrue(KtorClientFactory.isAuthExemptPath("/api/v2/info", base))
         assertTrue(KtorClientFactory.isAuthExemptPath("/api/v2/user/token/refresh", base))

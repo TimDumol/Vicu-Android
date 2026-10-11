@@ -205,7 +205,7 @@ class RoutineRepositoryArchiveTest {
     // --- Parts that already exist ----------------------------------------------------------
 
     @Test
-    fun `a part found by the search is appended to, not duplicated`() = runTest {
+    fun `a part found by the search is appended to - not duplicated`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         val earlier = record("2024-12-01")
         rig.seedCarrier(100, payload(old1, edge, recent, prunedBefore = "2024-12-01"))
@@ -404,7 +404,7 @@ class RoutineRepositoryArchiveTest {
     // --- Creating ---------------------------------------------------------------------------
 
     @Test
-    fun `a routine is created in one request, already done, without positioning`() = runTest {
+    fun `a routine is created in one request - already done - without positioning`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         val draft = RoutineDraft(
             name = "Vitamin D",
@@ -474,7 +474,7 @@ class RoutineRepositoryArchiveTest {
     // --- Hiding -------------------------------------------------------------------------------
 
     @Test
-    fun `an archive part in the task cache is not a routine, not an issue and not a task`() = runTest {
+    fun `an archive part in the task cache is not a routine - not an issue and not a task`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         rig.seedCarrier(100, payload(recent))
         val description = RoutineEnvelope.encodeArchive(RoutineArchivePart(routineId = "r1", part = 1), rig.json)

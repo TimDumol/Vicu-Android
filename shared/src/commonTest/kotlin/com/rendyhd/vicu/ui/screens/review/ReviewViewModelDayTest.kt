@@ -90,7 +90,7 @@ class ReviewViewModelDayTest {
     }
 
     @Test
-    fun `the status uses the local date, not the UTC date`() = runTest {
+    fun `the status uses the local date - not the UTC date`() = runTest {
         // 20:00Z on the 6th is already 09:00 on the 7th in Auckland, so this review is overdue
         // there although the UTC date is still the 6th.
         val rig = rig("2026-10-06T20:00:00Z", TimeZone.of("Pacific/Auckland"), reviewed(1, "2026-09-22"))

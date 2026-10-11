@@ -34,7 +34,7 @@ class SwipeCompletionTest {
     }
 
     @Test
-    fun `the decision follows the task it is given, so a refreshed task changes the answer`() {
+    fun `the decision follows the task it is given - so a refreshed task changes the answer`() {
         // The swipe handler keeps one lambda for the row's lifetime; it must evaluate whatever
         // task is current at swipe time, not the one the row was first composed with.
         val composedWith = parent()

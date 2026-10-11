@@ -72,7 +72,7 @@ class TaskRowSemanticsTest {
     }
 
     @Test
-    fun `priority colours are the roles, distinct between levels in both themes`() {
+    fun `priority colours are the roles - distinct between levels in both themes`() {
         for ((name, colors) in listOf("light" to VicuLightColors, "dark" to VicuDarkColors)) {
             val colours = (1..4).map { priorityMarkColor(it, colors) }
             assertEquals(4, colours.toSet().size, name)

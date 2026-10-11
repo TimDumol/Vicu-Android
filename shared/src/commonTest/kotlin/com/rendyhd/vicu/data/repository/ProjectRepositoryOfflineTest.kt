@@ -138,7 +138,7 @@ class ProjectRepositoryOfflineTest {
     }
 
     @Test
-    fun `archive, position and parent changes are queued offline`() = runTest {
+    fun `archive - position and parent changes are queued offline`() = runTest {
         val rig = Rig(FakeProjectDao(listOf(original))) { unavailable() }
 
         rig.repository.update(domain().copy(isArchived = true))
@@ -198,7 +198,7 @@ class ProjectRepositoryOfflineTest {
     // --- refused for good ----------------------------------------------------------------------
 
     @Test
-    fun `a change the server refuses is rolled back and reported, not queued`() = runTest {
+    fun `a change the server refuses is rolled back and reported - not queued`() = runTest {
         val rig = Rig(FakeProjectDao(listOf(original))) { rejected() }
 
         val result = rig.repository.update(domain().copy(title = ""))

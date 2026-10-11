@@ -39,7 +39,7 @@ class SectionHeaderTest {
     }
 
     @Test
-    fun `a group of one task gets no header, however many of its tasks are finished`() {
+    fun `a group of one task gets no header - however many of its tasks are finished`() {
         assertFalse(showsGroupHeader(0))
         assertFalse(showsGroupHeader(1))
         assertTrue(showsGroupHeader(2))

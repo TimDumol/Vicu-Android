@@ -1,8 +1,8 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.Task
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class TaskSortTest {
 

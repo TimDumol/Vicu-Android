@@ -33,7 +33,7 @@ class ApiTokenTitleTest {
     }
 
     @Test
-    fun `install id validation rejects blank, short, long and non-hex values`() {
+    fun `install id validation rejects blank - short - long and non-hex values`() {
         assertFalse(ApiTokenTitle.isValidInstallId(""))
         assertFalse(ApiTokenTitle.isValidInstallId("a1b2c"))
         assertFalse(ApiTokenTitle.isValidInstallId("a1b2c3d"))
@@ -65,7 +65,7 @@ class ApiTokenTitleTest {
     }
 
     @Test
-    fun `sibling cleanup keeps the new token, other phones, legacy tokens and manual tokens`() {
+    fun `sibling cleanup keeps the new token - other phones - legacy tokens and manual tokens`() {
         val tokens = listOf(
             ApiTokenDto(id = 10, title = "Vicu — Pixel 8 [a1b2c3]"), // the token just created
             ApiTokenDto(id = 11, title = "Vicu — Pixel 8 [a1b2c3]"), // this install, stale

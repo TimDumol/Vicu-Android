@@ -56,7 +56,7 @@ class LocalDataWiperTest {
     }
 
     @Test
-    fun `clearing caches does not touch custom lists, the bottom bar or alarms`() = runTest {
+    fun `clearing caches does not touch custom lists - the bottom bar or alarms`() = runTest {
         val f = fixture()
         f.bottomBar.saveSlots(BottomBarSlot.DEFAULT_SLOTS.reversed())
 
@@ -118,7 +118,7 @@ class LocalDataWiperTest {
     // --- wipeEverything ---
 
     @Test
-    fun `wiping everything clears every table, local settings and alarms`() = runTest {
+    fun `wiping everything clears every table - local settings and alarms`() = runTest {
         val f = fixture()
         f.bottomBar.saveSlots(BottomBarSlot.DEFAULT_SLOTS.reversed())
 
@@ -207,7 +207,7 @@ class LocalDataWiperTest {
     // --- counts ---
 
     @Test
-    fun `unsynced count covers waiting, in flight and failed actions only`() = runTest {
+    fun `unsynced count covers waiting - in flight and failed actions only`() = runTest {
         val f = WiperFixture()
         f.dao.pending += queuedAction(1, status = "pending")
         f.dao.pending += queuedAction(2, status = "processing")

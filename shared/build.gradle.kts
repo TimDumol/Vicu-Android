@@ -88,12 +88,12 @@ kotlin {
         }
 
         getByName("androidHostTest").dependencies {
+            implementation(libs.junit)
             implementation(libs.sqlite.jdbc)
         }
 
         commonTest.dependencies {
             implementation(kotlin("test"))
-            implementation(libs.junit)
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.test)
         }
@@ -112,6 +112,25 @@ dependencies {
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
 }
+
+// The iOS tests read test-fixtures/ from this repository (the simulator runs on this Mac and can
+// read its files), at the path written into a generated constant.
+val generateIosTestPaths by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/iosTestPaths/kotlin")
+    val repoRoot = rootDir.absolutePath
+    inputs.property("repoRoot", repoRoot)
+    outputs.dir(outputDir)
+    doLast {
+        val file = outputDir.get().file("com/rendyhd/vicu/util/TestPaths.kt").asFile
+        file.parentFile.mkdirs()
+        val escaped = repoRoot.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+        file.writeText(
+            "package com.rendyhd.vicu.util\n\n" +
+                "internal object TestPaths {\n    const val REPO_ROOT = \"$escaped\"\n}\n",
+        )
+    }
+}
+kotlin.sourceSets.matching { it.name == "iosTest" }.configureEach { kotlin.srcDir(generateIosTestPaths) }
 
 // The Kotlin Multiplatform library plugin has no `test` task (only testAndroidHostTest and
 // allTests, which also lists the iOS targets), so `./gradlew test` would skip this module's tests.

@@ -52,7 +52,7 @@ class DueDateLabelTest {
     }
 
     @Test
-    fun `the label follows the local date and time, not UTC`() {
+    fun `the label follows the local date and time - not UTC`() {
         // 21:59:59Z on the 6th is 23:59:59 in Amsterdam (date-only, today) ...
         val dueDate = Instant.parse("2026-10-06T21:59:59Z").toString()
         assertEquals("Today", DateDisplay.formatDue(DateContext.ROW, dueDate, today, zone, us12))

@@ -75,7 +75,7 @@ class TaskEntityMetadataTest {
     }
 
     @Test
-    fun `the flag is part of the row, so an unchanged row compares equal and a refresh does not rewrite it`() {
+    fun `the flag is part of the row - so an unchanged row compares equal and a refresh does not rewrite it`() {
         val first = with(mapper) { TaskDto(id = 40, title = "Carrier", description = routineCarrier, done = true).toEntity() }
         val second = with(mapper) { TaskDto(id = 40, title = "Carrier", description = routineCarrier, done = true).toEntity() }
 

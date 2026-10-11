@@ -221,7 +221,7 @@ class DrawerViewModelProgressTest {
     }
 
     @Test
-    fun `closing and opening the drawer asks again, and the source decides whether that costs a request`() = runTest {
+    fun `closing and opening the drawer asks again - and the source decides whether that costs a request`() = runTest {
         val rig = rig(source())
         rig.viewModel.setProgressRows(setOf(1L))
         settle()

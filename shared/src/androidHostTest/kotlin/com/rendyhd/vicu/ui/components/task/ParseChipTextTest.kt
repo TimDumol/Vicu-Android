@@ -8,8 +8,8 @@ import com.rendyhd.vicu.util.parser.TokenType
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
-import org.junit.After
-import org.junit.Before
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,13 +21,13 @@ class ParseChipTextTest {
     private val today = LocalDate(2026, 10, 7) // a Wednesday
     private var savedLocale: Locale = Locale.getDefault()
 
-    @Before
+    @BeforeTest
     fun fixLocale() {
         savedLocale = Locale.getDefault()
         Locale.setDefault(Locale.US)
     }
 
-    @After
+    @AfterTest
     fun restoreLocale() {
         Locale.setDefault(savedLocale)
     }
@@ -59,7 +59,7 @@ class ParseChipTextTest {
     }
 
     @Test
-    fun `a date without a time shows no time, even at midnight`() {
+    fun `a date without a time shows no time - even at midnight`() {
         assertEquals(
             "Wed 7 Oct",
             formatDateChip(LocalDateTime(2026, 10, 7, 0, 0), hasTime = false, today = today, dateFormat = gb24),
@@ -71,7 +71,7 @@ class ParseChipTextTest {
     }
 
     @Test
-    fun `a chip always names the weekday date, never a relative word`() {
+    fun `a chip always names the weekday date - never a relative word`() {
         fun chip(date: LocalDateTime, hasTime: Boolean = false, format: DateDisplayFormat = gb24) =
             formatDateChip(date, hasTime = hasTime, today = today, dateFormat = format)
 

@@ -59,7 +59,7 @@ class TaskPositionGuardTest {
     }
 
     @Test
-    fun `a position set on purpose replaces the stored one, even with zero`() = runTest {
+    fun `a position set on purpose replaces the stored one - even with zero`() = runTest {
         val dao = FakeTaskDao(listOf(entity(1, 500.0), entity(2, 600.0)))
 
         dao.updatePositions(mapOf(1L to 0.0, 2L to 650.0))

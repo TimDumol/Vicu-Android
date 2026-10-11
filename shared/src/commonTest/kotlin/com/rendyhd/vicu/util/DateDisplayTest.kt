@@ -104,7 +104,7 @@ class DateDisplayTest {
     private val today = LocalDate(2026, 10, 7)
 
     @Test
-    fun `a stored date with no value, or the null date, shows nothing`() {
+    fun `a stored date with no value - or the null date - shows nothing`() {
         val zone = TimeZone.of("Europe/Amsterdam")
         assertEquals("", DateDisplay.formatDue(DateContext.ROW, null, today, zone, us))
         assertEquals("", DateDisplay.formatDue(DateContext.ROW, "", today, zone, us))
@@ -112,7 +112,7 @@ class DateDisplayTest {
     }
 
     @Test
-    fun `a chip reads like Sat 10 Oct, 15 00`() {
+    fun `a chip reads like Sat 10 Oct - 15 00`() {
         val value = LocalDateTime(2026, 10, 10, 15, 0)
         assertEquals("Sat 10 Oct, 15:00", DateDisplay.format(DateContext.CHIP, value, today, false, gb))
         assertEquals("Sat, Oct 10, 3:00 PM", DateDisplay.format(DateContext.CHIP, value, today, false, us))

@@ -32,7 +32,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `next mon reads as the coming Monday, date-only, and weekend alone reads as nothing`() {
+    fun `next mon reads as the coming Monday - date-only - and weekend alone reads as nothing`() {
         assertEquals(WhenValue(LocalDate(2026, 10, 12), null), parse("next mon")!!.value)
         assertEquals(WhenValue(LocalDate(2026, 10, 12), null), parse("next monday")!!.value)
         // The weekend is a quick choice of the sheet, not something the text parser reads.
@@ -41,7 +41,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `this weekend is words, not a date (the parser spec), so only the quick choice sets it`() {
+    fun `this weekend is words - not a date - the parser spec - so only the quick choice sets it`() {
         assertNull(parse("this weekend"))
         assertNull(parse("plan the weekend"))
         assertEquals(LocalDate(2026, 10, 10), WhenLogic.quickChoices(thursday).first { it.id == WhenQuickChoice.Id.WEEKEND }.date)
@@ -61,7 +61,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `a date only phrase is judged against the day, not the clock`() {
+    fun `a date only phrase is judged against the day - not the clock`() {
         // Thursday evening: "thursday" is today, not next week.
         val evening = LocalDateTime(2026, 10, 8, 22, 30)
         assertEquals(thursday, parse("thursday", evening)!!.value.date)
@@ -124,7 +124,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `quick choices land on today, tomorrow, the coming Saturday and the coming Monday`() {
+    fun `quick choices land on today - tomorrow - the coming Saturday and the coming Monday`() {
         val choices = WhenLogic.quickChoices(thursday).associate { it.id to it.date }
         assertEquals(thursday, choices[WhenQuickChoice.Id.TODAY])
         assertEquals(LocalDate(2026, 10, 9), choices[WhenQuickChoice.Id.TOMORROW])
@@ -134,7 +134,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `the weekend and next week move on from a Saturday, a Sunday and a Monday`() {
+    fun `the weekend and next week move on from a Saturday - a Sunday and a Monday`() {
         fun on(day: Int): Map<WhenQuickChoice.Id, LocalDate> =
             WhenLogic.quickChoices(LocalDate(2026, 10, day)).associate { it.id to it.date }
         // Saturday 10: the next Saturday, the coming Monday.
@@ -159,7 +159,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `hints name the weekday, and next week names the day of the month`() {
+    fun `hints name the weekday - and next week names the day of the month`() {
         val choices = WhenLogic.quickChoices(thursday).associateBy { it.id }
         assertEquals("Thu", WhenLogic.hint(choices.getValue(WhenQuickChoice.Id.TODAY), us12))
         assertEquals("Fri", WhenLogic.hint(choices.getValue(WhenQuickChoice.Id.TOMORROW), us12))

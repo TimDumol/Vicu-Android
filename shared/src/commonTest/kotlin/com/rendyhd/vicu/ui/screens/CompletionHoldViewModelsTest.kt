@@ -77,7 +77,7 @@ class CompletionHoldViewModelsTest {
     private fun TagViewModel.shownIds() = uiState.value.tasks.map { it.id }
 
     @Test
-    fun `a completed row stays on screen, struck through, after the stored task is done`() = runTest {
+    fun `a completed row stays on screen - struck through - after the stored task is done`() = runTest {
         val tasks = FakeTaskRepository().withOpenTasks(1, 2, 3)
         val vm = tagViewModel(tasks)
         runCurrent()

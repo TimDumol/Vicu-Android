@@ -38,7 +38,7 @@ class UpcomingDaysTest {
     }
 
     @Test
-    fun `within a day tasks go by due time, then position, then id`() {
+    fun `within a day tasks go by due time - then position - then id`() {
         val day = LocalDate(2026, 10, 8)
         val tasks = listOf(
             task(1, dateOnly(day, amsterdam), position = 1.0),
@@ -52,7 +52,7 @@ class UpcomingDaysTest {
     }
 
     @Test
-    fun `the day is the local day, not the UTC day, across midnight`() {
+    fun `the day is the local day - not the UTC day - across midnight`() {
         // 23:30 local on Oct 8 is 21:30Z the same day; 00:30 local on Oct 9 is 22:30Z on Oct 8.
         val tasks = listOf(
             task(1, "2026-10-08T21:30:00Z"),
@@ -91,7 +91,7 @@ class UpcomingDaysTest {
     }
 
     @Test
-    fun `today, overdue, undated and unknown-project tasks are not listed`() {
+    fun `today - overdue - undated and unknown-project tasks are not listed`() {
         val tasks = listOf(
             task(1, dateOnly(today, amsterdam)),
             task(2, dateOnly(LocalDate(2026, 10, 5), amsterdam)),
@@ -115,7 +115,7 @@ class UpcomingDaysTest {
     }
 
     @Test
-    fun `instants with different offsets order by the moment, not the text`() {
+    fun `instants with different offsets order by the moment - not the text`() {
         val tasks = listOf(
             task(1, "2026-10-08T10:00:00+02:00"), // 08:00Z
             task(2, "2026-10-08T09:00:00Z"),
@@ -126,7 +126,7 @@ class UpcomingDaysTest {
     }
 
     @Test
-    fun `a day is also grouped by project name, each group in the day's order`() {
+    fun `a day is also grouped by project name - each group in the day's order`() {
         val day = LocalDate(2026, 10, 8)
         val tasks = listOf(
             task(1, dateOnly(day, amsterdam), projectId = 2),

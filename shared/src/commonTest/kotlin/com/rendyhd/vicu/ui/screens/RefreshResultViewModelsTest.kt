@@ -122,7 +122,7 @@ class RefreshResultViewModelsTest {
     }
 
     @Test
-    fun `pulling down while offline says so, and asks for a full reconcile`() = runTest {
+    fun `pulling down while offline says so - and asks for a full reconcile`() = runTest {
         val rig = Rig().apply { staleness.markSynced() }
         val vm = rig.tagViewModel()
         runCurrent()
@@ -306,7 +306,7 @@ class RefreshResultViewModelsTest {
     // --- Search ----------------------------------------------------------------------------
 
     @Test
-    fun `a search whose server request fails says so, unless the device is offline`() = runTest {
+    fun `a search whose server request fails says so - unless the device is offline`() = runTest {
         val tasks = FakeTaskRepository()
         val vm = SearchViewModel(tasks, FakeProjectRepository(), FakeLabelRepository())
         runCurrent()

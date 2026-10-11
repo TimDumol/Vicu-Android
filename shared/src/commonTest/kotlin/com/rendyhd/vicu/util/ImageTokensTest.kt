@@ -2,9 +2,9 @@ package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.util.ImageTokens.ImageRef
 import com.rendyhd.vicu.util.ImageTokens.Segment
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class ImageTokensTest {
 
@@ -94,8 +94,8 @@ class ImageTokensTest {
         for ((text, imgs) in cases) {
             val built = ImageTokens.buildValue(text, imgs)
             val (parsedText, parsedImgs) = ImageTokens.parseValue(built)
-            assertEquals("text identity failed for: '$text' with $imgs", text, parsedText)
-            assertEquals("images identity failed for: '$text' with $imgs", imgs, parsedImgs)
+            assertEquals(text, parsedText, "text identity failed for: '$text' with $imgs")
+            assertEquals(imgs, parsedImgs, "images identity failed for: '$text' with $imgs")
         }
     }
 

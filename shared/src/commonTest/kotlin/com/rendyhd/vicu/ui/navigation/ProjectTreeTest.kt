@@ -20,7 +20,7 @@ class ProjectTreeTest {
     // --- building the tree ---
 
     @Test
-    fun `projects nest to any depth, siblings by position`() {
+    fun `projects nest to any depth - siblings by position`() {
         val tree = buildProjectTree(
             listOf(
                 project(1, position = 20.0),
@@ -104,7 +104,7 @@ class ProjectTreeTest {
     }
 
     @Test
-    fun `a collapsed project hides everything below it, and only that`() {
+    fun `a collapsed project hides everything below it - and only that`() {
         val rows = visibleProjectRows(tree, collapsed = setOf(1L))
 
         assertEquals(listOf(1L, 2L), rows.ids())

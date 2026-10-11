@@ -45,7 +45,7 @@ class TaskRepositoryOptimisticUpdateTest {
     }
 
     @Test
-    fun `an update keeps labels, ordering and creation metadata that the patch cannot carry`() = runTest {
+    fun `an update keeps labels - ordering and creation metadata that the patch cannot carry`() = runTest {
         val h = offlineHarness()
         val domain = with(h.mapper) { original.toDomain() }
 

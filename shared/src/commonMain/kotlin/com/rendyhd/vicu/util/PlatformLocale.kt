@@ -26,6 +26,7 @@ fun languageOf(tag: String): String = tag.split('-', '_').first().lowercase()
 /** The region subtag of [tag], upper case, or "" when it has none ("GB" for "en-GB", "" for "en"). */
 fun regionOf(tag: String): String =
     tag.split('-', '_').drop(1)
+        .takeWhile { it.length > 1 } // a single letter starts an extension ("-u-hc-h23")
         .firstOrNull { (it.length == 2 && it.all(Char::isLetter)) || (it.length == 3 && it.all(Char::isDigit)) }
         ?.uppercase()
         .orEmpty()

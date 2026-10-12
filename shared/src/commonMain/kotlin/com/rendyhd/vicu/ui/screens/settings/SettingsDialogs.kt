@@ -35,6 +35,7 @@ import com.rendyhd.vicu.ui.components.shared.BottomBarSlotEditor
 import com.rendyhd.vicu.ui.components.shared.DeleteProjectDialog
 import com.rendyhd.vicu.ui.components.shared.CustomListDialog
 import com.rendyhd.vicu.ui.components.shared.LabelEditDialog
+import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
 import com.rendyhd.vicu.ui.components.shared.ProjectEditDialog
 import com.rendyhd.vicu.ui.components.shared.ReviewCadenceInputDialog
 
@@ -346,6 +347,7 @@ private fun SummaryTimeDialog(
     val timePickerState = rememberTimePickerState(
         initialHour = initialHour,
         initialMinute = initialMinute,
+        is24Hour = LocalIs24Hour.current,
     )
     AlertDialog(
         onDismissRequest = onDismiss,

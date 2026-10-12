@@ -53,10 +53,13 @@ import com.rendyhd.vicu.domain.model.Label
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.ui.components.section.sectionStateDescription
 import com.rendyhd.vicu.ui.components.shared.IconRegistry
+import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
 import com.rendyhd.vicu.ui.theme.LocalVicuColors
 import com.rendyhd.vicu.ui.theme.VicuChipShape
 import com.rendyhd.vicu.util.CustomListFilterBuilder
+import com.rendyhd.vicu.util.DateDisplay
 import com.rendyhd.vicu.util.parseHexColor
+import kotlinx.datetime.LocalTime
 
 @Composable
 internal fun SectionHeader(
@@ -152,8 +155,8 @@ internal fun TimePickerRow(
     minute: Int,
     onClick: () -> Unit,
 ) {
-    val hour12 = if (hour % 12 == 0) 12 else hour % 12
-    val timeText = "$hour12:${minute.toString().padStart(2, '0')} ${if (hour < 12) "AM" else "PM"}"
+    // The device's clock format ("8:00 AM" or "08:00"), as every other time in the app.
+    val timeText = DateDisplay.formatTime(LocalTime(hour, minute), LocalDateFormat.current)
     Row(
         modifier = Modifier
             .fillMaxWidth()

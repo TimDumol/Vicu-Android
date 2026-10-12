@@ -45,6 +45,7 @@ internal sealed interface SettingsDialog {
     data object AuthDebugLog : SettingsDialog
     data object BackgroundActivity : SettingsDialog
     data object InboxPicker : SettingsDialog
+    data object TaskOrderPicker : SettingsDialog
     data class BottomBarSlot(val index: Int) : SettingsDialog
 }
 
@@ -73,6 +74,7 @@ internal fun SettingsDialog.encode(): String = when (this) {
     SettingsDialog.AuthDebugLog -> "auth_log"
     SettingsDialog.BackgroundActivity -> "background_activity"
     SettingsDialog.InboxPicker -> "inbox_picker"
+    SettingsDialog.TaskOrderPicker -> "task_order"
     is SettingsDialog.BottomBarSlot -> withArg("bottom_bar_slot", index.toString())
 }
 
@@ -108,6 +110,7 @@ internal fun decodeSettingsDialog(encoded: String): SettingsDialog? {
         "auth_log" -> SettingsDialog.AuthDebugLog
         "background_activity" -> SettingsDialog.BackgroundActivity
         "inbox_picker" -> SettingsDialog.InboxPicker
+        "task_order" -> SettingsDialog.TaskOrderPicker
         "bottom_bar_slot" -> arg?.toIntOrNull()?.let { SettingsDialog.BottomBarSlot(it) }
         else -> null
     }

@@ -19,6 +19,7 @@ fun sortProjectTasks(tasks: List<Task>, order: TaskOrder = TaskOrder.DEFAULT): L
 /** The comparator behind [sortProjectTasks]. */
 fun taskComparator(order: TaskOrder): Comparator<Task> = when (order) {
     TaskOrder.DUE_DATE_FIRST -> dueDateFirst
+    TaskOrder.DUE_DATE_THEN_PRIORITY -> dueDateThenPriority
     TaskOrder.MANUAL -> byPosition
     // Vikunja priorities run 0 (unset) to 5 (do now): the highest first, unset last.
     TaskOrder.PRIORITY -> compareByDescending<Task> { it.priority }.then(dueDateFirst)
@@ -31,6 +32,12 @@ private fun hasDueDate(t: Task): Boolean =
     t.dueDate.isNotBlank() && !DateUtils.isNullDate(t.dueDate)
 
 private val byPosition: Comparator<Task> = compareBy { it.position }
+
+/** Dated first by due date, then undated; within each, the highest priority first, then by position. */
+private val dueDateThenPriority: Comparator<Task> = compareBy<Task> { !hasDueDate(it) }
+    .thenBy { if (hasDueDate(it)) it.dueDate else "" }
+    .thenByDescending { it.priority }
+    .then(byPosition)
 
 private val dueDateFirst: Comparator<Task> = Comparator { a, b ->
     val aDated = hasDueDate(a)

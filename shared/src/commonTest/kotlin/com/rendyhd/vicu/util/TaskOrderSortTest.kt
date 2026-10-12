@@ -39,6 +39,23 @@ class TaskOrderSortTest {
     }
 
     @Test
+    fun `due date then priority lists the undated ones by priority`() {
+        assertEquals(listOf(4L, 2L, 3L, 1L), ids(TaskOrder.DUE_DATE_THEN_PRIORITY))
+        val undated = listOf(
+            t(1, position = 10.0, priority = 1),
+            t(2, position = 20.0, priority = 5),
+            t(3, position = 30.0),
+            t(4, position = 40.0, priority = 5),
+            t(5, due = "2026-05-10T21:59:59Z", position = 50.0, priority = 1),
+            t(6, due = "2026-05-10T21:59:59Z", position = 60.0, priority = 4),
+        )
+        assertEquals(
+            listOf(6L, 5L, 2L, 4L, 1L, 3L),
+            sortProjectTasks(undated, TaskOrder.DUE_DATE_THEN_PRIORITY).map { it.id },
+        )
+    }
+
+    @Test
     fun `manual order is position only`() {
         assertEquals(listOf(2L, 3L, 1L, 4L), ids(TaskOrder.MANUAL))
     }
@@ -66,7 +83,7 @@ class TaskOrderSortTest {
         assertTrue(isManuallyOrdered(undated, TaskOrder.DUE_DATE_FIRST))
         assertFalse(isManuallyOrdered(dated, TaskOrder.DUE_DATE_FIRST))
         assertTrue(isManuallyOrdered(dated, TaskOrder.MANUAL))
-        for (order in listOf(TaskOrder.PRIORITY, TaskOrder.TITLE, TaskOrder.NEWEST, TaskOrder.OLDEST)) {
+        for (order in listOf(TaskOrder.DUE_DATE_THEN_PRIORITY, TaskOrder.PRIORITY, TaskOrder.TITLE, TaskOrder.NEWEST, TaskOrder.OLDEST)) {
             assertFalse(isManuallyOrdered(undated, order), "$order")
             assertNull(moveTaskInList(sortProjectTasks(tasks, order), 1L, 3L, order), "$order")
             assertTrue(moveOptions(tasks, order).values.none { it.up || it.down }, "$order")

@@ -10,6 +10,9 @@ enum class TaskOrder(val key: String, val label: String) {
     /** Dated tasks first by due date, then the rest in their manual order: the desktop's order. */
     DUE_DATE_FIRST("due_date_first", "Due date, then manual"),
 
+    /** Dated tasks first by due date, then the rest by priority (highest first), then manual. */
+    DUE_DATE_THEN_PRIORITY("due_date_priority", "Due date, then priority"),
+
     /** Every task in its manual order, dated or not; every row can be dragged. */
     MANUAL("manual", "Manual"),
 

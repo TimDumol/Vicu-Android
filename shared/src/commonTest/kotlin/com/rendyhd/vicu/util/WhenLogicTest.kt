@@ -183,4 +183,36 @@ class WhenLogicTest {
         assertEquals("09:00", WhenLogic.timeLabel(nineAm, gb24))
         assertEquals(listOf("09:00", "12:00", "15:00", "18:00"), WhenLogic.TIME_CHOICES.map { WhenLogic.timeLabel(it, gb24) })
     }
+
+    // The month grid: the same cases as the desktop `monthGrid` tests.
+
+    @Test
+    fun `the month grid has six Monday-first weeks around the month`() {
+        val grid = WhenLogic.monthGrid(LocalDate(2026, 10, 15))
+        assertEquals(6, grid.size)
+        assertEquals(List(6) { 7 }, grid.map { it.size })
+        // 1 October 2026 is a Thursday: the first row starts on Monday 28 September.
+        assertEquals(GridDay(LocalDate(2026, 9, 28), inMonth = false), grid[0][0])
+        assertEquals(GridDay(LocalDate(2026, 10, 1), inMonth = true), grid[0][3])
+        assertEquals(LocalDate(2026, 11, 8), grid[5][6].date)
+        assertEquals(31, grid.flatten().count { it.inMonth })
+        // Every row runs Monday to Sunday.
+        assertEquals(List(6) { kotlinx.datetime.DayOfWeek.MONDAY }, grid.map { it.first().date.dayOfWeek })
+        assertEquals(List(6) { kotlinx.datetime.DayOfWeek.SUNDAY }, grid.map { it.last().date.dayOfWeek })
+    }
+
+    @Test
+    fun `the month grid handles a month that starts on Monday and February in a leap year`() {
+        assertEquals(GridDay(LocalDate(2026, 6, 1), inMonth = true), WhenLogic.monthGrid(LocalDate(2026, 6, 10))[0][0])
+        assertEquals(29, WhenLogic.monthGrid(LocalDate(2028, 2, 1)).flatten().count { it.inMonth })
+    }
+
+    @Test
+    fun `months move by whole months and clamp the day`() {
+        assertEquals(LocalDate(2026, 2, 28), WhenLogic.addMonths(LocalDate(2026, 1, 31), 1))
+        assertEquals(LocalDate(2028, 2, 29), WhenLogic.addMonths(LocalDate(2028, 1, 31), 1))
+        assertEquals(LocalDate(2025, 12, 15), WhenLogic.addMonths(LocalDate(2026, 10, 15), -10))
+        assertEquals(LocalDate(2027, 1, 5), WhenLogic.addMonths(LocalDate(2026, 12, 5), 1))
+        assertEquals(LocalDate(2026, 10, 1), WhenLogic.monthStart(LocalDate(2026, 10, 15)))
+    }
 }

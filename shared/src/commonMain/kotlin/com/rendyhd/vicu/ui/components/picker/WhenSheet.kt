@@ -18,8 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -29,18 +27,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -57,16 +51,13 @@ import com.rendyhd.vicu.util.WhenLogic
 import com.rendyhd.vicu.util.WhenQuickChoice
 import com.rendyhd.vicu.util.WhenValue
 import kotlinx.coroutines.launch
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 
 /**
  * The When sheet (design review card 3.4b), the Android counterpart of the desktop When panel:
- * a text field read by the quick-add parser, the quick choices, the Material calendar and a row of
- * times. A quick choice or Done finishes; the calendar and the time chips only change the value,
+ * a text field read by the quick-add parser, the quick choices, a month calendar whose weeks start
+ * on Monday ([MonthCalendar]) and a row of times. A quick choice or Done finishes; the calendar and the time chips only change the value,
  * and the text follows them. The rules live in [WhenLogic]. A day without a time becomes a
  * date-only due date (local 23:59:59, see [DueDates]).
  *
@@ -97,11 +88,6 @@ fun WhenSheet(
     var showCustomTime by remember { mutableStateOf(false) }
     val shown = typed ?: selected
 
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initial.date?.let(::utcMillis),
-        initialDisplayedMonthMillis = utcMillis(initial.date ?: today),
-    )
-
     fun close(after: () -> Unit = {}) {
         scope.launch { sheetState.hide() }.invokeOnCompletion {
             after()
@@ -119,17 +105,6 @@ fun WhenSheet(
         typed = null
         selected = value
         text = WhenLogic.text(value, today, fmt)
-    }
-
-    // The calendar shows the value: a quick choice or typed text moves its selection and month.
-    LaunchedEffect(shown.date) { datePickerState.show(shown.date) }
-    // A tap on a day of the calendar picks it (the time is kept).
-    val currentShown by rememberUpdatedState(shown)
-    LaunchedEffect(datePickerState) {
-        snapshotFlow { datePickerState.selectedDateMillis }.collect { millis ->
-            val picked = millis?.let { DueDates.dateFromDatePickerMillis(it) } ?: return@collect
-            if (picked != currentShown.date) apply(WhenLogic.withDate(currentShown, picked))
-        }
     }
 
     val typedReadsNothing = typed == null && text.isNotBlank() && text != WhenLogic.text(selected, today, fmt)
@@ -189,12 +164,12 @@ fun WhenSheet(
                     }
                 }
 
-                DatePicker(
-                    state = datePickerState,
+                // The calendar shows the value (a quick choice or typed text moves it); a tap on a
+                // day picks it and keeps the time.
+                MonthCalendar(
+                    selected = shown.date,
+                    onSelect = { picked -> if (picked != shown.date) apply(WhenLogic.withDate(shown, picked)) },
                     modifier = Modifier.fillMaxWidth(),
-                    title = null,
-                    headline = null,
-                    showModeToggle = false,
                 )
 
                 Text("Time", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -297,16 +272,4 @@ private fun CustomTimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, on
         confirmButton = { TextButton(onClick = { onPick(LocalTime(state.hour, state.minute)) }) { Text("OK") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
-}
-
-/** The Material date picker works in UTC days: the UTC midnight of a local calendar day. */
-private fun utcMillis(date: LocalDate): Long = date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
-
-/** Moves the picker's selection (and month) to [date] when it is not there yet. */
-@OptIn(ExperimentalMaterial3Api::class)
-private fun DatePickerState.show(date: LocalDate?) {
-    val millis = date?.let(::utcMillis)
-    if (selectedDateMillis == millis) return
-    selectedDateMillis = millis
-    if (millis != null) displayedMonthMillis = millis
 }

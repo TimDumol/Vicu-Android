@@ -192,6 +192,14 @@ class DueDatesTest {
     }
 
     @Test
+    fun `a day kept as picker millis reads back as the same day`() {
+        for (day in listOf(date("2026-10-06"), date("2028-02-29"), date("1999-12-31"))) {
+            assertEquals(day, DueDates.dateFromDatePickerMillis(DueDates.datePickerMillis(day)))
+        }
+        assertEquals(Instant.parse("2026-10-20T00:00:00Z").toEpochMilliseconds(), DueDates.datePickerMillis(date("2026-10-20")))
+    }
+
+    @Test
     fun `the picker has no pre-selection without a due date`() {
         assertNull(DueDates.datePickerMillis(null, amsterdam))
         assertNull(DueDates.datePickerMillis(Constants.NULL_DATE_STRING, amsterdam))

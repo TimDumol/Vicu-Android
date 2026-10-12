@@ -279,6 +279,17 @@ object DateDisplay {
     fun formatWeekdayDay(date: LocalDate, fmt: DateDisplayFormat): String =
         phrasesFor(fmt.localeTag).weekdayDay(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
 
+    // The month calendar's labels (When sheet, reminder picker). Not contract contexts; built from
+    // the same patterns so the names match the rest of the app, as on the desktop.
+
+    /** The month with its year ("October 2026"); the title of the month calendar. */
+    fun formatMonthYear(date: LocalDate, fmt: DateDisplayFormat): String =
+        phrasesFor(fmt.localeTag).monthYear(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+
+    /** The long date with its year ("Monday, October 12, 2026", "Monday 12 October 2026"); a calendar day read aloud. */
+    fun formatFullDateWithYear(date: LocalDate, fmt: DateDisplayFormat): String =
+        phrasesFor(fmt.localeTag).fullDate(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0), withYear = true)
+
     /** The clock text of a time of day ("3:00 PM", "15:00"). */
     fun formatTime(time: kotlinx.datetime.LocalTime, fmt: DateDisplayFormat): String =
         phrasesFor(fmt.localeTag).time(LocalDateTime(2000, 1, 1, time.hour, time.minute), fmt.hour12)

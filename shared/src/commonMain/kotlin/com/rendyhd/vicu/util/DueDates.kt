@@ -119,7 +119,9 @@ object DueDates {
             dateOnlyDue(parsed.date, zone)
         }
 
-    // --- Date picker (Material 3 reads and returns a UTC day) ---------------------------
+    // --- Date picker millis (a calendar day as the UTC midnight of it) ---------------------
+    // Material 3's date picker reads and returns days this way; the reminder dialog still keeps its
+    // picked day in this form in saved state.
 
     /**
      * The value to pre-select in the Material date picker for a stored due date: the UTC midnight
@@ -132,6 +134,9 @@ object DueDates {
     /** The calendar date the Material date picker returned (it reports UTC midnight of that day). */
     fun dateFromDatePickerMillis(millis: Long): LocalDate =
         Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date
+
+    /** A calendar day as the UTC midnight of it; [dateFromDatePickerMillis] reads it back. */
+    fun datePickerMillis(date: LocalDate): Long = date.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
 
     // --- Today / Upcoming classification ------------------------------------------------
 

@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -27,7 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.domain.model.TaskReminder
 import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
 import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
+import com.rendyhd.vicu.util.DateDisplay
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.ReminderFormat
@@ -81,22 +82,21 @@ fun ReminderPickerDialog(
     val dateFormat = LocalDateFormat.current
     var showAddOptions by rememberSaveable { mutableStateOf(false) }
     var step by rememberSaveable { mutableStateOf(STEP_LIST) }
+    // The day of the date step (UTC midnight millis, DueDates.datePickerMillis).
     var pickedDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
     // -1 = adding new, >= 0 = editing existing at that index
     var editingIndex by rememberSaveable { mutableStateOf(-1) }
 
     // Where the date and time pickers open: on the reminder being edited, else on the next hour.
-    var startDateMillis by rememberSaveable { mutableStateOf(0L) }
     var startHour by rememberSaveable { mutableStateOf(12) }
     var startMinute by rememberSaveable { mutableStateOf(0) }
 
     fun openPickers(existing: String?, index: Int) {
         val start = ReminderPickerStart.of(existing, Clock.System.now(), TimeZone.currentSystemDefault())
-        startDateMillis = start.dateMillis
         startHour = start.hour
         startMinute = start.minute
         editingIndex = index
-        pickedDateMillis = null
+        pickedDateMillis = start.dateMillis
         step = STEP_DATE
     }
 
@@ -205,29 +205,44 @@ fun ReminderPickerDialog(
         dismissButton = {},
     )
 
-    if (step == STEP_DATE) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = startDateMillis)
+    val pickedMillis = pickedDateMillis
+    if (step == STEP_DATE && pickedMillis != null) {
+        val pickedDay = DueDates.dateFromDatePickerMillis(pickedMillis)
         DatePickerDialog(
             onDismissRequest = ::closePickers,
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            pickedDateMillis = millis
-                            step = STEP_TIME
-                        }
-                    },
-                ) { Text("Next") }
+                TextButton(onClick = { step = STEP_TIME }) { Text("Next") }
             },
             dismissButton = {
                 TextButton(onClick = ::closePickers) { Text("Cancel") }
             },
         ) {
-            DatePicker(state = datePickerState)
+            // Scrolls when the dialog is shorter than the calendar (a phone in landscape).
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 12.dp, end = 12.dp, top = 16.dp),
+            ) {
+                Text(
+                    "Select date",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+                Text(
+                    DateDisplay.formatDayMonthYear(pickedDay, dateFormat),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+                MonthCalendar(
+                    selected = pickedDay,
+                    onSelect = { pickedDateMillis = DueDates.datePickerMillis(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 
-    val pickedMillis = pickedDateMillis
     if (step == STEP_TIME && pickedMillis != null) {
         val timePickerState = rememberTimePickerState(
             initialHour = startHour,
@@ -243,7 +258,7 @@ fun ReminderPickerDialog(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // DatePicker returns UTC midnight of the selected date
+                        // The picked day, kept as its UTC midnight
                         val pickedDate = DueDates.dateFromDatePickerMillis(pickedMillis)
                         // Combine with user's picked local time, then convert to UTC for storage
                         val localDateTime = LocalDateTime(

@@ -149,4 +149,13 @@ class DateDisplayTest {
         assertEquals("1 Jan 2030, 09:00", DateDisplay.formatAbsolute(value, gb))
         assertEquals("Mar 1, 2026", DateDisplay.formatDayMonthYear(LocalDate(2026, 3, 1), us))
     }
+
+    @Test
+    fun `the month calendar names its month and reads each day in full`() {
+        val day = LocalDate(2026, 10, 12)
+        assertEquals("October 2026", DateDisplay.formatMonthYear(day, us))
+        assertEquals("October 2026", DateDisplay.formatMonthYear(day, gb))
+        assertEquals("Monday, October 12, 2026", DateDisplay.formatFullDateWithYear(day, us))
+        assertEquals("Monday 12 October 2026", DateDisplay.formatFullDateWithYear(day, gb))
+    }
 }

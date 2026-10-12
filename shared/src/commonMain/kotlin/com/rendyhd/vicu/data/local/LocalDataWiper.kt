@@ -22,8 +22,8 @@ import kotlinx.coroutines.flow.flowOf
  *    history that is still waiting to be uploaded stay.
  *  - [discardUnsyncedAndClearCaches]: the same, after the user chose to drop the offline queue.
  *  - [wipeEverything]: sign-out, or a different account signed in. Also forgets the preferences
- *    that are keyed by the old account's ids (collapsed sections, label order, routine and
- *    widget settings) and stops the account's background work.
+ *    that are keyed by the old account's ids (collapsed sections, label order, projects' own task
+ *    order, routine and widget settings) and stops the account's background work.
  *
  * Every operation waits for a running sync to finish and blocks new ones while it works, so a
  * sync cannot write the old account's data back right after the wipe.
@@ -36,6 +36,7 @@ class LocalDataWiper(
     private val syncStaleness: SyncStaleness,
     private val projectSectionPrefs: ProjectSectionPrefsStore,
     private val labelOrderPrefs: LabelOrderPrefsStore,
+    private val taskOrderPrefs: TaskOrderPrefsStore,
     private val routinePrefs: RoutinePrefsStore,
     private val widgetPrefs: WidgetPrefsStore,
     /** Forgotten with the cache, so the next refresh starts from the server's full list. */
@@ -100,6 +101,7 @@ class LocalDataWiper(
             // device id. A cache clear keeps them: the same account is synced again.
             projectSectionPrefs.clear()
             labelOrderPrefs.clear()
+            taskOrderPrefs.clear()
             routinePrefs.clear()
             widgetPrefs.clear()
             carrierIds.clear()

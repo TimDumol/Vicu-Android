@@ -512,6 +512,7 @@ fun VicuApp(
         )
     }
     val projectProgress by drawerViewModel.projectProgress.collectAsStateWithLifecycle()
+    val projectOpenCounts by drawerViewModel.projectOpenCounts.collectAsStateWithLifecycle()
     val fabAlignStart by drawerViewModel.fabAlignStart.collectAsStateWithLifecycle()
     // The screens' + buttons, drawn as one by AppFab.
     val fabHost = remember { AppFabHost() }
@@ -572,6 +573,7 @@ fun VicuApp(
                     onToggleTags = drawerViewModel::toggleTagsExpanded,
                     onToggleProjectCollapsed = drawerViewModel::toggleProjectCollapsed,
                     projectProgress = projectProgress,
+                    projectOpenCounts = projectOpenCounts,
                     progressActive = drawerState.targetValue == DrawerValue.Open,
                     onProgressRows = drawerViewModel::setProgressRows,
                     onCreateNewList = {

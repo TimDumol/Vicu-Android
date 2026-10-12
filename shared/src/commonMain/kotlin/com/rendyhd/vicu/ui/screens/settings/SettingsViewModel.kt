@@ -696,6 +696,10 @@ class SettingsViewModel(
         viewModelScope.launch { behaviorPrefsStore.setShowProjectProgress(enabled) }
     }
 
+    fun setShowProjectTaskCount(enabled: Boolean) {
+        viewModelScope.launch { behaviorPrefsStore.setShowProjectTaskCount(enabled) }
+    }
+
     fun setLogbookRetentionEnabled(enabled: Boolean) {
         viewModelScope.launch { logbookPrefsStore.setEnabled(enabled) }
     }

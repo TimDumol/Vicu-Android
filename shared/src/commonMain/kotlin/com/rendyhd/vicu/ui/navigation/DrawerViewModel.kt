@@ -206,6 +206,23 @@ class DrawerViewModel(
         }.flowOn(dispatchers.default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /**
+     * How many open tasks each project with any has, from the local database (no request), while
+     * the counts are turned on in Settings; empty otherwise. Independent of the rings.
+     */
+    val projectOpenCounts: StateFlow<Map<Long, Int>> =
+        combine(
+            tallies,
+            behaviorPrefsStore.getPrefs().map { it.showProjectTaskCount }.distinctUntilChanged(),
+        ) { tallies, show ->
+            if (!show || tallies == null) {
+                emptyMap()
+            } else {
+                buildMap { for ((projectId, tally) in tallies) if (tally.open > 0) put(projectId, tally.open) }
+            }
+        }.flowOn(dispatchers.default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /** The projects with a row on screen while the drawer is open; empty when it is closed. */
     fun setProgressRows(projectIds: Set<Long>) {
         if (projectIds.isEmpty()) asked.clear()

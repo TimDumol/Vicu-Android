@@ -34,6 +34,8 @@ data class BehaviorPrefs(
     val subprojectDisplayMode: SubprojectDisplayMode = SubprojectDisplayMode.SECTIONS,
     /** Progress rings next to the projects in the drawer. */
     val showProjectProgress: Boolean = true,
+    /** How many open tasks each project has, next to it in the drawer. */
+    val showProjectTaskCount: Boolean = false,
 )
 
 class BehaviorPrefsStore(
@@ -50,6 +52,7 @@ class BehaviorPrefsStore(
         private val KEY_SUBTASK_DISPLAY_MODE = stringPreferencesKey("subtask_display_mode")
         private val KEY_SUBPROJECT_DISPLAY_MODE = stringPreferencesKey("subproject_display_mode")
         private val KEY_SHOW_PROJECT_PROGRESS = booleanPreferencesKey("show_project_progress")
+        private val KEY_SHOW_PROJECT_TASK_COUNT = booleanPreferencesKey("show_project_task_count")
     }
 
     fun getPrefs(): Flow<BehaviorPrefs> =
@@ -71,6 +74,7 @@ class BehaviorPrefsStore(
                     ?.let { runCatching { SubprojectDisplayMode.valueOf(it) }.getOrNull() }
                     ?: SubprojectDisplayMode.SECTIONS,
                 showProjectProgress = prefs[KEY_SHOW_PROJECT_PROGRESS] ?: true,
+                showProjectTaskCount = prefs[KEY_SHOW_PROJECT_TASK_COUNT] ?: false,
             )
         }
 
@@ -115,5 +119,9 @@ class BehaviorPrefsStore(
 
     suspend fun setShowProjectProgress(enabled: Boolean) {
         dataStore.edit { it[KEY_SHOW_PROJECT_PROGRESS] = enabled }
+    }
+
+    suspend fun setShowProjectTaskCount(enabled: Boolean) {
+        dataStore.edit { it[KEY_SHOW_PROJECT_TASK_COUNT] = enabled }
     }
 }

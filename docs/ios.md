@@ -32,15 +32,27 @@ most iOS breakage without a Mac.
   Gradle's `embedAndSignAppleFrameworkForXcode`), so Xcode builds it on every run. A Release
   build (an archive) links it with optimizations, which takes about 10 minutes and needs more
   memory than the Android build. `gradle.properties` runs the Kotlin/Native compiler in its own
-  process with a 6 GB heap (`kotlin.native.disableCompilerDaemon`, `kotlin.native.jvmArgs`; it
-  peaks near 3 GB) and keeps the Gradle daemon at 2 GB. Inside the daemon the link never
-  finishes at 2 GB and runs out of memory at 4 GB.
+  process with a 10 GB heap (`kotlin.native.disableCompilerDaemon`, `kotlin.native.jvmArgs`; its
+  live heap peaks near 7.6 GB, in the devirtualization analysis, and a 6 GB heap runs out) and
+  keeps the Gradle daemon at 2 GB. Build it on a Mac with 16 GB of memory. GitHub's standard
+  macOS runner has 7 GB, too little for the TestFlight job in `ios.yml`: it needs a larger
+  runner (or a link that needs less memory).
 - Signing: put `DEVELOPMENT_TEAM = <your team id>` in `iosApp/Configuration/Local.xcconfig`
   (git-ignored) to run on a device.
 - Debug and release install side by side: `com.rendyhd.vicu.debug` ("Vicu Debug", URL scheme
   `vicu-debug`, App Group `group.com.rendyhd.vicu.debug`) and `com.rendyhd.vicu` ("Vicu",
   `vicu`, `group.com.rendyhd.vicu`). The extensions are `<bundle id>.widgets` and
   `<bundle id>.share`.
+- To judge speed on a phone, build the **Profile** configuration: the debug app's identity
+  ("Vicu Debug", its ids and App Group, so it needs no new identifiers and installs over a
+  Debug build) with optimized Swift and Kotlin (`Configuration/Profile.xcconfig`). A Debug
+  build's Kotlin code is not optimized and scrolls noticeably slower on a device. The optimized
+  link takes about 10 minutes.
+  ```bash
+  xcodebuild -project iosApp/Vicu.xcodeproj -scheme Vicu -configuration Profile \
+    -destination 'platform=iOS,id=<device udid>' -allowProvisioningUpdates build
+  xcrun devicectl device install app --device <device> <derived data>/Build/Products/Profile-iphoneos/Vicu.app
+  ```
 - The version of both apps is `version.properties` at the root. `CFBundleVersion` is the
   Android `versionCode` × 100 plus `BUILD_ATTEMPT` (default 0), so the same version can be
   uploaded to TestFlight again.

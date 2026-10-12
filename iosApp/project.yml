@@ -7,9 +7,15 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
+configs:
+  Debug: debug
+  Release: release
+  # Debug's identity with optimized code (Configuration/Profile.xcconfig).
+  Profile: release
 configFiles:
   Debug: Configuration/Debug.xcconfig
   Release: Configuration/Release.xcconfig
+  Profile: Configuration/Profile.xcconfig
 settings:
   base:
     SWIFT_VERSION: "5.0"

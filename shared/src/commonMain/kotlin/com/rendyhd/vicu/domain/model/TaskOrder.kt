@@ -46,12 +46,19 @@ data class TaskOrderSettings(
      * global one. [projects] gives the parents; a cycle in old parent data ends the walk.
      */
     fun orderFor(projectId: Long, projects: List<Project>): TaskOrder =
-        projectOverrides[projectId] ?: inheritedOrderFor(projectId, projects)
+        orderFor(projectId, projects.associate { it.id to it.parentProjectId })
+
+    /** [orderFor] with the parents given as a map from project id to parent id (0 for none). */
+    fun orderFor(projectId: Long, parentOf: Map<Long, Long>): TaskOrder =
+        projectOverrides[projectId] ?: inheritedOrderFor(projectId, parentOf)
 
     /** The order [projectId] would use without its own choice: what "Default" means for it. */
-    fun inheritedOrderFor(projectId: Long, projects: List<Project>): TaskOrder {
+    fun inheritedOrderFor(projectId: Long, projects: List<Project>): TaskOrder =
+        inheritedOrderFor(projectId, projects.associate { it.id to it.parentProjectId })
+
+    /** [inheritedOrderFor] with the parents given as a map from project id to parent id (0 for none). */
+    fun inheritedOrderFor(projectId: Long, parentOf: Map<Long, Long>): TaskOrder {
         if (projectOverrides.isEmpty()) return global
-        val parentOf = projects.associate { it.id to it.parentProjectId }
         val visited = mutableSetOf(projectId)
         var current = parentOf[projectId] ?: 0L
         while (current != 0L && visited.add(current)) {

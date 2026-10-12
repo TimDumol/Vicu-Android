@@ -20,6 +20,7 @@ import com.rendyhd.vicu.ui.screens.taskdetail.TaskDetailViewModel
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryViewModel
 import com.rendyhd.vicu.ui.screens.today.TodayViewModel
 import com.rendyhd.vicu.ui.screens.upcoming.UpcomingViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -36,7 +37,34 @@ val viewModelModule = module {
     viewModelOf(::ReviewViewModel)
     viewModelOf(::RoutinesViewModel)
     viewModelOf(::SearchViewModel)
-    viewModelOf(::SettingsViewModel)
+    // More constructor parameters than viewModelOf takes (22), so spelled out.
+    viewModel {
+        SettingsViewModel(
+            authManager = get(),
+            tokenStorage = get(),
+            labelRepository = get(),
+            projectRepository = get(),
+            customListRepository = get(),
+            notificationPrefsStore = get(),
+            behaviorPrefsStore = get(),
+            themePrefsStore = get(),
+            nlpPrefsStore = get(),
+            bottomBarPrefsStore = get(),
+            widgetPrefsStore = get(),
+            reviewPrefsStore = get(),
+            logbookPrefsStore = get(),
+            routinePrefsStore = get(),
+            repositoryHooks = get(),
+            pendingActionDao = get(),
+            networkMonitor = get(),
+            sessionCleanup = get(),
+            apiService = get(),
+            platformSettingsHooks = get(),
+            syncCursor = get(),
+            projectActions = get(),
+            taskOrderPrefsStore = get(),
+        )
+    }
     viewModelOf(::SetupViewModel)
     viewModelOf(::TagViewModel)
     viewModelOf(::TaskDetailViewModel)

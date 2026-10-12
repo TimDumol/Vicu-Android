@@ -29,7 +29,12 @@ most iOS breakage without a Mac.
 - The Xcode project is generated from `iosApp/project.yml` and is not checked in. Run
   `generate.sh` again after changing `project.yml` or `version.properties`.
 - The Kotlin framework is built by a build phase (`iosApp/scripts/build-shared-framework.sh`,
-  Gradle's `embedAndSignAppleFrameworkForXcode`), so Xcode builds it on every run.
+  Gradle's `embedAndSignAppleFrameworkForXcode`), so Xcode builds it on every run. A Release
+  build (an archive) links it with optimizations, which takes about 10 minutes and needs more
+  memory than the Android build. `gradle.properties` runs the Kotlin/Native compiler in its own
+  process with a 6 GB heap (`kotlin.native.disableCompilerDaemon`, `kotlin.native.jvmArgs`; it
+  peaks near 3 GB) and keeps the Gradle daemon at 2 GB. Inside the daemon the link never
+  finishes at 2 GB and runs out of memory at 4 GB.
 - Signing: put `DEVELOPMENT_TEAM = <your team id>` in `iosApp/Configuration/Local.xcconfig`
   (git-ignored) to run on a device.
 - Debug and release install side by side: `com.rendyhd.vicu.debug` ("Vicu Debug", URL scheme
@@ -161,8 +166,9 @@ atomic and debounced, and WidgetKit is asked to reload only when a file changed 
 background are budgeted).
 
 - **Tasks** widget (small, medium, large): any smart list, project or custom list, chosen in
-  Edit Widget. The circle completes a task; the title opens the list; + opens the task entry
-  (medium and large).
+  Edit Widget. The circle completes a task; a row opens the task and the rest of the widget
+  opens the list (a small widget always opens the list); + opens the task entry (medium and
+  large).
 - **Routines** widget (small, medium, large): today's routines; the circle logs one.
 - **Add task** control (iOS 18): Control Center, the Lock Screen and the Action Button.
 - **Shortcuts**: "Add a task in Vicu" for Siri, Spotlight and the Shortcuts app
@@ -219,4 +225,43 @@ background refresh, then syncs and says so in the snackbar.
    servers on a home network).
 
 Privacy: the app and both extensions have privacy manifests (`PrivacyInfo.xcprivacy`); Vicu
-collects no data. `ITSAppUsesNonExemptEncryption` is false (only HTTPS and the system Keychain).
+collects no data (App Store privacy label: Data Not Collected). The app declares the
+required-reason APIs its binary calls: user defaults (CA92.1), file timestamps of its own files
+(C617.1), and disk space (E174.1, `statfs` in the bundled SQLite). The extensions call none.
+`ITSAppUsesNonExemptEncryption` is false (only HTTPS and the system Keychain).
+
+### Review notes for App Store Connect
+
+A starting point for the App Review Information field; fill in the demo server and account.
+
+> Vicu is a client for Vikunja, an open-source task server that people host themselves. The
+> app creates no accounts and has no server of its own: it signs in to the user's own Vikunja
+> server with the user's existing account (guidelines 4.8 and 5.1.1(v) do not apply to account
+> creation here).
+>
+> To review: on the first screen enter the server address below, choose "Sign in with
+> password" and use the demo account. Pick "Inbox" as the Inbox project.
+>
+> Server: https://<demo server>  Username: <demo user>  Password: <demo password>
+>
+> App Transport Security allows plain http because many self-hosted servers run on a home
+> network without a certificate; the setup screen warns when an http address points outside
+> the local network. The app asks for local network access for the same reason.
+
+The demo server must stay up and reachable over HTTPS for as long as the review (and later
+reviews) take, with a few projects and tasks in the demo account.
+
+### Before the first release, on a device
+
+The simulator cannot check these; do them with a TestFlight build on an iPhone:
+
+- Reminders, snooze and routine reminders with the app closed from the app switcher, and the
+  lock-screen actions.
+- Background refresh: after a few hours, Settings > General > Background activity lists runs.
+- The widgets and their buttons, the Add task control, Siri ("Add a task in Vicu") and the
+  home-screen quick action.
+- The share extension from Safari, Photos and Files.
+- The Local Network prompt with a server on the home network.
+- VoiceOver on the lists, the editor and quick add (rows read their title, date and state, and
+  the row actions are offered).
+- OIDC with the user's own provider (the in-app web view must be accepted by the provider).

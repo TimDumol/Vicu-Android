@@ -1,25 +1,25 @@
-# Vicu Android
+# Vicu for Android and iOS
 
-A native Android task manager powered by [Vikunja](https://vikunja.io/).
+A task manager for Android, iPhone and iPad, powered by [Vikunja](https://vikunja.io/).
 
 ![slide1 001](https://github.com/user-attachments/assets/83925b87-cfbb-4fc8-b796-f69b9dc303aa)
 
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Platform](https://img.shields.io/badge/platform-Android%208%2B-brightgreen)
+![Platform](https://img.shields.io/badge/platform-Android%208%2B%20%7C%20iOS%2017%2B-brightgreen)
 ![Built with](https://img.shields.io/badge/kotlin%20+%20compose%20+%20material%203-7F52FF)
 
 <!-- screenshot: main-screens -->
 
-## What is Vicu Android?
+## What is Vicu for Android and iOS?
 
-Vicu Android is the mobile companion to [Vicu](https://github.com/rendyhd/Vicu), bringing the same focused task management workflow to your phone. It connects to any Vikunja instance and organizes your tasks around when they need to happen: tasks land in your **Inbox**, get scheduled into **Today** or **Upcoming**, sit in **Anytime** as your open backlog, and end up in the **Logbook** when done. A home screen widget and per-task reminders keep you on top of things without opening the app.
+Vicu for Android and iOS is the mobile companion to [Vicu](https://github.com/rendyhd/Vicu), bringing the same focused task management workflow to your phone. It connects to any Vikunja instance and organizes your tasks around when they need to happen: tasks land in your **Inbox**, get scheduled into **Today** or **Upcoming**, sit in **Anytime** as your open backlog, and end up in the **Logbook** when done. Home screen widgets and per-task reminders keep you on top of things without opening the app. Android, iPhone and iPad run the same app from one codebase, so they behave the same way.
 
 Both Vicu apps talk to the same Vikunja backend, so changes sync between desktop and mobile automatically. Since 1.9.0 both apps also read that data by the same rules (`docs/cross-app-semantics-v1.md`), so a due date, a custom list or a project review means the same thing on your phone and on your PC.
 
 ## Capture from anywhere
 
-**Share to Vicu** turns any Android share into a task. Reading an article, browsing a link, or looking at a photo — hit the share button, pick Vicu, and it becomes a task with the title and description pre-filled. Shared files and images are attached automatically.
+**Share to Vicu** turns any share on Android, iPhone or iPad into a task. Reading an article, browsing a link, or looking at a photo — hit the share button, pick Vicu, and it becomes a task with the title and description pre-filled. Shared files and images are attached automatically.
 
 No copy-pasting, no switching apps. See something, share it, move on.
 
@@ -68,9 +68,10 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 - **Reminders** — Per-task reminders (absolute time or relative to due date) + configurable daily summary notifications at your local time
 - **Attachments** — Upload, open, and share any file type on any task, up to the server's size limit
 - **Recurring tasks** — Daily, weekly, monthly, or custom intervals
-- **Home screen widgets** — Configurable Glance widgets showing Today, Inbox, Upcoming, any project or custom list, or your routines, with tap-to-complete checkboxes
+- **Home screen widgets** — Widgets showing Today, Inbox, Upcoming, any project or custom list, or your routines, with tap-to-complete checkboxes (Glance on Android, WidgetKit on iPhone and iPad)
+- **Quick add from anywhere** — The Quick Settings tile on Android; on iPhone and iPad a Control Center, Lock Screen and Action Button control, "Add a task in Vicu" with Siri, and a home-screen quick action
 - **Offline-first** — Room DB as source of truth; changes you make offline are queued, sent in order when the connection is back, and kept across sign-out and cache clears until you choose to discard them. Failed changes are shown with retry and discard, and a sync runs in the background every 30 minutes
-- **Dark / light / system themes** — Material 3 dynamic color support
+- **Dark / light / system themes** — Material 3, with your wallpaper colours on Android 12 and later
 - **Swipe gestures** — Swipe right to complete, swipe left to schedule
 - **Accessibility** — TalkBack actions on every task row, including Move up and Move down wherever a list can be reordered
 - **Privacy** — No request logging in release builds, and backups leave out the task database and your sign-in tokens
@@ -80,11 +81,15 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 
 ### Download
 
+**Android** (8.0 or newer):
+
 [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rendyhd/Vicu-Android)
 
 Or grab the latest APK from [GitHub Releases](https://github.com/rendyhd/Vicu-Android/releases).
 
-Vicu Android needs a Vikunja server running version 2.4.0 or newer.
+**iPhone and iPad** (iOS 17 or newer): through TestFlight and the App Store, from the first iOS release.
+
+Vicu needs a Vikunja server running version 2.4.0 or newer.
 
 ### First launch
 
@@ -97,6 +102,7 @@ Vicu Android needs a Vikunja server running version 2.4.0 or newer.
 
 - **[Vicu](https://github.com/rendyhd/Vicu)** — desktop app (Windows/macOS) with Quick Entry, Quick View, Obsidian integration, and browser linking
 - **[Vikunja](https://vikunja.io/)** — the open-source backend that powers Vicu
+- **[docs/ios.md](docs/ios.md)** — building and testing the iOS app, and where it behaves differently from Android
 
 ## License
 

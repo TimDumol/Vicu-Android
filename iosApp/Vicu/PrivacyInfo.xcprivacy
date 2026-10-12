@@ -29,13 +29,14 @@
 				<string>C617.1</string>
 			</array>
 		</dict>
-		<!-- Elapsed time for timeouts and animations (the Kotlin runtime's monotonic clock). -->
+		<!-- statfs and fstatfs in the bundled SQLite, which checks the volume holding the app's own
+		     database before it writes to it. -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
-			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
-				<string>35F9.1</string>
+				<string>E174.1</string>
 			</array>
 		</dict>
 	</array>

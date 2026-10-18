@@ -123,7 +123,7 @@ and every call names that UDID. Taps and typing are done by hand or with the iOS
 | Background | `IosBackgroundTasks` (BGTaskScheduler) and `SyncRequester` (in place of WorkManager) |
 | Widgets | `IosWidgetSnapshots` writes what the Swift widgets show |
 | Share | `IosShareInbox` adds what the share extension saved |
-| Images | Coil with the Ktor fetcher and the common `VikunjaImageInterceptor` |
+| Images | Coil with the Ktor fetcher and the common `VikunjaCoilInterceptor` |
 | Completion sound | `IosCompletionSoundPlayer` (AVAudioPlayer, ambient session) |
 
 The database and preferences live in Application Support (excluded from backup), not in the App
@@ -239,10 +239,9 @@ background refresh, then syncs and says so in the snackbar.
      about 15 minutes; `BUILD_ATTEMPT=1` uploads the same version again, `--no-upload` only
      archives (into `iosApp/build/testflight/`). The same can be done by hand in Xcode: Any iOS
      Device, Product > Archive, then Distribute App > TestFlight & App Store.
-   - **From GitHub**: publishing a release runs the `testflight` job of `ios.yml`, which can also
-     be run by hand (workflow_dispatch, with `upload` checked; `build_attempt` re-uploads a
-     version). It needs a runner with more memory than GitHub's standard macOS runner (see
-     [Building and running](#building-and-running)).
+   - **From GitHub**: the `testflight` job of `ios.yml`, run by hand (workflow_dispatch, with
+     `upload` checked; `build_attempt` re-uploads a version). It needs a runner with more
+     memory than GitHub's standard macOS runner (see [Building and running](#building-and-running)).
 3. Submit the TestFlight build for review in App Store Connect. Review notes should give a demo
    Vikunja server and account that stays up, say that Vicu creates no accounts and connects to
    the user's own server, and explain why App Transport Security allows http (self-hosted

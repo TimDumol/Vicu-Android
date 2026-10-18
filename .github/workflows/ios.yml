@@ -1,13 +1,13 @@
 name: iOS
 
 # The iOS gate (the shared tests on the simulator and a simulator build of the app) on main, and a
-# TestFlight upload for each published release or by hand. Every push already compiles the shared
-# code without Android in ci.yml; this job needs a macOS runner and runs less often.
+# TestFlight upload by hand. Every push already compiles the shared code without Android in ci.yml;
+# this job needs a macOS runner and runs less often. The upload needs a runner with more memory than
+# GitHub's standard macOS runner (docs/ios.md); until there is one, builds go to TestFlight from a
+# Mac with iosApp/scripts/testflight.sh.
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       upload:
@@ -74,7 +74,7 @@ jobs:
 
   testflight:
     needs: check
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.upload)
+    if: github.event_name == 'workflow_dispatch' && inputs.upload
     runs-on: macos-26
     timeout-minutes: 120
     # Secrets: APPLE_TEAM_ID, and an App Store Connect API key with the App Manager role

@@ -293,7 +293,7 @@ Android classes are stubbed in JVM tests with `isReturnDefaultValues = true`. Co
 ## CI / Releases
 
 - `.github/workflows/ci.yml` runs `./gradlew test lint assembleDebug :shared:compileCommonMainKotlinMetadata` on every push and pull request (JDK 17, Gradle cache).
-- `.github/workflows/ios.yml` runs the iOS gate on `main`, and on a published release (or by hand) archives the app and uploads it to TestFlight with an App Store Connect API key (secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`). GitHub's standard macOS runner has too little memory for that archive (gotcha 21), so builds go to TestFlight from a Mac with `iosApp/scripts/testflight.sh` (the Xcode account or an API key; `docs/ios.md`, Release).
+- `.github/workflows/ios.yml` runs the iOS gate on `main`, and by hand (workflow_dispatch) archives the app and uploads it to TestFlight with an App Store Connect API key (secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`). GitHub's standard macOS runner has too little memory for that archive (gotcha 21), so builds go to TestFlight from a Mac with `iosApp/scripts/testflight.sh` (the Xcode account or an API key; `docs/ios.md`, Release).
 - `.github/workflows/release.yml` builds a **signed release APK** when a GitHub release is published, with the repository secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD` and `STORE_PASSWORD`, and attaches `app-release.apk`.
 - **When creating a release**: bump `versionCode` and `versionName` in `version.properties` (both apps read it), write the notes in `docs/releases/vX.Y.Z.md`, then `gh release create <tag> --title "..." --notes-file docs/releases/vX.Y.Z.md` **without attaching a local APK**. CI builds and uploads the signed APK. Never attach a debug APK manually.
 

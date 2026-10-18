@@ -2,11 +2,16 @@ package com.rendyhd.vicu.data.repository
 
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.CustomListStore
-import com.rendyhd.vicu.data.remote.api.CreateTaskDto
-import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import com.rendyhd.vicu.data.sync.CarrierFinder
+import com.rendyhd.vicu.data.sync.CarrierRead
 import com.rendyhd.vicu.data.sync.CarrierSpec
+import com.rendyhd.vicu.data.sync.SyncedDocumentCodec
+import com.rendyhd.vicu.data.sync.SyncedDocumentLocal
+import com.rendyhd.vicu.data.sync.SyncedDocumentMessages
+import com.rendyhd.vicu.data.sync.SyncedDocumentState
+import com.rendyhd.vicu.data.sync.SyncedDocumentStatus
+import com.rendyhd.vicu.data.sync.SyncedDocumentSync
 import com.rendyhd.vicu.domain.model.CustomList
 import com.rendyhd.vicu.domain.model.CustomListSyncDocumentV1
 import com.rendyhd.vicu.domain.model.CustomListSyncLocalState
@@ -17,34 +22,91 @@ import com.rendyhd.vicu.domain.model.toWire
 import com.rendyhd.vicu.domain.repository.CustomListRepository
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.util.CustomListEnvelope
-import com.rendyhd.vicu.util.DateUtils
-import com.rendyhd.vicu.util.isRetriableNetworkError
+import com.rendyhd.vicu.util.SystemTimeSource
+import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.util.randomUuid
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlin.time.Clock
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+
+/** The custom-list carrier (docs/cross-app-semantics-v1.md, sections 3 and 10) for [SyncedDocumentSync]. */
+class CustomListCodec(private val json: Json) : SyncedDocumentCodec<CustomListSyncDocumentV1> {
+    override val spec = CarrierSpec.CUSTOM_LISTS
+    override val carrierTitle = CustomListEnvelope.CARRIER_TITLE
+    override val messages = SyncedDocumentMessages(
+        updateRequired = "Update Vicu to sync custom lists",
+        malformed = "A malformed custom-list carrier was ignored; valid data was preserved",
+        noInbox = "Choose an Inbox project before syncing custom lists",
+        offline = "Custom-list sync is offline",
+        failed = "Custom-list sync failed",
+    )
+
+    override fun parse(description: String?): CarrierRead<CustomListSyncDocumentV1> {
+        val parsed = CustomListEnvelope.parse(description, json)
+        return CarrierRead(
+            document = parsed.document,
+            error = parsed.error,
+            newerVersion = (parsed.version ?: 0) > CustomListEnvelope.CURRENT_VERSION,
+        )
+    }
+
+    override fun encode(document: CustomListSyncDocumentV1) = CustomListEnvelope.encode(document, json)
+    override fun normalize(document: CustomListSyncDocumentV1) = CustomListEnvelope.normalize(document)
+    override fun merge(local: CustomListSyncDocumentV1, server: CustomListSyncDocumentV1) = CustomListEnvelope.merge(local, server)
+    override fun pruneTombstones(document: CustomListSyncDocumentV1, nowMs: Long) = CustomListEnvelope.pruneTombstones(document, nowMs)
+    override fun hasContent(document: CustomListSyncDocumentV1) = document.lists.isNotEmpty()
+
+    override fun same(left: CustomListSyncDocumentV1, right: CustomListSyncDocumentV1): Boolean =
+        json.encodeToString(CustomListSyncDocumentV1.serializer(), CustomListEnvelope.normalize(left)) ==
+            json.encodeToString(CustomListSyncDocumentV1.serializer(), CustomListEnvelope.normalize(right))
+}
 
 class CustomListRepositoryImpl(
     private val store: CustomListStore,
-    private val api: VikunjaApiService,
+    api: VikunjaApiService,
     private val authManager: AuthManager,
     private val platformHooks: PlatformRepositoryHooks,
-    private val json: Json,
-    private val carrierFinder: CarrierFinder,
+    json: Json,
+    carrierFinder: CarrierFinder,
+    private val time: TimeSource = SystemTimeSource,
 ) : CustomListRepository {
     override val lists = store.getAll()
     private val _syncStatus = MutableStateFlow<CustomListSyncStatus>(CustomListSyncStatus.Idle)
     override val syncStatus: StateFlow<CustomListSyncStatus> = _syncStatus
     override val hasUnsyncedChanges = store.hasUnsyncedChanges
-    private val mutationMutex = Mutex()
-    private val syncMutex = Mutex()
-    private var clearGeneration = 0L
+
+    private val engine = SyncedDocumentSync(
+        codec = CustomListCodec(json),
+        local = object : SyncedDocumentLocal<CustomListSyncDocumentV1> {
+            override suspend fun load() = ensureState().let {
+                SyncedDocumentState(it.deviceId, it.document, it.dirty, it.carrierTaskId, it.lastSyncedAt)
+            }
+
+            override suspend fun save(state: SyncedDocumentState<CustomListSyncDocumentV1>) =
+                store.saveSyncState(
+                    CustomListSyncLocalState(state.deviceId, state.document, state.dirty, state.carrierTaskId, state.lastSyncedAt),
+                )
+        },
+        api = api,
+        carrierFinder = carrierFinder,
+        currentUser = authManager,
+        serverKey = { authManager.getVikunjaUrl().orEmpty() },
+        inboxProjectId = { authManager.getInboxProjectId() },
+        time = time,
+        onStatus = { _syncStatus.value = it.toCustomListStatus() },
+        onChanged = { platformHooks.updateWidgets() },
+    )
+
+    private fun SyncedDocumentStatus.toCustomListStatus(): CustomListSyncStatus = when (this) {
+        SyncedDocumentStatus.Idle -> CustomListSyncStatus.Idle
+        SyncedDocumentStatus.Syncing -> CustomListSyncStatus.Syncing
+        SyncedDocumentStatus.Pending -> CustomListSyncStatus.Pending
+        is SyncedDocumentStatus.Offline -> CustomListSyncStatus.Offline(message)
+        is SyncedDocumentStatus.Error -> CustomListSyncStatus.Error(message)
+        is SyncedDocumentStatus.UpdateRequired -> CustomListSyncStatus.UpdateRequired(message)
+    }
+
+    private fun now(): Long = time.now().toEpochMilliseconds()
 
     private suspend fun ensureState(): CustomListSyncLocalState {
         val existing = store.getSyncState()
@@ -60,7 +122,7 @@ class CustomListRepositoryImpl(
             // overwritten by an empty order that merely looks newer.
             CustomListEnvelope.empty(deviceId, 0L)
         } else {
-            CustomListEnvelope.fromLists(legacyLists, deviceId, Clock.System.now().toEpochMilliseconds())
+            CustomListEnvelope.fromLists(legacyLists, deviceId, now())
         }
         return CustomListSyncLocalState(
             deviceId = deviceId,
@@ -76,229 +138,60 @@ class CustomListRepositoryImpl(
         platformHooks.updateWidgets()
     }
 
-    override suspend fun upsert(customList: CustomList) = mutationMutex.withLock {
+    override suspend fun upsert(customList: CustomList) = engine.mutate {
         val state = ensureState()
         var document = CustomListEnvelope.normalize(state.document)
         // Keep the fields of the stored value that this version does not know (another app's).
-        val value = customList.toWire(preserving = document.lists[customList.id]?.value)
-        val isNew = document.lists[value.id]?.value == null
+        val previous = document.lists[customList.id]
+        val value = customList.toWire(preserving = previous?.value)
+        val isNew = previous?.value == null
+        val revision = CustomListEnvelope.nextRevision(document, state.deviceId, now())
         document = document.copy(
-            lists = document.lists + (value.id to CustomListSyncRecord(
-                value = value,
-                revision = CustomListEnvelope.nextRevision(document, state.deviceId, Clock.System.now().toEpochMilliseconds()),
-            )),
+            lists = document.lists + (value.id to (previous?.copy(value = value, revision = revision) ?: CustomListSyncRecord(value, revision))),
         )
         if (isNew && value.id !in document.order.ids) {
-            document = document.copy(order = CustomListSyncOrder(
+            document = document.copy(order = document.order.copy(
                 ids = document.order.ids + value.id,
-                revision = CustomListEnvelope.nextRevision(document, state.deviceId, Clock.System.now().toEpochMilliseconds()),
+                revision = CustomListEnvelope.nextRevision(document, state.deviceId, now()),
             ))
         }
         saveMutation(state.copy(document = CustomListEnvelope.normalize(document)))
     }
 
-    override suspend fun delete(id: String) = mutationMutex.withLock {
+    override suspend fun delete(id: String) = engine.mutate {
         val state = ensureState()
         var document = CustomListEnvelope.normalize(state.document)
         document = document.copy(
             lists = document.lists + (id to CustomListSyncRecord(
                 value = null,
-                revision = CustomListEnvelope.nextRevision(document, state.deviceId, Clock.System.now().toEpochMilliseconds()),
+                revision = CustomListEnvelope.nextRevision(document, state.deviceId, now()),
             )),
         )
-        document = document.copy(order = CustomListSyncOrder(
+        document = document.copy(order = document.order.copy(
             ids = document.order.ids.filterNot { it == id },
-            revision = CustomListEnvelope.nextRevision(document, state.deviceId, Clock.System.now().toEpochMilliseconds()),
+            revision = CustomListEnvelope.nextRevision(document, state.deviceId, now()),
         ))
         saveMutation(state.copy(document = CustomListEnvelope.normalize(document)))
     }
 
-    override suspend fun reorder(fromIndex: Int, toIndex: Int) = mutationMutex.withLock {
+    override suspend fun reorder(fromIndex: Int, toIndex: Int) = engine.mutate {
         val state = ensureState()
         val document = CustomListEnvelope.normalize(state.document)
         val ids = CustomListEnvelope.activeLists(document).map { it.id }.toMutableList()
-        if (fromIndex !in ids.indices || toIndex !in ids.indices || fromIndex == toIndex) return@withLock
+        if (fromIndex !in ids.indices || toIndex !in ids.indices || fromIndex == toIndex) return@mutate
         val item = ids.removeAt(fromIndex)
         ids.add(toIndex, item)
         saveMutation(state.copy(document = document.copy(order = CustomListSyncOrder(
             ids = ids,
-            revision = CustomListEnvelope.nextRevision(document, state.deviceId, Clock.System.now().toEpochMilliseconds()),
+            revision = CustomListEnvelope.nextRevision(document, state.deviceId, now()),
+            unknown = document.order.unknown,
         ))))
     }
 
-    override suspend fun clearLocal() = mutationMutex.withLock {
-        clearGeneration++
+    override suspend fun clearLocal() = engine.clear {
         store.clear()
-        _syncStatus.value = CustomListSyncStatus.Idle
         platformHooks.updateWidgets()
     }
 
-    private suspend fun carriers(ownerId: Long): Triple<List<Pair<TaskDto, CustomListSyncDocumentV1>>, Int, Int?> {
-        val valid = mutableListOf<Pair<TaskDto, CustomListSyncDocumentV1>>()
-        var malformed = 0
-        var futureVersion: Int? = null
-        // The carriers seen before are fetched by id; completed history is not paged through on
-        // every sync (CarrierFinder falls back to a scan when an id is gone, and daily).
-        carrierFinder.find(CarrierSpec.CUSTOM_LISTS, serverKey(), ownerId)
-            .forEach { task ->
-                val parsed = CustomListEnvelope.parse(task.description, json)
-                when {
-                    parsed.document != null -> valid += task to parsed.document
-                    parsed.version != null && parsed.version > CustomListEnvelope.CURRENT_VERSION -> {
-                        futureVersion = maxOf(futureVersion ?: 0, parsed.version)
-                    }
-                    else -> malformed++
-                }
-            }
-        return Triple(valid, malformed, futureVersion)
-    }
-
-    private suspend fun serverKey(): String = authManager.getVikunjaUrl().orEmpty()
-
-    private suspend fun writeCarrier(id: Long, document: CustomListSyncDocumentV1) {
-        api.updateTask(id, buildJsonObject {
-            put("title", CustomListEnvelope.CARRIER_TITLE)
-            put("description", CustomListEnvelope.encode(document, json))
-            put("done", true)
-            put("due_date", "0001-01-01T00:00:00Z")
-            put("repeat_after", 0)
-            put("repeat_mode", 0)
-            put("reminders", JsonArray(emptyList()))
-        })
-    }
-
-    private suspend fun createCarrier(projectId: Long, document: CustomListSyncDocumentV1): Long {
-        val task = api.createTask(projectId, CreateTaskDto(
-            title = CustomListEnvelope.CARRIER_TITLE,
-            description = CustomListEnvelope.encode(document, json),
-            done = true,
-            dueDate = "0001-01-01T00:00:00Z",
-            reminders = emptyList(),
-        ))
-        writeCarrier(task.id, document)
-        carrierFinder.remember(CarrierSpec.CUSTOM_LISTS, serverKey(), task.id, projectId)
-        return task.id
-    }
-
-    private fun same(left: CustomListSyncDocumentV1, right: CustomListSyncDocumentV1): Boolean =
-        json.encodeToString(CustomListSyncDocumentV1.serializer(), CustomListEnvelope.normalize(left)) ==
-            json.encodeToString(CustomListSyncDocumentV1.serializer(), CustomListEnvelope.normalize(right))
-
-    override suspend fun sync(): CustomListSyncStatus = syncMutex.withLock {
-        _syncStatus.value = CustomListSyncStatus.Syncing
-        try {
-            val generation = clearGeneration
-            // Whose carriers are whose is not known yet: try again once it is.
-            val ownerId = authManager.id() ?: return@withLock CustomListSyncStatus.Pending.also { _syncStatus.value = it }
-            val (remoteCarriers, malformed, futureVersion) = carriers(ownerId)
-            if (generation != clearGeneration) {
-                return@withLock CustomListSyncStatus.Idle.also { _syncStatus.value = it }
-            }
-            if (futureVersion != null) {
-                return@withLock CustomListSyncStatus.UpdateRequired().also { _syncStatus.value = it }
-            }
-
-            lateinit var state: CustomListSyncLocalState
-            lateinit var merged: CustomListSyncDocumentV1
-            var hadPendingLocalChanges = false
-            // Hold the mutation lock only for the local read/merge/persist. Network calls
-            // remain outside it, so offline-first edits never wait for a sync request.
-            mutationMutex.withLock {
-                state = ensureState()
-                hadPendingLocalChanges = state.dirty
-                merged = CustomListEnvelope.normalize(state.document)
-                remoteCarriers.forEach { (_, document) -> merged = CustomListEnvelope.merge(merged, document) }
-                state = state.copy(document = merged, dirty = hadPendingLocalChanges)
-                store.saveSyncState(state)
-            }
-
-            val canonical = remoteCarriers.minByOrNull { it.first.id }
-            var carrierId = canonical?.first?.id
-            val needsWrite = if (canonical == null) {
-                merged.lists.isNotEmpty() || hadPendingLocalChanges
-            } else {
-                !same(canonical.second, merged)
-            }
-            if (needsWrite) {
-                if (carrierId != null) {
-                    writeCarrier(carrierId, merged)
-                } else {
-                    val inboxId = authManager.getInboxProjectId() ?: 0L
-                    require(inboxId > 0) { "Choose an Inbox project before syncing custom lists" }
-                    carrierId = createCarrier(inboxId, merged)
-                }
-            }
-
-            if (carrierId != null) {
-                val verifiedCarrierId = carrierId
-                val verified = CustomListEnvelope.parse(api.getTask(verifiedCarrierId).description, json)
-                requireNotNull(verified.document) { verified.error ?: "Cannot verify custom-list carrier" }
-                var pending = false
-                mutationMutex.withLock mutationLock@{
-                    if (generation != clearGeneration) return@mutationLock
-                    val latest = ensureState()
-                    val converged = CustomListEnvelope.merge(
-                        CustomListEnvelope.merge(merged, verified.document),
-                        latest.document,
-                    )
-                    pending = !same(converged, verified.document)
-                    merged = converged
-                    store.saveSyncState(latest.copy(
-                        document = converged,
-                        dirty = pending,
-                        carrierTaskId = verifiedCarrierId,
-                        lastSyncedAt = if (pending) latest.lastSyncedAt else DateUtils.nowIso(),
-                    ))
-                }
-                if (generation != clearGeneration) {
-                    return@withLock CustomListSyncStatus.Idle.also { _syncStatus.value = it }
-                }
-                if (pending) {
-                    return@withLock CustomListSyncStatus.Pending.also { _syncStatus.value = it }
-                }
-            } else {
-                var pending = false
-                mutationMutex.withLock mutationLock@{
-                    if (generation != clearGeneration) return@mutationLock
-                    val latest = ensureState()
-                    val converged = CustomListEnvelope.merge(merged, latest.document)
-                    pending = !same(converged, merged)
-                    merged = converged
-                    store.saveSyncState(latest.copy(
-                        document = converged,
-                        dirty = pending,
-                        carrierTaskId = null,
-                        lastSyncedAt = if (pending) latest.lastSyncedAt else DateUtils.nowIso(),
-                    ))
-                }
-                if (generation != clearGeneration) {
-                    return@withLock CustomListSyncStatus.Idle.also { _syncStatus.value = it }
-                }
-                if (pending) {
-                    return@withLock CustomListSyncStatus.Pending.also { _syncStatus.value = it }
-                }
-            }
-
-            platformHooks.updateWidgets()
-            val status = if (malformed > 0) {
-                CustomListSyncStatus.Error("A malformed custom-list carrier was ignored; valid data was preserved")
-            } else {
-                CustomListSyncStatus.Idle
-            }
-            _syncStatus.value = status
-            status
-        } catch (error: Exception) {
-            val status = if (isRetriableNetworkError(error)) {
-                CustomListSyncStatus.Offline(error.message ?: "Custom-list sync is offline")
-            } else {
-                CustomListSyncStatus.Error(error.message ?: "Custom-list sync failed")
-            }
-            runCatching {
-                val state = ensureState()
-                store.saveSyncState(state.copy(dirty = true))
-            }
-            _syncStatus.value = status
-            status
-        }
-    }
+    override suspend fun sync(): CustomListSyncStatus = engine.sync().toCustomListStatus()
 }

@@ -174,6 +174,14 @@ class CarrierFinder(
         store.set(server, spec.kind, state.ids + id, state.lastFullScanAtMs)
     }
 
+    /** A carrier this app deleted (a covered duplicate): never asked for again. */
+    suspend fun forget(spec: CarrierSpec, server: String, id: Long) = mutex.withLock {
+        val key = flightKeyOf(spec.kind, server)
+        seenProjects[key]?.let { seenProjects = seenProjects + (key to (it - id)) }
+        val state = store.get(server, spec.kind)
+        if (id in state.ids) store.set(server, spec.kind, state.ids - id, state.lastFullScanAtMs)
+    }
+
     private fun flightKeyOf(kind: String, server: String) = "$kind\n$server"
 
     private fun isDiscoveryDue(lastMs: Long?, nowMs: Long): Boolean {

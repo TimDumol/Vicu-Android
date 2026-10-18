@@ -179,6 +179,7 @@ val repositoryModule = module {
             platformHooks = get(),
             json = get(),
             carrierFinder = get(),
+            time = get(),
         )
     }
     single<CollaborationRepository> {

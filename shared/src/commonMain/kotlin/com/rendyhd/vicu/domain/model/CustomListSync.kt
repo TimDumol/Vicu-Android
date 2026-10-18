@@ -104,20 +104,32 @@ data class CustomListRevision(
 data class CustomListSyncRecord(
     @Serializable(with = CustomListWireSerializer::class) val value: CustomListWire? = null,
     val revision: CustomListRevision,
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
 @Serializable
 data class CustomListSyncOrder(
     val ids: List<String> = emptyList(),
     val revision: CustomListRevision,
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
+/**
+ * The synced custom lists. Like the lists themselves, the document, its records and the list order
+ * keep the fields a newer app added (docs/cross-app-semantics-v1.md, section 10.8); encode and
+ * decode it for the carrier through [CustomListSyncDocumentSerializer].
+ */
 @Serializable
 data class CustomListSyncDocumentV1(
     val version: Int = 1,
-    val lists: Map<String, CustomListSyncRecord> = emptyMap(),
-    val order: CustomListSyncOrder,
+    val lists: Map<String, @Serializable(with = CustomListSyncRecordSerializer::class) CustomListSyncRecord> = emptyMap(),
+    @Serializable(with = CustomListSyncOrderSerializer::class) val order: CustomListSyncOrder,
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
+
+internal object CustomListSyncRecordSerializer : UnknownFieldsSerializer<CustomListSyncRecord>(CustomListSyncRecord.serializer())
+internal object CustomListSyncOrderSerializer : UnknownFieldsSerializer<CustomListSyncOrder>(CustomListSyncOrder.serializer())
+internal object CustomListSyncDocumentSerializer : UnknownFieldsSerializer<CustomListSyncDocumentV1>(CustomListSyncDocumentV1.serializer())
 
 @Serializable
 data class CustomListSyncLocalState(

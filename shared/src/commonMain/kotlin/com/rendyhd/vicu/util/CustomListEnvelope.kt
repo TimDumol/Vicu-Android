@@ -3,6 +3,7 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.CustomListRevision
+import com.rendyhd.vicu.domain.model.CustomListSyncDocumentSerializer
 import com.rendyhd.vicu.domain.model.CustomListSyncDocumentV1
 import com.rendyhd.vicu.domain.model.CustomListSyncOrder
 import com.rendyhd.vicu.domain.model.CustomListSyncRecord
@@ -10,6 +11,7 @@ import com.rendyhd.vicu.domain.model.CustomListWire
 import com.rendyhd.vicu.domain.model.toDomain
 import kotlin.io.encoding.Base64
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 
 object CustomListEnvelope {
     const val CURRENT_VERSION = 1
@@ -95,7 +97,20 @@ object CustomListEnvelope {
             }
         }
         val order = if (compareRevision(left.order.revision, right.order.revision) >= 0) left.order else right.order
-        return normalize(CustomListSyncDocumentV1(lists = records, order = order.copy(ids = order.ids.toList())))
+        // Fields this version does not know at the top: both sides', [right] (the server's copy) wins.
+        return normalize(
+            CustomListSyncDocumentV1(
+                lists = records,
+                order = order.copy(ids = order.ids.toList()),
+                unknown = JsonObject(left.unknown + right.unknown),
+            ),
+        )
+    }
+
+    /** Drops deleted lists older than 90 days (section 10.6). Kept lists and the order stay. */
+    fun pruneTombstones(document: CustomListSyncDocumentV1, nowMs: Long): CustomListSyncDocumentV1 {
+        val kept = document.lists.filterValues { it.value != null || !HiddenTasks.isExpiredTombstone(it.revision.wallTimeMs, nowMs) }
+        return if (kept.size == document.lists.size) document else document.copy(lists = kept)
     }
 
     fun parse(description: String?, json: Json): Parsed {
@@ -112,13 +127,16 @@ object CustomListEnvelope {
             val padded = encoded + "=".repeat((4 - encoded.length % 4) % 4)
             val bytes = Base64.UrlSafe.decode(padded)
             require(bytes.size <= MAX_DECODED_BYTES) { "Custom-list metadata is too large" }
-            val document = normalize(json.decodeFromString<CustomListSyncDocumentV1>(bytes.decodeToString()))
-            Parsed(true, body, document = document, version = version)
+            val decoded = json.decodeFromString(CustomListSyncDocumentSerializer, bytes.decodeToString())
+            if (decoded.version > CURRENT_VERSION) {
+                return Parsed(true, body, error = "Custom-list metadata version ${decoded.version} is not supported", version = decoded.version)
+            }
+            Parsed(true, body, document = normalize(decoded), version = version)
         }.getOrElse { Parsed(true, body, error = it.message ?: "Cannot decode custom-list metadata", version = version) }
     }
 
     fun encode(document: CustomListSyncDocumentV1, json: Json): String {
-        val bytes = json.encodeToString(CustomListSyncDocumentV1.serializer(), normalize(document)).encodeToByteArray()
+        val bytes = json.encodeToString(CustomListSyncDocumentSerializer, normalize(document)).encodeToByteArray()
         require(bytes.size <= MAX_DECODED_BYTES) { "Custom-list metadata is too large" }
         return "<!-- vicu-custom-lists:v1:${Base64.UrlSafe.encode(bytes).trimEnd('=')} -->"
     }

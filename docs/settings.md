@@ -14,8 +14,8 @@ sync with the desktop (section 11).
 |---|---|---|---|---|
 | The Vikunja server (section 1) | Custom lists, routines and their history, each project's review state, manual task positions, project and label fields | Yes | Yes (it is on the server) | Not needed |
 | Device preferences, DataStore (section 2) | Almost everything on the Settings screen | No | Yes, except the ones holding the account's ids | Android: most; iOS: none |
-| The session, `TokenStorage` (section 3) | Server, sign-in method, tokens, **the Inbox project** | No | No | Android: no; iOS: partly (see 8.2) |
-| Widget configuration and state (section 4) | Which view each widget shows, the rows it last drew | No | Android: cleared; iOS: kept | No |
+| The session, `TokenStorage` (section 3) | Server, sign-in method, tokens, **the Inbox project** | No | No | No |
+| Widget configuration and state (section 4) | Which view each widget shows, the rows it last drew | No | Android: cleared; iOS: kept, but a project or custom list of the old account is no longer shown | No |
 | Saved UI state (section 5) | Open dialogs, drafts, the screen and tab | No | Not applicable | No |
 
 Neither app reads or writes Vikunja's own user settings (`settings` in `GET user`,
@@ -116,10 +116,14 @@ backup API token this device created, the install id, and **the Inbox project**.
   the API token are encrypted with Tink AES-256-GCM, under a keyset in SharedPreferences
   `vicu_keyset_prefs` wrapped by the Android Keystore key `vicu_master_key`. The other values are
   plain.
-- iOS (`IosKeychainTokenStorage`): the three tokens are in the Keychain
+- iOS (`IosKeychainTokenStorage`): the three tokens and the install id are in the Keychain
   (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`). Everything else is in
-  `NSUserDefaults.standardUserDefaults`. Keychain items outlive an uninstall, so the first start
-  after an install deletes any left behind.
+  `Application Support/session/session.json`, in a folder excluded from backup. Keychain items
+  outlive an uninstall, so the first start after an install (no session file) deletes any left
+  behind. Versions before the synced-data release kept the other values in
+  `NSUserDefaults.standardUserDefaults`, which iOS backs up; the first start of a newer one moves
+  them when the Keychain still holds this device's tokens, and otherwise (the defaults came from
+  another device's backup) drops them and makes a new install id (`SessionFirstStart`).
 - `clear()` (sign-out) removes everything except the install id. The install id gives the backup
   API token its title suffix (`ApiTokenTitle`), and tokens with the same suffix are treated as
   this device's own leftovers and deleted (`AuthManager.cleanupSiblingTokens`).
@@ -136,8 +140,8 @@ backup API token this device created, the install id, and **the Inbox project**.
 | Which view a widget shows | DataStore `widget_configs`, key `config_<appWidgetId>`, written by `WidgetConfigActivity` | The widget's WidgetKit configuration (`SelectViewIntent`; ids such as `today`, `project-12`, `list-<id>`). WidgetKit stores it, not the app |
 | What a widget shows | Glance state files `widget_state_*` and `routine_widget_state_*` in the no-backup folder (`WidgetStateFiles`) | JSON files in the App Group (`widgets/catalog.json`, `widgets/views/<key>.json`, `widgets/routines.json`), written by `IosWidgetSnapshots`; widget button taps wait in `widgets/actions/` until the app reads them |
 | Widget preferences | `WidgetPrefsStore` (section 2) | The same store |
-| On sign-out | Configurations cleared (`clearWidgetConfigurations`); the widgets fall back to Today | Configurations kept. The snapshots are rewritten to the signed-out state |
-| Backup | Excluded | The App Group container is not marked excluded |
+| On sign-out | Configurations cleared (`clearWidgetConfigurations`); the widgets fall back to Today | Configurations kept (WidgetKit owns them). `clearWidgetConfigurations` retires the account's tag (`widgets/account`): the ids of projects and custom lists carry it (`project-12@<tag>`), so a widget chosen under another account says to choose another list. Smart lists show whichever account is signed in. Widget taps not taken in yet are dropped. The snapshots are rewritten to the signed-out state |
+| Backup | Excluded | Excluded: `widgets/` and `share-inbox/` in the App Group are marked |
 
 `TaskWidgetStates` (common code) builds what both platforms' task widgets show, from the
 same queries as the screens.
@@ -177,7 +181,8 @@ not reached the server is never lost without the user confirming: sign-out and a
 switch count the queued changes and unsynced custom-list changes and ask first.
 
 `wipeEverything` also cancels the account's reminders, snoozes, routine alarms and (on iOS)
-pending notifications, stops its background work, and redraws the widgets.
+pending notifications, stops its background work, retires its widget configurations, drops the
+shares not added yet (iOS keeps them in `share-inbox/`), and redraws the widgets.
 
 ---
 
@@ -222,17 +227,17 @@ do come back.
 
 ### 8.2 iOS
 
-- Excluded from backup: the DataStore folder (every preference), the database, the background
-  activity log, and all of Application Support in debug builds.
-- The tokens are in the Keychain with "this device only" and never move to another device.
-- **Included**, because nothing excludes them: `NSUserDefaults` (server address, sign-in method
-  and OIDC provider, whether the server speaks v2, the token expiries, user id, Inbox project,
-  backup token id, install id, and `keychain_owned_by_install`), the App Group container (widget snapshots
-  with task titles, pending shares), and the copied completion sound in release builds.
+- Excluded from backup: the DataStore folder (every preference), the database, the session file
+  (`session/`), the background activity log, the App Group's `widgets/` and `share-inbox/`, and
+  all of Application Support in debug builds.
+- The tokens and the install id are in the Keychain with "this device only" and never move to
+  another device.
+- **Included**: the copied completion sound in release builds. The user defaults hold no session
+  values any more; a backup made by an older version still has them, and the first start after
+  restoring it drops them because the Keychain has no tokens (section 3).
 
-So an iPhone restored from a backup comes back with no preferences but with the old session's
-identity and Inbox. Its first sign-in to the same account is a KEEP, and the Inbox choice is
-skipped. See section 9 for the problems this causes.
+So an iPhone restored from a backup comes back signed out, with no preferences and its own
+install id. Its first sign-in is a WIPE_ALL and the Inbox is chosen again, as on Android.
 
 ---
 
@@ -241,24 +246,27 @@ skipped. See section 9 for the problems this causes.
 Found while writing this document. None of them loses data the user cannot get back from the
 server.
 
-1. **iOS restores the install id.** `TokenStorage.getInstallId` says the id "is not backed up, so
-   a restored device gets a new one". That holds on Android, but on iOS the id is in
-   `NSUserDefaults`. An iPad or second iPhone restored from a backup shares the id with the
-   original. Its first backup-token creation then treats the original's backup token as a
-   leftover of its own and deletes it (`AuthManager.cleanupSiblingTokens`). The fix is to keep
-   the install id, and probably the rest of the session values, out of the backup: in the
-   Keychain with "this device only", or in a file in an excluded folder. The restored
-   `keychain_owned_by_install` flag also skips the first-start Keychain cleanup, which is
-   harmless only because the Keychain items never leave the device.
+1. **Fixed: iOS restored the install id.** The id was in `NSUserDefaults`, which iOS backs up,
+   so an iPad or second iPhone restored from a backup shared it with the original, and its first
+   backup-token creation deleted the original's backup token as a leftover of its own
+   (`AuthManager.cleanupSiblingTokens`). The install id is now in the Keychain ("this device
+   only") and the other session values in an excluded file (section 3). On the first start of
+   the fixed version a device whose Keychain holds its tokens moves its values; one without them
+   is a restored copy, drops the old session (its backup token id included, so it never revokes
+   the original's token) and makes a new install id. `keychain_owned_by_install` tells an update
+   from a new install there, and is then removed with the rest.
 2. **Backups differ by platform.** Android brings theme, notification, quick-add and review
-   choices to a new phone; iOS brings none of them, but does bring the session identity and
-   Inbox (8.2).
-3. **iOS widget configurations survive an account switch.** Android clears them. On iOS a widget
-   set to `project-12` shows the new account's project 12 if one exists, and none otherwise.
-   `IosRepositoryHooks` does not override `clearWidgetConfigurations`.
-4. **The iOS App Group is not excluded from backup.** The widget snapshots hold task titles,
-   which Android deliberately keeps out of backups (`WidgetStateFiles`). A share saved before a
-   sign-out is imported into the next account's Inbox.
+   choices to a new phone; iOS brings none of them (8.2).
+3. **Fixed: iOS widget configurations survived an account switch.** WidgetKit keeps them, so a
+   widget set to `project-12` showed the new account's project 12. The ids of projects and custom
+   lists now carry the account's tag, which `clearWidgetConfigurations` retires on a sign-out or
+   account switch; such a widget says "This list is no longer available. Edit the widget to
+   choose another." (section 4). Widgets chosen before the fix belong to the account signed in
+   when the fixed version first wrote the catalog.
+4. **Fixed: the iOS App Group was not excluded from backup.** The widget snapshots hold task
+   titles, which Android keeps out of backups (`WidgetStateFiles`). `widgets/` and `share-inbox/`
+   are now excluded, and `wipeEverything` empties `share-inbox/` (`discardPendingShares`), so a
+   share saved before a sign-out is no longer imported into the next account's Inbox.
 5. **Android backs up `notification_permission`.** After a restore it can stop the after-setup
    permission prompt, although the system permission does not carry over.
 6. **The completion sound does not survive a move.** On Android the `content://` grant is not

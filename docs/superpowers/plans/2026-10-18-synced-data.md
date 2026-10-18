@@ -17,9 +17,9 @@ refresh keeps custom-list carriers and archive parts out of Room (`TaskRefresher
 
 ## Outcome (2026-10-18)
 
-Phases 0 to 5 are done for Android and iOS on branch `feat/synced-data` (not pushed), phase 6 in
-its own session on `claude/elated-kepler-352825` (not merged here), the desktop half on the
-desktop repo's `feat/synced-data`. Nothing is released. Where the work differs from the steps below:
+Phases 0 to 6 are done for Android and iOS on branch `feat/synced-data` (not pushed; phase 6 was
+done in its own session and merged), the desktop half on the desktop repo's `feat/synced-data`.
+Both gates pass on the merged branch. Nothing is released. Where the work differs from the steps below:
 
 - **Tombstone vectors** are in `cross-app-semantics-v1.json` (`hiddenTasks.tombstones`), next to the
   other hidden-task vectors, not in `custom-list-sync-v1.json`.
@@ -33,8 +33,10 @@ desktop repo's `feat/synced-data`. Nothing is released. Where the work differs f
 - **PR #34 (phase 5):** its seven commits are on the branch with their author, rebased onto the iOS
   port (the Settings binding in `ViewModelModule`, the widget order in `TaskWidgetStates`), then
   one commit moves its storage to the synced preferences and its sort to the contract rules.
-- Not done: the by-hand checks of the Release section, merging the iOS branch, the iOS gate on
-  the merged code, publishing.
+- Not done: the by-hand checks of the Release section (two accounts sharing an Inbox, phone and
+  desktop changing the same setting, a reopened carrier, an older version beside the new carrier),
+  and publishing. The desktop still resets its synced copies only when the server changes, not
+  on a switch to another user of the same server (the desktop counterpart of N3).
 
 ## Where things stand
 

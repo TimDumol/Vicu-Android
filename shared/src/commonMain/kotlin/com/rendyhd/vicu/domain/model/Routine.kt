@@ -2,6 +2,7 @@ package com.rendyhd.vicu.domain.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 enum class RoutineKind {
@@ -65,6 +66,8 @@ data class RoutineSlot(
     val reminderEnabled: Boolean = true,
     /** Zero disables the follow-up. */
     val followUpMinutes: Int = 30,
+    /** Fields a newer app added, written back unchanged (docs/cross-app-semantics-v1.md, section 10.8). */
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
 @Serializable
@@ -78,12 +81,13 @@ data class RoutineDefinition(
     val iconName: String = "",
     val color: String = "",
     val schedule: RoutineSchedule,
-    val slots: List<RoutineSlot>,
+    val slots: List<@Serializable(with = RoutineSlotSerializer::class) RoutineSlot>,
     val activeFrom: String,
     val archived: Boolean = false,
     val createdAt: String,
     val updatedAt: String,
     val updatedBy: String,
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
 @Serializable
@@ -99,14 +103,16 @@ data class RoutineOccurrenceRecord(
     val modifiedAt: String,
     val modifiedBy: String,
     val note: String = "",
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
 @Serializable
 data class RoutinePayload(
     val version: Int = 1,
-    val definition: RoutineDefinition,
-    val occurrences: Map<String, RoutineOccurrenceRecord> = emptyMap(),
+    @Serializable(with = RoutineDefinitionSerializer::class) val definition: RoutineDefinition,
+    val occurrences: Map<String, @Serializable(with = RoutineOccurrenceSerializer::class) RoutineOccurrenceRecord> = emptyMap(),
     val prunedBefore: String = "",
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
 /**
@@ -120,8 +126,17 @@ data class RoutineArchivePart(
     val routineId: String,
     /** 1-based; duplicates of a number are allowed and merge like any other part. */
     val part: Int,
-    val occurrences: Map<String, RoutineOccurrenceRecord> = emptyMap(),
+    val occurrences: Map<String, @Serializable(with = RoutineOccurrenceSerializer::class) RoutineOccurrenceRecord> = emptyMap(),
+    @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
+
+// Routine payloads keep the fields a newer app added at every level, like custom lists do. Encode
+// and decode a payload or an archive part through these, never the plain class serializer.
+internal object RoutineSlotSerializer : UnknownFieldsSerializer<RoutineSlot>(RoutineSlot.serializer())
+internal object RoutineDefinitionSerializer : UnknownFieldsSerializer<RoutineDefinition>(RoutineDefinition.serializer())
+internal object RoutineOccurrenceSerializer : UnknownFieldsSerializer<RoutineOccurrenceRecord>(RoutineOccurrenceRecord.serializer())
+internal object RoutinePayloadSerializer : UnknownFieldsSerializer<RoutinePayload>(RoutinePayload.serializer())
+internal object RoutineArchivePartSerializer : UnknownFieldsSerializer<RoutineArchivePart>(RoutineArchivePart.serializer())
 
 data class Routine(
     val taskId: Long,

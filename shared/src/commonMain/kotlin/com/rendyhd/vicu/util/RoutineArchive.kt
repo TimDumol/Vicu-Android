@@ -1,8 +1,10 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.RoutineArchivePart
+import com.rendyhd.vicu.domain.model.RoutineArchivePartSerializer
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePayload
+import com.rendyhd.vicu.domain.model.RoutinePayloadSerializer
 import com.rendyhd.vicu.domain.model.RoutineSchedule
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -41,11 +43,11 @@ object RoutineArchive {
 
     /** Decoded JSON size of a main carrier payload, the figure the 384 KiB budget is about. */
     fun payloadBytes(payload: RoutinePayload, json: Json): Int =
-        json.encodeToString(RoutinePayload.serializer(), payload).encodeToByteArray().size
+        json.encodeToString(RoutinePayloadSerializer, payload).encodeToByteArray().size
 
     /** Decoded JSON size of an archive part. */
     fun partBytes(part: RoutineArchivePart, json: Json): Int =
-        json.encodeToString(RoutineArchivePart.serializer(), part).encodeToByteArray().size
+        json.encodeToString(RoutineArchivePartSerializer, part).encodeToByteArray().size
 
     // --- Pruning (section 6.2) ----------------------------------------------------------------
 

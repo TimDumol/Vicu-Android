@@ -3,11 +3,14 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.RoutineArchivePart
+import com.rendyhd.vicu.domain.model.RoutineArchivePartSerializer
 import com.rendyhd.vicu.domain.model.RoutinePayload
+import com.rendyhd.vicu.domain.model.RoutinePayloadSerializer
 import com.rendyhd.vicu.domain.model.RoutineSchedule
 import kotlin.io.encoding.Base64
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 
 object RoutineEnvelope {
     const val CURRENT_VERSION = 1
@@ -39,7 +42,13 @@ object RoutineEnvelope {
         val payload: RoutinePayload? = null,
         val error: String? = null,
         val version: Int? = null,
-    )
+    ) {
+        /** A newer version wrote it: this version must not write it (section 10.7). */
+        val isNewerVersion: Boolean get() = (version ?: 0) > CURRENT_VERSION
+    }
+
+    /** Thrown instead of writing over a routine carrier this version cannot read (section 10.7). */
+    class UnreadableCarrierException(message: String) : IllegalStateException(message)
 
     data class ParsedArchive(
         val isArchive: Boolean,
@@ -90,7 +99,16 @@ object RoutineEnvelope {
             val padded = encoded + "=".repeat((4 - encoded.length % 4) % 4)
             val bytes = Base64.UrlSafe.decode(padded)
             require(bytes.size <= MAX_DECODED_BYTES) { "Routine metadata is too large" }
-            val payload = json.decodeFromString<RoutinePayload>(bytes.decodeToString())
+            val payload = json.decodeFromString(RoutinePayloadSerializer, bytes.decodeToString())
+            if (payload.version > CURRENT_VERSION) {
+                return Parsed(
+                    isCarrier = true,
+                    body = body,
+                    rawMarker = any.value,
+                    error = "Routine metadata version ${payload.version} is not supported",
+                    version = payload.version,
+                )
+            }
             require(payload.version == CURRENT_VERSION) { "Routine payload version mismatch" }
             require(payload.definition.id.isNotBlank()) { "Routine id is missing" }
             require(payload.definition.name.isNotBlank()) { "Routine name is missing" }
@@ -120,7 +138,7 @@ object RoutineEnvelope {
     }
 
     fun encode(payload: RoutinePayload, json: Json): String {
-        val bytes = json.encodeToString(RoutinePayload.serializer(), payload).encodeToByteArray()
+        val bytes = json.encodeToString(RoutinePayloadSerializer, payload).encodeToByteArray()
         require(bytes.size <= MAX_DECODED_BYTES) { "Routine metadata is too large" }
         val encoded = Base64.UrlSafe.encode(bytes).trimEnd('=')
         return "<!-- vicu-routine:v$CURRENT_VERSION:$encoded -->"
@@ -143,9 +161,34 @@ object RoutineEnvelope {
      * The merge used before a carrier is sent to Vikunja (section 6.3 of the cross-app contract):
      * `prunedBefore` is the later of the two, occurrences are united by key with last-write-wins
      * on the parsed `modifiedAt`, and whatever is older than `prunedBefore` is dropped because it
-     * lives in the archive. The definition is last-write-wins on `updatedAt`.
+     * lives in the archive. The definition is last-write-wins on `updatedAt`. [remote] is the server's
+     * copy: of the fields this version does not know at the top level, both sides' are kept and the
+     * server's value wins (section 10.8); below that they travel with the record that wins.
      */
     fun mergePayload(local: RoutinePayload, remote: RoutinePayload): RoutinePayload {
+        return mergeInputs(local, remote)
+    }
+
+    /**
+     * What a write of the routine [local] may send over the server's copy [remote]: their merge, or
+     * null when the server's task holds no routine any more (the plain edit goes then). Throws
+     * [UnreadableCarrierException] when either side is a carrier this version cannot read, a newer
+     * version's or a damaged one: writing would replace what it holds (section 10.7).
+     */
+    fun mergeForWrite(local: Parsed, remote: Parsed): RoutinePayload? {
+        if (local.payload != null && remote.payload != null) return mergePayload(local.payload, remote.payload)
+        if (!remote.isCarrier && local.payload != null) return null
+        val newer = local.isNewerVersion || remote.isNewerVersion
+        throw UnreadableCarrierException(
+            if (newer) {
+                "This routine was saved by a newer version of Vicu. Update Vicu to change it."
+            } else {
+                "This routine's record cannot be read, so it was not changed: ${remote.error ?: local.error ?: "unknown error"}"
+            },
+        )
+    }
+
+    private fun mergeInputs(local: RoutinePayload, remote: RoutinePayload): RoutinePayload {
         val merged = RoutineScheduleEngine.merge(
             RoutinePayloadMergeInput(local.definition, local.occurrences, local.prunedBefore),
             RoutinePayloadMergeInput(remote.definition, remote.occurrences, remote.prunedBefore),
@@ -155,6 +198,7 @@ object RoutineEnvelope {
             definition = merged.definition,
             occurrences = merged.occurrences,
             prunedBefore = merged.prunedBefore,
+            unknown = JsonObject(local.unknown + remote.unknown),
         )
     }
 
@@ -176,7 +220,7 @@ object RoutineEnvelope {
             val padded = encoded + "=".repeat((4 - encoded.length % 4) % 4)
             val bytes = Base64.UrlSafe.decode(padded)
             require(bytes.size <= MAX_DECODED_BYTES) { "Routine archive is too large" }
-            val part = json.decodeFromString<RoutineArchivePart>(bytes.decodeToString())
+            val part = json.decodeFromString(RoutineArchivePartSerializer, bytes.decodeToString())
             require(part.version == CURRENT_VERSION) { "Routine archive version mismatch" }
             require(part.routineId.isNotBlank()) { "Routine archive has no routine id" }
             require(part.part >= 1) { "Routine archive part number is invalid" }
@@ -192,7 +236,7 @@ object RoutineEnvelope {
 
     /** The description of an archive part task: only the marker (section 6.4). */
     fun encodeArchive(part: RoutineArchivePart, json: Json): String {
-        val bytes = json.encodeToString(RoutineArchivePart.serializer(), part).encodeToByteArray()
+        val bytes = json.encodeToString(RoutineArchivePartSerializer, part).encodeToByteArray()
         require(bytes.size <= MAX_DECODED_BYTES) { "Routine archive part is too large" }
         val encoded = Base64.UrlSafe.encode(bytes).trimEnd('=')
         return "<!-- vicu-routine:archive:v$CURRENT_VERSION:$encoded -->"

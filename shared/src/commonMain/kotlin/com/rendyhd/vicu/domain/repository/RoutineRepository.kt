@@ -13,6 +13,8 @@ data class RoutineParseIssue(
     val taskId: Long,
     val title: String,
     val message: String,
+    /** A newer version of Vicu wrote it: nothing is damaged, this version cannot read it. */
+    val updateRequired: Boolean = false,
 )
 
 /** The routine history as CSV, and whether it covers all of it. */

@@ -245,10 +245,21 @@ fun RoutinesScreen(
                 }
             }
 
-            if (state.issues.isNotEmpty()) {
+            val (newer, damaged) = state.issues.partition { it.updateRequired }
+            if (newer.isNotEmpty()) {
+                item(key = "issues-newer", contentType = "notice") {
+                    Text(
+                        text = "${newer.size} ${if (newer.size == 1) "routine was" else "routines were"} saved by a newer version of Vicu. Update Vicu to see ${if (newer.size == 1) "it" else "them"}.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+            if (damaged.isNotEmpty()) {
                 item(key = "issues", contentType = "notice") {
                     Text(
-                        text = "${state.issues.size} routine ${if (state.issues.size == 1) "record needs" else "records need"} repair",
+                        text = "${damaged.size} routine ${if (damaged.size == 1) "record needs" else "records need"} repair",
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(16.dp),

@@ -15,7 +15,7 @@ import kotlinx.serialization.json.JsonTransformingSerializer
  */
 internal const val UNKNOWN_FIELDS_KEY = "__unknown__"
 
-private val NO_UNKNOWN_FIELDS = JsonObject(emptyMap())
+internal val NO_UNKNOWN_FIELDS = JsonObject(emptyMap())
 
 /**
  * A synced list filter. Fields a newer app added are kept in [unknown] and written back, so

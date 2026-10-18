@@ -594,8 +594,9 @@ class SyncEngine(
                     val localParsed = RoutineEnvelope.parse(localTask.description, json)
                     val remoteTask = with(taskMapper) { api.getTask(taskId).toEntity().toDomain() }
                     val remoteParsed = RoutineEnvelope.parse(remoteTask.description, json)
-                    if (localParsed.payload != null && remoteParsed.payload != null) {
-                        val mergedPayload = RoutineEnvelope.mergePayload(localParsed.payload, remoteParsed.payload)
+                    // Never over a carrier this version cannot read: the action fails visibly instead.
+                    val mergedPayload = RoutineEnvelope.mergeForWrite(localParsed, remoteParsed)
+                    if (mergedPayload != null) {
                         val mergedTask = remoteTask.copy(
                             title = mergedPayload.definition.name,
                             description = RoutineEnvelope.upsert(remoteParsed.body, mergedPayload, json),

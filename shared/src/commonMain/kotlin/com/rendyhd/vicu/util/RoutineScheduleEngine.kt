@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.util
 
+import com.rendyhd.vicu.domain.model.NO_UNKNOWN_FIELDS
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.Routine
 import com.rendyhd.vicu.domain.model.RoutineKind
@@ -186,6 +187,8 @@ object RoutineScheduleEngine {
             modifiedAt = nowIso,
             modifiedBy = deviceId,
             note = note,
+            // A record logged again keeps the fields a newer app put on it.
+            unknown = routine.payload.occurrences[key]?.unknown ?: NO_UNKNOWN_FIELDS,
         )
     }
 

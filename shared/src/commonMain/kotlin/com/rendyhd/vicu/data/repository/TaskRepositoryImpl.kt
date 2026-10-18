@@ -498,10 +498,8 @@ class TaskRepositoryImpl(
             val localParsed = RoutineEnvelope.parse(task.description, json)
             val remoteTask = with(taskMapper) { api.getTask(task.id).toEntity().toDomain() }
             val remoteParsed = RoutineEnvelope.parse(remoteTask.description, json)
-            val localPayload = localParsed.payload
-            val remotePayload = remoteParsed.payload
-            if (localPayload != null && remotePayload != null) {
-                val mergedPayload = RoutineEnvelope.mergePayload(localPayload, remotePayload)
+            val mergedPayload = RoutineEnvelope.mergeForWrite(localParsed, remoteParsed)
+            if (mergedPayload != null) {
                 val mergedTask = remoteTask.copy(
                     title = mergedPayload.definition.name,
                     description = RoutineEnvelope.upsert(remoteParsed.body, mergedPayload, json),

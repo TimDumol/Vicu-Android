@@ -117,6 +117,7 @@ class RoutineRepositoryImpl(
                     taskId = entity.id,
                     title = entity.title,
                     message = parsed.error ?: "Cannot read routine metadata",
+                    updateRequired = parsed.isNewerVersion,
                 )
             }
         }

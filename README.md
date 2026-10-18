@@ -83,9 +83,9 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 
 **Android** (8.0 or newer):
 
-[Add to Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rendyhd/Vicu-Android)
+[Add to Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rendyhd/Vicu-Mobile)
 
-Or grab the latest APK from [GitHub Releases](https://github.com/rendyhd/Vicu-Android/releases).
+Or grab the latest APK from [GitHub Releases](https://github.com/rendyhd/Vicu-Mobile/releases).
 
 **iPhone and iPad** (iOS 17 or newer): through TestFlight and the App Store, from the first iOS release.
 

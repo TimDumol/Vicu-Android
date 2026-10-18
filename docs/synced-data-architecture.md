@@ -7,7 +7,7 @@
 This proposes one architecture for the data Vicu keeps on the Vikunja server for itself (the
 hidden tasks) and for the settings that should look the same on every device. It builds on what
 exists (`docs/hidden-tasks.md`, `docs/settings.md`), fixes the gaps found there, and gives the
-task order of [PR #34](https://github.com/rendyhd/Vicu-Android/pull/34) a way to sync with the
+task order of [PR #34](https://github.com/rendyhd/Vicu-Mobile/pull/34) a way to sync with the
 desktop.
 
 ## 1. Why

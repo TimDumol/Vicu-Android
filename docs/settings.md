@@ -335,7 +335,7 @@ server.
 
 A device preference is invisible to the desktop. When a setting changes what the user sees in a
 way they expect to match across devices (the task order in
-[PR #34](https://github.com/rendyhd/Vicu-Android/pull/34) was the first), the server has to
+[PR #34](https://github.com/rendyhd/Vicu-Mobile/pull/34) was the first), the server has to
 hold it. These are
 the places the Vikunja v2 API offers, as found in its OpenAPI spec (2.4.0):
 

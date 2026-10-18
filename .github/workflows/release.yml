@@ -1,4 +1,11 @@
-name: Build Release APK
+name: Build Release APK and AAB
+
+# A published GitHub release builds the signed APK (attached to the release, for sideloading) and
+# the signed AAB (attached as well, and sent to Google Play when PLAY_SERVICE_ACCOUNT_JSON is set),
+# both from the same commit, version.properties and upload key, so GitHub and Play stay aligned.
+# Play: the repository variable PLAY_TRACK picks the track (default internal) and PLAY_RELEASE_STATUS
+# the release status (default draft, which a Play app that was never published requires; set it
+# to completed once the app is live to roll out without opening the Play Console).
 
 on:
   release:
@@ -10,6 +17,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
 
     steps:
       - uses: actions/checkout@v4
@@ -37,12 +46,26 @@ jobs:
           printf 'storeFile=release-key.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
             "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > keystore.properties
 
-      - name: Test and build Release APK
+      - name: Test and build Release APK and AAB
         run: |
           chmod +x gradlew
-          ./gradlew test assembleRelease
+          ./gradlew test :app:assembleRelease :app:bundleRelease
 
-      - name: Upload APK to release
+      - name: Upload APK and AAB to release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/*.apk
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+
+      - name: Upload AAB to Google Play
+        if: env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.rendyhd.vicu
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          releaseName: ${{ github.event.release.tag_name }}
+          track: ${{ vars.PLAY_TRACK || 'internal' }}
+          status: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
+          mappingFile: app/build/outputs/mapping/release/mapping.txt

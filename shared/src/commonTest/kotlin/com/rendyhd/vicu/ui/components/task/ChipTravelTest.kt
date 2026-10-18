@@ -9,7 +9,7 @@ class ChipTravelTest {
     private fun rect(left: Float, top: Float, width: Float, height: Float) = Rect(left, top, left + width, top + height)
 
     @Test
-    fun `the chip starts at the centre of the word, scaled to the width of the word`() {
+    fun `the chip starts at the centre of the word - scaled to the width of the word`() {
         val token = rect(left = 100f, top = 20f, width = 60f, height = 20f) // centre 130, 30
         val chip = rect(left = 40f, top = 100f, width = 120f, height = 32f) // centre 100, 116
         val start = travelStart(token, chip)

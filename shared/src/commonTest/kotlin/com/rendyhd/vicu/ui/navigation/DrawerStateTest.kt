@@ -97,7 +97,7 @@ class DrawerStateTest {
     // --- tree ---
 
     @Test
-    fun `the tree has roots by position with their children, and leaves out the inbox and archived projects`() {
+    fun `the tree has roots by position with their children - and leaves out the inbox and archived projects`() {
         val state = build(
             sources(
                 projects = listOf(
@@ -118,7 +118,7 @@ class DrawerStateTest {
     }
 
     @Test
-    fun `the project pickers get every active project, the inbox included`() {
+    fun `the project pickers get every active project - the inbox included`() {
         val state = build(
             sources(
                 projects = listOf(project(1), project(5, archived = true), project(6)),

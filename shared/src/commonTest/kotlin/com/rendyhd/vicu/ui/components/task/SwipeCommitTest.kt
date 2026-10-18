@@ -25,7 +25,7 @@ class SwipeCommitTest {
     }
 
     @Test
-    fun `the crossing fires once per crossing, not once per frame and not for a short drag or a flick`() = runTest {
+    fun `the crossing fires once per crossing - not once per frame and not for a short drag or a flick`() = runTest {
         // A short drag, a drag over the line (several frames), back under it, and over it again.
         val drag = flowOf(0f, 0.2f, 0.45f, 0.5f, 0.6f, 0.9f, 0.4f, 0.1f, 0.55f)
 

@@ -1,32 +1,46 @@
 package com.rendyhd.vicu.util
 
-actual fun isPlatformRetriableError(e: Exception): Boolean {
-    val className = e::class.simpleName ?: ""
-    val causeClassName = e.cause?.let { it::class.simpleName } ?: ""
-    if (className.contains("SSL") || causeClassName.contains("SSL")) return false
-    if (className.contains("IOException") || causeClassName.contains("IOException")) return true
-    if (className.contains("Timeout") || causeClassName.contains("Timeout")) return true
-    if (className.contains("Connect") || causeClassName.contains("Connect")) return true
-    return false
-}
+import io.ktor.client.engine.darwin.DarwinHttpRequestException
+import kotlinx.io.IOException
+import platform.Foundation.NSURLErrorDomain
 
 private const val MAX_CAUSE_DEPTH = 8
 
-actual fun isPlatformNetworkFailure(e: Exception): Boolean {
-    var current: Throwable? = e
-    var depth = 0
-    while (current != null && depth < MAX_CAUSE_DEPTH) {
-        val name = current::class.simpleName ?: ""
-        if (name.contains("IOException") || name.contains("Timeout") || name.contains("Connect") ||
-            name.contains("SSL") || name.contains("Darwin")
-        ) {
-            return true
-        }
-        current = current.cause
-        depth++
+// NSURLError codes (Foundation's NSURLError.h).
+private const val CANCELLED = -999L
+private const val BAD_URL = -1000L
+private const val UNSUPPORTED_URL = -1002L
+private const val CANNOT_FIND_HOST = -1003L
+private const val CANNOT_CONNECT_TO_HOST = -1004L
+private const val DNS_LOOKUP_FAILED = -1006L
+private const val NOT_CONNECTED_TO_INTERNET = -1009L
+private const val INSECURE_CONNECTION_BLOCKED = -1022L // App Transport Security
+private val TLS_FAILURES = -1206L..-1200L
+
+private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) { it.cause }.take(MAX_CAUSE_DEPTH)
+
+/** The NSURLErrorDomain code of a failed request, or null for any other failure. */
+internal fun Throwable.urlErrorCode(): Long? =
+    causes().firstNotNullOfOrNull { cause ->
+        (cause as? DarwinHttpRequestException)?.origin?.takeIf { it.domain == NSURLErrorDomain }?.code
     }
-    return false
+
+/**
+ * Like Android's rule (an IOException other than a TLS failure is worth retrying), read from the
+ * NSURLError code when the Darwin engine gives one.
+ */
+actual fun isPlatformRetriableError(e: Exception): Boolean {
+    val code = e.urlErrorCode()
+    if (code != null) {
+        return code !in TLS_FAILURES &&
+            code !in setOf(CANCELLED, BAD_URL, UNSUPPORTED_URL, INSECURE_CONNECTION_BLOCKED)
+    }
+    return e is IOException || e.cause is IOException
 }
 
-/** Not told apart on iOS: every failure counts as one that may have reached the server. */
-actual fun isPlatformConnectionNeverOpened(e: Exception): Boolean = false
+actual fun isPlatformNetworkFailure(e: Exception): Boolean =
+    e.urlErrorCode() != null || e.causes().any { it is IOException }
+
+/** The request never reached a server: no host, no route, no connection. */
+actual fun isPlatformConnectionNeverOpened(e: Exception): Boolean =
+    e.urlErrorCode() in setOf(CANNOT_FIND_HOST, CANNOT_CONNECT_TO_HOST, DNS_LOOKUP_FAILED, NOT_CONNECTED_TO_INTERNET)

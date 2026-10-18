@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class ColorUtilsTest {
 
     @Test
-    fun `reads the six digit form Vikunja stores, with or without the hash`() {
+    fun `reads the six digit form Vikunja stores - with or without the hash`() {
         assertEquals(0xFFE8384F.toInt(), parseHexArgb("e8384f"))
         assertEquals(0xFFE8384F.toInt(), parseHexArgb("#e8384f"))
         assertEquals(0xFFE8384F.toInt(), parseHexArgb("#E8384F"))

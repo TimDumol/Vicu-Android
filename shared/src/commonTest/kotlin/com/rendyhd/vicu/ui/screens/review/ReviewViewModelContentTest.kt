@@ -23,7 +23,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -139,7 +139,7 @@ class ReviewViewModelContentTest {
     }
 
     @Test
-    fun `a collapsed row stops following, and opening it again shows what is there now`() = runTest {
+    fun `a collapsed row stops following - and opening it again shows what is there now`() = runTest {
         val rig = rig()
         rig.tasks.put(task(1, 7))
         rig.vm.toggleExpanded(7)

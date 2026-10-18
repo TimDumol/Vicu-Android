@@ -44,7 +44,7 @@ import kotlin.test.assertTrue
 class TaskWriteGateTest {
 
     @Test
-    fun `an edit made while an older one waits in the queue joins it, and the newer value wins`() = runTest {
+    fun `an edit made while an older one waits in the queue joins it - and the newer value wins`() = runTest {
         val rig = TaskWriteRig()
         rig.down = true
         rig.tasks.repository.update(rig.current().copy(title = "B"))
@@ -188,7 +188,7 @@ class TaskWriteGateTest {
     }
 
     @Test
-    fun `an edit cancelled while it waits for its turn is queued, not lost`() = runTest {
+    fun `an edit cancelled while it waits for its turn is queued - not lost`() = runTest {
         val rig = TaskWriteRig()
         val release = CompletableDeferred<Unit>()
         rig.hold = release
@@ -244,7 +244,7 @@ class TaskWriteGateTest {
     }
 
     @Test
-    fun `the gate counts label changes on the task, not on other tasks`() = runTest {
+    fun `the gate counts label changes on the task - not on other tasks`() = runTest {
         val dao = FakePendingActionDao()
         fun label(type: String, payload: String, status: String = "pending") = PendingActionEntity(
             entityType = "label", entityId = 5, actionType = type, payload = payload, status = status,

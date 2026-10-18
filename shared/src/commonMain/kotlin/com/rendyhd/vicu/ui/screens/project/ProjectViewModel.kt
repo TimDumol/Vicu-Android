@@ -1,6 +1,5 @@
 package com.rendyhd.vicu.ui.screens.project
 
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -11,7 +11,7 @@ import com.rendyhd.vicu.data.local.NotificationPrefs
 import com.rendyhd.vicu.util.DailySummary
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.worker.DailySummaryWorker
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import java.util.concurrent.TimeUnit
 
 /**
@@ -30,8 +30,8 @@ class DailySummaryScheduler(
         private const val TAG = "DailySummaryScheduler"
         private const val WORK_NAME_MORNING = "daily_summary"
         private const val WORK_NAME_AFTERNOON = "daily_summary_afternoon"
-        const val SLOT_MORNING = "morning"
-        const val SLOT_AFTERNOON = "afternoon"
+        const val SLOT_MORNING = DailySummary.SLOT_MORNING
+        const val SLOT_AFTERNOON = DailySummary.SLOT_AFTERNOON
         const val KEY_SLOT = "slot"
 
         /** The instant the job was scheduled to run at; absent on a run of the old repeating job. */

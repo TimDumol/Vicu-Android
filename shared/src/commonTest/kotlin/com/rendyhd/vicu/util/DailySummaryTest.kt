@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
@@ -23,13 +23,13 @@ class DailySummaryTest {
     }
 
     @Test
-    fun `at or after the time today the next occurrence is tomorrow, never the same instant again`() {
+    fun `at or after the time today the next occurrence is tomorrow - never the same instant again`() {
         assertEquals(Instant.parse("2026-10-07T06:00:00Z"), next("2026-10-06T06:00:00Z", 8))
         assertEquals(Instant.parse("2026-10-07T06:00:00Z"), next("2026-10-06T06:00:01Z", 8))
     }
 
     @Test
-    fun `a summary scheduled across the autumn change stays at the same local time (25 hour day)`() {
+    fun `a summary scheduled across the autumn change stays at the same local time - 25 hour day`() {
         // Sat 24 Oct 08:00:01 CEST (UTC+2) -> Sun 25 Oct 08:00 CET (UTC+1) is 25 hours later.
         val after = Instant.parse("2026-10-24T06:00:01Z")
 
@@ -45,7 +45,7 @@ class DailySummaryTest {
     }
 
     @Test
-    fun `a summary scheduled across the spring change stays at the same local time (23 hour day)`() {
+    fun `a summary scheduled across the spring change stays at the same local time - 23 hour day`() {
         // Sat 28 Mar 08:00:01 CET (UTC+1) -> Sun 29 Mar 08:00 CEST (UTC+2) is 23 hours later.
         assertEquals(Instant.parse("2026-03-29T06:00:00Z"), next("2026-03-28T07:00:01Z", 8))
     }
@@ -57,7 +57,7 @@ class DailySummaryTest {
     }
 
     @Test
-    fun `a time that exists twice on the autumn change day fires once, at its first occurrence`() {
+    fun `a time that exists twice on the autumn change day fires once - at its first occurrence`() {
         // 02:30 happens at 00:30Z (CEST) and again at 01:30Z (CET) on 25 Oct 2026.
         val first = next("2026-10-24T20:00:00Z", 2, 30)
         assertEquals(Instant.parse("2026-10-25T00:30:00Z"), first)
@@ -85,7 +85,7 @@ class DailySummaryTest {
     // --- boundaries and text ---------------------------------------------------------------
 
     @Test
-    fun `the windows are local midnights, so the autumn change day is 25 hours long`() {
+    fun `the windows are local midnights - so the autumn change day is 25 hours long`() {
         val b = DailySummary.boundaries(LocalDate(2026, 10, 25), amsterdam)
 
         assertEquals("2026-10-24T22:00:00Z", b.startOfToday)

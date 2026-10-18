@@ -26,7 +26,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -96,7 +96,7 @@ class ProjectProgressSourceImplTest {
         TaskEntity(id = id, projectId = project, done = done, description = description)
 
     @Test
-    fun `the tallies count the user's open and done tasks of each project, hidden tasks left out`() = runTest {
+    fun `the tallies count the user's open and done tasks of each project - hidden tasks left out`() = runTest {
         val rig = rig(
             listOf(
                 task(1, project = 7),

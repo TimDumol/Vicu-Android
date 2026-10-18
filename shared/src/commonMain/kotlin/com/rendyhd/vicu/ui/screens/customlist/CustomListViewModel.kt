@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.ui.screens.customlist
 
-import android.util.Log
+import com.rendyhd.vicu.util.Logger
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -216,7 +216,7 @@ class CustomListViewModel(
                 customListRepository.delete(listId)
                 _uiState.update { it.copy(isDeleted = true) }
             } catch (e: Exception) {
-                Log.e("CustomListViewModel", "deleteCustomList() failed: ${e.message}", e)
+                Logger.e("CustomListViewModel", "deleteCustomList() failed: ${e.message}", e)
                 _uiState.update { it.copy(error = e.message ?: "Failed to delete list") }
             }
         }

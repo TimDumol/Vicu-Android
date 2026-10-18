@@ -13,6 +13,11 @@ kotlin {
     }
 }
 
+// One version for Android and iOS, kept in version.properties at the repository root.
+val versionProps = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+
 val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties()
 if (keystorePropsFile.exists()) {
@@ -29,8 +34,8 @@ android {
         applicationId = "com.rendyhd.vicu"
         minSdk = 26
         targetSdk = 36
-        versionCode = 45
-        versionName = "2.0.1"
+        versionCode = versionProps.getProperty("versionCode").toInt()
+        versionName = versionProps.getProperty("versionName")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

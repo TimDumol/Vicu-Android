@@ -40,7 +40,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -202,7 +202,7 @@ class DrawerViewModelReorderTest {
     }
 
     @Test
-    fun `projects that share a position are renumbered, the dragged one last`() = runTest {
+    fun `projects that share a position are renumbered - the dragged one last`() = runTest {
         val rig = rig(listOf(project(1, position = 0.0), project(2, position = 0.0), project(3, position = 0.0)))
 
         rig.viewModel.reorderProject(movedId = 3, idsInNewOrder = listOf(1, 3, 2))

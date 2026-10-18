@@ -2,7 +2,7 @@ package com.rendyhd.vicu.ui.components.shared
 
 import androidx.compose.runtime.compositionLocalOf
 import com.rendyhd.vicu.util.ClockDay
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn

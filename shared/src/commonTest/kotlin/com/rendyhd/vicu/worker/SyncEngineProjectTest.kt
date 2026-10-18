@@ -111,7 +111,7 @@ class SyncEngineProjectTest {
     }
 
     @Test
-    fun `a 404 that names the project as missing drops the change, the project and its cached tasks`() = runTest {
+    fun `a 404 that names the project as missing drops the change - the project and its cached tasks`() = runTest {
         val cachedTask = TaskEntity(id = 21, title = "In the gone project", projectId = 5)
         val h = SyncEngineHarness(
             projectDao = FakeProjectDao(listOf(home)),

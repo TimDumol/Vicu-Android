@@ -16,6 +16,7 @@ import com.rendyhd.vicu.util.ReminderAlarmBackend
 import com.rendyhd.vicu.util.ReminderAlarmCoordinator
 import com.rendyhd.vicu.util.ReminderAlarmSpec
 import com.rendyhd.vicu.util.SnoozeRules
+import com.rendyhd.vicu.util.TaskReminderNotifications
 import com.rendyhd.vicu.util.TimeSource
 import kotlinx.coroutines.CancellationException
 
@@ -32,7 +33,7 @@ class AlarmScheduler(
     private val snoozeStore: SnoozeStore,
     registry: ReminderAlarmRegistry,
     private val time: TimeSource,
-) {
+) : TaskReminderNotifications {
     companion object {
         private const val TAG = "AlarmScheduler"
     }
@@ -81,7 +82,7 @@ class AlarmScheduler(
     }
 
     /** Cancels everything for a task, including a pending snooze (task done/deleted). */
-    suspend fun cancelForTask(taskId: Long) {
+    override suspend fun cancelForTask(taskId: Long) {
         coordinator.cancelForTask(taskId)
         cancelSnooze(taskId)
     }
@@ -93,7 +94,7 @@ class AlarmScheduler(
     }
 
     /** The "Snooze" notification action: fires the reminder again one snooze period from now. */
-    suspend fun snooze(taskId: Long, taskTitle: String) {
+    override suspend fun snooze(taskId: Long, taskTitle: String) {
         scheduleSnooze(taskId, taskTitle, SnoozeRules.triggerAfterSnooze(time.now().toEpochMilliseconds()))
     }
 

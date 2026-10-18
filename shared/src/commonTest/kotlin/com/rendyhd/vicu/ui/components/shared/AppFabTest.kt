@@ -41,7 +41,7 @@ class AppFabTest {
     }
 
     @Test
-    fun `a new screen keeps the previous button for its first frames, so the button does not drop out`() {
+    fun `a new screen keeps the previous button for its first frames - so the button does not drop out`() {
         assertEquals(newTask, fabToShow(current = null, last = newTask, settling = true))
     }
 

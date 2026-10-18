@@ -1,0 +1,144 @@
+name: iOS
+
+# The iOS gate (the shared tests on the simulator and a simulator build of the app) on main, and a
+# TestFlight upload by hand. Every push already compiles the shared code without Android in ci.yml;
+# this job needs a macOS runner and runs less often. The upload needs a runner with more memory than
+# GitHub's standard macOS runner (docs/ios.md); until there is one, builds go to TestFlight from a
+# Mac with iosApp/scripts/testflight.sh.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Archive and upload to TestFlight
+        type: boolean
+        default: false
+      build_attempt:
+        description: Added to the build number (versionCode x 100) to upload the same version again
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Shared tests on the iOS simulator
+        run: |
+          chmod +x gradlew
+          ./gradlew :shared:iosSimulatorArm64Test
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          iosApp/scripts/generate.sh
+
+      - name: Build the app for the simulator
+        run: |
+          xcodebuild build \
+            -project iosApp/Vicu.xcodeproj -scheme Vicu -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath iosApp/build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-reports
+          path: shared/build/reports/tests/
+          if-no-files-found: ignore
+
+  testflight:
+    needs: check
+    if: github.event_name == 'workflow_dispatch' && inputs.upload
+    runs-on: macos-26
+    timeout-minutes: 120
+    # Secrets: APPLE_TEAM_ID, and an App Store Connect API key with the App Manager role
+    # (ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 holding the .p8 file's text).
+    env:
+      BUILD_ATTEMPT: ${{ inputs.build_attempt || 0 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Write the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc-key.p8"
+          chmod 600 "$RUNNER_TEMP/asc-key.p8"
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          iosApp/scripts/generate.sh
+
+      # Automatic signing through the API key: Xcode creates or updates the certificates and
+      # profiles it needs on this runner.
+      - name: Archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          chmod +x gradlew
+          xcodebuild archive \
+            -project iosApp/Vicu.xcodeproj -scheme Vicu -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Vicu.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc-key.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Vicu.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist iosApp/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc-key.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc-key.p8"

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +54,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,7 @@ import com.rendyhd.vicu.ui.components.shared.RollingCount
 import com.rendyhd.vicu.ui.components.shared.SmartListIdentity
 import com.rendyhd.vicu.ui.components.task.moveCustomActions
 import com.rendyhd.vicu.ui.theme.LocalVicuColors
+import com.rendyhd.vicu.util.countOf
 import com.rendyhd.vicu.util.ProjectProgress
 import com.rendyhd.vicu.util.moveIdBy
 import com.rendyhd.vicu.util.parseHexColor
@@ -77,6 +80,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 /** How far each level of the project tree is moved in. */
 private val ProjectIndent = 16.dp
 
+/** The width of the open task count column (three digits); see ProjectItem. */
+private val CountColumnWidth = 28.dp
+
 /**
  * The navigation drawer: the smart lists, then the projects (a tree, any depth), the custom lists
  * and the labels. It is one lazy list, so only the rows that are on screen are composed however
@@ -87,6 +93,8 @@ private val ProjectIndent = 16.dp
  * A project row with tasks shows a [ProgressRing] from [projectProgress]. While [progressActive]
  * (the drawer is open) the projects whose rows are on screen are reported through
  * [onProgressRows], which is how the numbers are asked for: only for the rows that can be seen.
+ * With [projectOpenCounts] (Settings, "Show task count") a project also shows how many open tasks
+ * it has; either, both or neither can be on.
  */
 @Composable
 fun DrawerContent(
@@ -98,6 +106,7 @@ fun DrawerContent(
     onToggleTags: () -> Unit,
     onToggleProjectCollapsed: (projectId: Long) -> Unit = {},
     projectProgress: Map<Long, ProjectProgress> = emptyMap(),
+    projectOpenCounts: Map<Long, Int> = emptyMap(),
     progressActive: Boolean = false,
     onProgressRows: (Set<Long>) -> Unit = {},
     onCreateNewList: () -> Unit = {},
@@ -291,6 +300,8 @@ fun DrawerContent(
                             ProjectItem(
                                 row = row,
                                 progress = projectProgress[projectId],
+                                openCount = projectOpenCounts[projectId],
+                                countColumn = projectOpenCounts.isNotEmpty(),
                                 selected = currentRoute == "ProjectRoute/$projectId",
                                 onClick = { onNavigate(ProjectRoute(projectId)) },
                                 onToggleCollapsed = { onToggleProjectCollapsed(projectId) },
@@ -499,6 +510,8 @@ internal fun LazyItemScope.LongPressReorderableRow(
 private fun ProjectItem(
     row: ProjectRow,
     progress: ProjectProgress?,
+    openCount: Int?,
+    countColumn: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
     onToggleCollapsed: () -> Unit,
@@ -508,14 +521,28 @@ private fun ProjectItem(
     val project = row.project
     val projectColor = parseHexColor(project.hexColor)
     // The badge slot is the trailing end of the row: the progress ring of a project with tasks,
-    // then the open/close button of a project with children.
-    val badge: (@Composable () -> Unit)? = if (row.hasChildren || progress != null) {
+    // its open tasks while counts are shown ([countColumn]: one end-aligned column, so the numbers
+    // and the rings line up row after row), then the open/close button of a project with children.
+    val badge: (@Composable () -> Unit)? = if (row.hasChildren || progress != null || openCount != null) {
         {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (progress != null) {
                     ProgressRing(
                         progress = progress,
                         color = projectColor ?: MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (countColumn) {
+                    Text(
+                        text = openCount?.toString().orEmpty(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .widthIn(min = CountColumnWidth)
+                            .semantics { if (openCount != null) contentDescription = countOf(openCount, "open task") },
                     )
                 }
                 if (row.hasChildren) {
@@ -525,9 +552,9 @@ private fun ProjectItem(
                             contentDescription = projectToggleDescription(project.title, row.expanded),
                         )
                     }
-                } else if (progress != null) {
-                    // The room of the open/close button, so the rings of an area row and of its
-                    // projects are one column.
+                } else {
+                    // The room of the open/close button, so the rings and counts of an area row and
+                    // of its projects are one column.
                     Spacer(Modifier.width(48.dp))
                 }
             }

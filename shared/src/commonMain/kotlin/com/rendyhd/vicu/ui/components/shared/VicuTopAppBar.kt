@@ -17,20 +17,53 @@ import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Velocity
 
 /**
  * The scroll of a list screen's large title: the title folds into the bar as the list scrolls.
  * Give [modifier] to the screen's Scaffold (it carries the nested scroll) and the object itself to
  * [VicuTopAppBar]. Keeps the experimental Material 3 scroll behaviour out of the screens.
+ *
+ * At the top of [listState] a pull down opens a folded title before anything else: Material's
+ * behaviour opens it only with the scroll the list leaves over, which the screen's pull to refresh
+ * (nearer the list) takes first, so a slow pull refreshed instead and only a fling opened the
+ * title. Once the title is open, the pull refreshes.
  */
 class VicuTopBarScroll @OptIn(ExperimentalMaterial3Api::class) internal constructor(
     internal val behavior: TopAppBarScrollBehavior,
+    private val listState: LazyListState?,
 ) {
     @OptIn(ExperimentalMaterial3Api::class)
-    val modifier: Modifier = Modifier.nestedScroll(behavior.nestedScrollConnection)
+    private val connection = object : NestedScrollConnection {
+        private val material = behavior.nestedScrollConnection
+
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            val state = behavior.state
+            if (available.y > 0f && listState?.canScrollBackward == false && state.heightOffset < 0f) {
+                val before = state.heightOffset
+                state.heightOffset = before + available.y // kept within the bar's range by the state
+                return Offset(0f, state.heightOffset - before)
+            }
+            return material.onPreScroll(available, source)
+        }
+
+        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+            material.onPostScroll(consumed, available, source)
+
+        override suspend fun onPreFling(available: Velocity): Velocity = material.onPreFling(available)
+
+        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
+            material.onPostFling(consumed, available)
+    }
+
+    val modifier: Modifier = Modifier.nestedScroll(connection)
 
     /** 0 while the title is fully expanded, 1 once it has folded into the bar. */
     @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +85,7 @@ fun rememberVicuTopBarScroll(listState: LazyListState? = null): VicuTopBarScroll
             }
         }
     }
-    return VicuTopBarScroll(behavior)
+    return remember(behavior, listState) { VicuTopBarScroll(behavior, listState) }
 }
 
 /**

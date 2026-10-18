@@ -86,7 +86,7 @@ class TaskRepositorySetDoneTest {
     }
 
     @Test
-    fun `a completion from a notification is stored and queued, nothing is sent from it`() = runTest {
+    fun `a completion from a notification is stored and queued - nothing is sent from it`() = runTest {
         val h = harness(open) { error("The notification action must not send anything itself") }
 
         val result = h.repository.setDoneInBackground(42, true)

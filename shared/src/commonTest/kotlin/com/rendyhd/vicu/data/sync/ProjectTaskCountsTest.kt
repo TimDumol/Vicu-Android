@@ -12,7 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -64,7 +64,7 @@ class ProjectTaskCountsTest {
     }
 
     @Test
-    fun `one request for a page of one done task, and the total is the answer`() = runTest {
+    fun `one request for a page of one done task - and the total is the answer`() = runTest {
         val rig = rig(backgroundScope)
 
         assertEquals(5L, rig.counts.doneTotal(7))
@@ -77,7 +77,7 @@ class ProjectTaskCountsTest {
     }
 
     @Test
-    fun `a fresh answer is reused for ten minutes, then the server is asked again`() = runTest {
+    fun `a fresh answer is reused for ten minutes - then the server is asked again`() = runTest {
         val rig = rig(backgroundScope)
         rig.counts.doneTotal(7)
 
@@ -91,7 +91,7 @@ class ProjectTaskCountsTest {
     }
 
     @Test
-    fun `each project is its own request, once`() = runTest {
+    fun `each project is its own request - once`() = runTest {
         val rig = rig(backgroundScope, totals = mutableMapOf(1L to 1L, 2L to 2L, 3L to 3L))
 
         val answers = listOf(1L, 2L, 3L, 1L, 2L, 3L).map { rig.counts.doneTotal(it) }
@@ -146,7 +146,7 @@ class ProjectTaskCountsTest {
     }
 
     @Test
-    fun `a failure is no answer, is remembered for a minute and then asked again`() = runTest {
+    fun `a failure is no answer - is remembered for a minute and then asked again`() = runTest {
         var failing = true
         val rig = rig(backgroundScope) {
             if (failing) HttpStatusCode.ServiceUnavailable to """{"title":"down","status":503}""" else null
@@ -188,14 +188,14 @@ class ProjectTaskCountsTest {
     }
 
     @Test
-    fun `a project with no done task is zero, not unknown`() = runTest {
+    fun `a project with no done task is zero - not unknown`() = runTest {
         val rig = rig(backgroundScope, totals = mutableMapOf())
 
         assertEquals(0L, rig.counts.doneTotal(7))
     }
 
     @Test
-    fun `signed out, nothing is asked`() = runTest {
+    fun `signed out - nothing is asked`() = runTest {
         val rig = rig(backgroundScope, server = null)
 
         assertNull(rig.counts.doneTotal(7))

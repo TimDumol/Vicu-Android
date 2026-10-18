@@ -205,7 +205,7 @@ class RoutineArchiveTest {
     }
 
     @Test
-    fun `a prunedBefore in the future of the computed cutoff is kept, never moved back`() {
+    fun `a prunedBefore in the future of the computed cutoff is kept - never moved back`() {
         val source = payload(
             mapOf(
                 record(today.minus(380, DateTimeUnit.DAY)).let { it.key to it },
@@ -256,7 +256,7 @@ class RoutineArchiveTest {
     }
 
     @Test
-    fun `the completion date, not the scheduled date, decides which completion is the latest`() {
+    fun `the completion date - not the scheduled date - decides which completion is the latest`() {
         val schedule = RoutineSchedule.AfterCompletion(intervalDays = 7, firstDueDate = "2024-01-01")
         // Scheduled long ago but completed yesterday: that is the latest completion, although
         // another record has a later scheduled date.

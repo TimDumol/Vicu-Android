@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,7 +63,8 @@ fun LogbookScreen(
     // Rows kept on screen after completing them are let go when the screen is left.
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val topBarScroll = rememberVicuTopBarScroll()
+    val listState = rememberLazyListState()
+    val topBarScroll = rememberVicuTopBarScroll(listState)
 
     Scaffold(
 
@@ -84,7 +86,7 @@ fun LogbookScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FabClearance)) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FabClearance)) {
                 if (state.tasks.isEmpty() && !state.isLoading) {
                     item {
                         EmptyState(

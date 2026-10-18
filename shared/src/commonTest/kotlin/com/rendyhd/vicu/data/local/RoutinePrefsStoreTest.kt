@@ -59,7 +59,7 @@ class RoutinePrefsStoreTest {
     }
 
     @Test
-    fun `completed and skipped occurrences are finished, the others stay open`() {
+    fun `completed and skipped occurrences are finished - the others stay open`() {
         val routine = Routine(
             taskId = 42,
             payload = RoutinePayload(

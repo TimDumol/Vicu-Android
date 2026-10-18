@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.util.deviceLocaleTag
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
@@ -217,7 +218,7 @@ class TaskParserDatesTest {
     }
 
     @Test
-    fun `a label, project or priority splits a date phrase and the first part is the date`() {
+    fun `a label - project or priority splits a date phrase and the first part is the date`() {
         assertParses(
             listOf(
                 Triple("Call tomorrow @home 3pm", "Call 3pm", "2026-10-07T23:59:59"),

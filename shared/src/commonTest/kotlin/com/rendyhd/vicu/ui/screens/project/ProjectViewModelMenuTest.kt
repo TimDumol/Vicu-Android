@@ -69,7 +69,7 @@ class ProjectViewModelMenuTest {
     }
 
     @Test
-    fun `the inbox is not offered as the inbox, archived or deleted`() {
+    fun `the inbox is not offered as the inbox - archived or deleted`() {
         val inbox = Project(id = 5, title = "Inbox")
         val menu = projectMenuState(inbox, listOf(inbox), inboxProjectId = 5, reviewPrefs = reviewOn, confirmBeforeDelete = true)
         assertEquals(listOf(ProjectMenuEntry.EDIT, ProjectMenuEntry.ADD_SUBPROJECT), menu.entries())
@@ -206,7 +206,7 @@ class ProjectViewModelMenuTest {
     }
 
     @Test
-    fun `mark reviewed offers undo, and undo puts the project back`() = runTest {
+    fun `mark reviewed offers undo - and undo puts the project back`() = runTest {
         val rig = rig()
         val vm = rig.viewModel()
         runCurrent()

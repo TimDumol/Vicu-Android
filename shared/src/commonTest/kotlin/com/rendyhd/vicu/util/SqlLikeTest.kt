@@ -12,7 +12,7 @@ class SqlLikeTest {
     }
 
     @Test
-    fun `percent, underscore and the escape character are escaped`() {
+    fun `percent - underscore and the escape character are escaped`() {
         assertEquals("100\\%", SqlLike.escape("100%"))
         assertEquals("a\\_b", SqlLike.escape("a_b"))
         assertEquals("c:\\\\temp", SqlLike.escape("c:\\temp"))
@@ -20,7 +20,7 @@ class SqlLikeTest {
     }
 
     @Test
-    fun `other characters, quotes included, are left alone`() {
+    fun `other characters - quotes included - are left alone`() {
         assertEquals("it's [a-z]* (b)", SqlLike.escape("it's [a-z]* (b)"))
     }
 

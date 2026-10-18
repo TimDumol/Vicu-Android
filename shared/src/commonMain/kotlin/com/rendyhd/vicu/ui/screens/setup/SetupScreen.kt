@@ -1,7 +1,9 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.rendyhd.vicu.ui.screens.setup
 
 import com.rendyhd.vicu.ui.rememberOidcLauncher
-import androidx.activity.compose.BackHandler
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -205,7 +208,8 @@ fun SetupScreen(
 
 /**
  * A step that is centred when it fits and scrolls when it does not (a small screen, the keyboard
- * open). The scroll sits inside the insets the screen already applies.
+ * open). The scroll sits inside the insets the screen already applies. On a tablet the step keeps
+ * a phone's width in the middle instead of stretching its fields across the screen.
  */
 @Composable
 private fun CenteredScrollingStep(content: @Composable ColumnScope.() -> Unit) {
@@ -217,10 +221,14 @@ private fun CenteredScrollingStep(content: @Composable ColumnScope.() -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = minHeight),
             verticalArrangement = Arrangement.Center,
-            content = content,
-        )
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Column(modifier = Modifier.widthIn(max = MAX_STEP_WIDTH).fillMaxWidth(), content = content)
+        }
     }
 }
+
+private val MAX_STEP_WIDTH = 560.dp
 
 /** Shown for a plain http:// address to a host outside the user's network. Warns; never blocks. */
 @Composable

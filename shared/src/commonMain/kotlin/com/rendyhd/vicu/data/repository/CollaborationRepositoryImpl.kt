@@ -56,7 +56,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 class CollaborationRepositoryImpl(
     private val collaborationDao: CollaborationDao,

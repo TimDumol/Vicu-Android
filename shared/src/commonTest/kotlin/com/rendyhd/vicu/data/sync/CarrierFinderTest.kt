@@ -15,7 +15,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -238,7 +238,7 @@ class CarrierFinderTest {
     }
 
     @Test
-    fun `a failed first scan is an error, never an empty answer`() = runTest {
+    fun `a failed first scan is an error - never an empty answer`() = runTest {
         val rig = rig()
         rig.tasks.override = { req ->
             if (req.method == "GET" && req.path == "/tasks") respond("", HttpStatusCode.InternalServerError) else null

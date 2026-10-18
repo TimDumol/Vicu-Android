@@ -117,7 +117,7 @@ class CompletionHoldTest {
     }
 
     @Test
-    fun `a rotation is not a navigation, so the held row stays`() = runTest {
+    fun `a rotation is not a navigation - so the held row stays`() = runTest {
         // A rotation recreates the screen's composition and nothing else: no tick, no release.
         val ticker = NavigationTicker()
         val hold = CompletionHold(backgroundScope, navigationTicker = ticker)

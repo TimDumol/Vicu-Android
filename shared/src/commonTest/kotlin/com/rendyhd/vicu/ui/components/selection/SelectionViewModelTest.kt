@@ -13,7 +13,7 @@ import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.FixedTimeSource
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.SchedulerTimeSource
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -162,7 +162,7 @@ class SelectionViewModelTest {
     }
 
     @Test
-    fun `completed rows are held on the screen and announced by the completion toast, not here`() = runTest {
+    fun `completed rows are held on the screen and announced by the completion toast - not here`() = runTest {
         val rig = rig(1, 2, 3)
         val hold = CompletionHold(backgroundScope)
         hold.merge(listOf(1L, 2L, 3L).map { rig.tasks.current(it)!! })
@@ -201,7 +201,7 @@ class SelectionViewModelTest {
     }
 
     @Test
-    fun `a task that fails is reported, stays selected and is not counted as completed`() = runTest {
+    fun `a task that fails is reported - stays selected and is not counted as completed`() = runTest {
         val rig = rig(1, 2, 3)
         rig.tasks.completionOutcome = { id -> if (id == 2L) NetworkResult.Error("boom") else null }
         val hold = CompletionHold(backgroundScope)

@@ -42,7 +42,7 @@ class DailySummaryRunTest {
     }
 
     @Test
-    fun `a run syncs first, then posts the summary, then schedules the next one`() = runTest {
+    fun `a run syncs first - then posts the summary - then schedules the next one`() = runTest {
         val rig = Rig()
 
         assertEquals(Outcome.DONE, rig.run.run())

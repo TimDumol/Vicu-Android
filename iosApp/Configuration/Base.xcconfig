@@ -1,0 +1,10 @@
+// Settings shared by Debug and Release. Version.xcconfig is written by scripts/generate.sh from
+// version.properties at the repository root (the version of both apps).
+#include? "Version.xcconfig"
+
+VICU_BUNDLE_ID_BASE = com.rendyhd.vicu
+VICU_APP_GROUP_BASE = group.com.rendyhd.vicu
+
+// Local.xcconfig (not checked in) holds the signing team for builds on a device, so it survives
+// regenerating the project: DEVELOPMENT_TEAM = <your team id>. CI passes the team on the command line.
+#include? "Local.xcconfig"

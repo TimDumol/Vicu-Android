@@ -7,13 +7,13 @@ import com.rendyhd.vicu.util.parser.SyntaxMode
 import com.rendyhd.vicu.util.parser.TaskParser
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.parser.TokenType
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class TaskEditShortcutsTest {
     private val config = ParserConfig(syntaxMode = SyntaxMode.TODOIST)

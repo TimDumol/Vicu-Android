@@ -509,7 +509,7 @@ class VikunjaApiService(
         val base = filters
             .filterKeys { it != "page" }
             .toMutableMap()
-            .apply { putIfAbsent("per_page", DEFAULT_PAGE_SIZE.toString()) }
+            .apply { getOrPut("per_page") { DEFAULT_PAGE_SIZE.toString() } }
         val all = mutableListOf<T>()
         var page = 1
         var totalPages = 1

@@ -1,0 +1,10 @@
+{
+  "name": "vicu-ios-ui-verify",
+  "private": true,
+  "type": "module",
+  "description": "Simulator harness for Vicu iOS UI checks (install, captures by deep link in light, dark and large text). Not part of the app build.",
+  "scripts": {
+    "install-app": "node install.mjs",
+    "shots": "node shots.mjs"
+  }
+}

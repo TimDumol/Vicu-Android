@@ -7,7 +7,7 @@ import com.rendyhd.vicu.util.CrossAppFixture.date
 import com.rendyhd.vicu.util.CrossAppFixture.local
 import com.rendyhd.vicu.util.CrossAppFixture.zones
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
@@ -54,7 +54,7 @@ class CustomListFilterBuilderTest {
     // --- Date windows -------------------------------------------------------------------
 
     @Test
-    fun `a window follows the local date of the due instant, not its UTC date`() {
+    fun `a window follows the local date of the due instant - not its UTC date`() {
         // 00:30 on Oct 7 in Amsterdam is still Oct 6 in UTC; 18:30 on Oct 6 in New York is Oct 7 in UTC.
         val amsterdamTask = task(1, "2026-10-07T00:30:00", amsterdam)
         val newYorkTask = task(2, "2026-10-06T18:30:00", newYork)
@@ -66,7 +66,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `a task due at local midnight belongs to that day, a legacy date-only value`() {
+    fun `a task due at local midnight belongs to that day - a legacy date-only value`() {
         val midnight = task(1, "2026-10-07T00:00:00")
         val endOfDay = task(2, "2026-10-06T23:59:59")
         val today = CustomListFilter(dueDateFilter = "today")
@@ -76,7 +76,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `a task due earlier today is still today at ten, and overdue tomorrow`() {
+    fun `a task due earlier today is still today at ten - and overdue tomorrow`() {
         val early = task(1, "2026-10-06T08:00:00")
 
         assertEquals(listOf(1L), ids(listOf(early), CustomListFilter(dueDateFilter = "today", includeOverdue = false)))
@@ -86,7 +86,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `this week ends on Sunday, and on a Sunday it is only that day`() {
+    fun `this week ends on Sunday - and on a Sunday it is only that day`() {
         val sat = task(1, "2026-10-10T23:59:59")
         val sun = task(2, "2026-10-11T23:59:59")
         val mon = task(3, "2026-10-12T23:59:59")
@@ -98,7 +98,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `include_overdue defaults to true and only the today, week and month windows read it`() {
+    fun `include_overdue defaults to true and only the today - week and month windows read it`() {
         val overdue = task(1, "2026-10-01T23:59:59")
         val noDate = task(2, null)
 
@@ -207,7 +207,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `the day boundaries follow the zone, not UTC`() {
+    fun `the day boundaries follow the zone - not UTC`() {
         val today = CustomListFilter(dueDateFilter = "today", includeOverdue = false)
 
         assertEquals(
@@ -239,7 +239,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `overdue, has a due date and no due date`() {
+    fun `overdue - has a due date and no due date`() {
         assertEquals("done = false && due_date < '2026-10-05T22:00:00Z' && $nullDate", serverFilter(CustomListFilter(dueDateFilter = "overdue")))
         assertEquals("done = false && $nullDate", serverFilter(CustomListFilter(dueDateFilter = "has_due_date")))
         assertEquals("done = false && due_date = '0001-01-01T00:00:00Z'", serverFilter(CustomListFilter(dueDateFilter = "no_due_date")))
@@ -248,7 +248,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `an include project is sent to the server, an exclude one is not`() {
+    fun `an include project is sent to the server - an exclude one is not`() {
         assertEquals("done = false && project_id = 10", serverFilter(CustomListFilter(projectIds = listOf(10))))
         assertEquals(
             "done = false && (project_id = 10 || project_id = 11)",
@@ -295,7 +295,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `every sort the server can do is sent, the way the list is configured`() {
+    fun `every sort the server can do is sent - the way the list is configured`() {
         for (key in listOf("due_date", "created", "updated", "priority", "title", "done_at")) {
             val params = CustomListFilterBuilder.buildQueryParams(
                 CustomListFilter(sortBy = key, orderBy = "asc"), tue, amsterdam,
@@ -306,7 +306,7 @@ class CustomListFilterBuilderTest {
     }
 
     @Test
-    fun `a sort the tasks endpoint does not know is not sent, since it answers 400 to it`() {
+    fun `a sort the tasks endpoint does not know is not sent - since it answers 400 to it`() {
         // "position" only exists in a project's list view, and an old or hand-edited list can
         // carry any text. The list is ordered on the phone by [sortTasks] either way.
         for (key in listOf("position", "", "no_such_field", "due_date; drop")) {
@@ -375,7 +375,7 @@ class CustomListFilterBuilderTest {
     )
 
     @Test
-    fun `the server filter never drops a task the evaluator accepts, and is exact for plain windows`() {
+    fun `the server filter never drops a task the evaluator accepts - and is exact for plain windows`() {
         val todays = listOf("2026-10-06", "2026-10-11", "2026-10-31", "2026-11-01").map(::date)
         for (zone in zones) {
             val tasks = boundaryTasks(zone, date("2026-09-20"), days = 60)

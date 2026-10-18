@@ -40,7 +40,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -128,7 +128,7 @@ class DayFollowingViewModelsTest {
     }
 
     @Test
-    fun `the routines screen starts on the clock's day, not a frozen one`() = runTest {
+    fun `the routines screen starts on the clock's day - not a frozen one`() = runTest {
         val repository = FakeRoutineRepository()
         val vm = RoutinesViewModel(
             repository = repository,

@@ -55,7 +55,7 @@ class SyncEngineCollaborationTest {
         """{"id":$id,"comment":"$html","author":{"id":1,"username":"rendy","name":"Rendy"},"created":"$created","updated":"$created"}"""
 
     @Test
-    fun `a queued assignment is sent, and already assigned counts as done`() = runTest {
+    fun `a queued assignment is sent - and already assigned counts as done`() = runTest {
         val bodies = mutableListOf<String?>()
         val h = SyncEngineHarness { request ->
             when {
@@ -119,7 +119,7 @@ class SyncEngineCollaborationTest {
     }
 
     @Test
-    fun `a comment the API token may not post fails visibly, the queue goes on and the session stays`() = runTest {
+    fun `a comment the API token may not post fails visibly - the queue goes on and the session stays`() = runTest {
         // Vikunja answers 401 to a token without the comments permission; the token still reads the
         // project list, so only that change was refused (cross-app semantics 9.7).
         val h = SyncEngineHarness(productionPipeline = true) { request ->

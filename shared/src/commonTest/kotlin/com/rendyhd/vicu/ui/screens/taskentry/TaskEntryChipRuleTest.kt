@@ -32,7 +32,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
@@ -262,7 +262,7 @@ class TaskEntryChipRuleTest {
     }
 
     @Test
-    fun `a dismissed chip still lifts when its words are deleted, a pinned one does not`() = runTest {
+    fun `a dismissed chip still lifts when its words are deleted - a pinned one does not`() = runTest {
         val rig = rig()
         rig.vm.setTitle("Call Ana !high")
         rig.vm.suppressType(TokenType.PRIORITY)

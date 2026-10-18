@@ -57,7 +57,7 @@ import com.rendyhd.vicu.util.DateContext
 import com.rendyhd.vicu.util.DateDisplay
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DateUtils
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 
@@ -241,14 +241,15 @@ private fun ScrollableWidget(state: TaskWidgetState) {
     ) {
         WidgetHeader(state)
         Spacer(modifier = GlanceModifier.height(8.dp))
-        if (state.error != null) {
+        val error = state.error
+        if (error != null) {
             Box(
                 modifier = GlanceModifier.fillMaxSize()
                     .clickable(actionStartActivity<MainActivity>()),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = state.error,
+                    text = error,
                     style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 14.sp),
                 )
             }

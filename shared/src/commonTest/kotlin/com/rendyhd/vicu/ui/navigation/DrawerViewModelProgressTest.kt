@@ -37,7 +37,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -221,7 +221,7 @@ class DrawerViewModelProgressTest {
     }
 
     @Test
-    fun `closing and opening the drawer asks again, and the source decides whether that costs a request`() = runTest {
+    fun `closing and opening the drawer asks again - and the source decides whether that costs a request`() = runTest {
         val rig = rig(source())
         rig.viewModel.setProgressRows(setOf(1L))
         settle()
@@ -307,6 +307,65 @@ class DrawerViewModelProgressTest {
 
         assertEquals(listOf(5L to ProjectTally.EMPTY), source.asked)
         assertEquals(emptyMap(), rig.progress)
+        rig.close()
+    }
+
+    // --- Open task counts (Settings, "Show task count"): either, both or neither with the rings ---
+
+    private fun TestScope.counts(rig: Rig): () -> Map<Long, Int> {
+        backgroundScope.launch { rig.viewModel.projectOpenCounts.collect { } }
+        runCurrent()
+        return { rig.viewModel.projectOpenCounts.value }
+    }
+
+    @Test
+    fun `task counts are off unless turned on`() = runTest {
+        val rig = rig(source())
+        val counts = counts(rig)
+        settle()
+
+        assertEquals(emptyMap(), counts())
+        rig.close()
+    }
+
+    @Test
+    fun `task counts are the open tasks on the phone - asked of nobody - and a project with none has no count`() = runTest {
+        val prefs = BehaviorPrefsStore(InMemoryPreferencesDataStore())
+        prefs.setShowProjectTaskCount(true)
+        val source = FakeProjectProgressSource(
+            initial = mapOf(
+                1L to ProjectTally(open = 2, doneOnPhone = 0),
+                2L to ProjectTally(open = 12, doneOnPhone = 1),
+                3L to ProjectTally(open = 0, doneOnPhone = 4),
+            ),
+        )
+        val rig = rig(source, prefs)
+        val counts = counts(rig)
+        settle()
+
+        // The drawer is closed and no row asked for anything: the counts need no request.
+        assertEquals(mapOf(1L to 2, 2L to 12), counts())
+        assertEquals(emptyList(), source.asked)
+
+        source.tallies.value = source.tallies.value + (1L to ProjectTally(open = 1, doneOnPhone = 1))
+        runCurrent()
+        assertEquals(1, counts()[1L], "a completed task leaves the count at once")
+        rig.close()
+    }
+
+    @Test
+    fun `task counts show with the rings turned off`() = runTest {
+        val prefs = BehaviorPrefsStore(InMemoryPreferencesDataStore())
+        prefs.setShowProjectProgress(false)
+        prefs.setShowProjectTaskCount(true)
+        val rig = rig(source(), prefs)
+        val counts = counts(rig)
+        rig.viewModel.setProgressRows(setOf(1L, 2L))
+        settle()
+
+        assertEquals(mapOf(1L to 2, 2L to 1), counts())
+        assertEquals(emptyMap(), rig.progress)
+        assertEquals(emptyList(), rig.source.asked)
         rig.close()
     }
 }

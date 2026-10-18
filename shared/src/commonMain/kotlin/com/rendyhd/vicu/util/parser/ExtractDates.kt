@@ -1,7 +1,7 @@
 package com.rendyhd.vicu.util.parser
 
 import com.rendyhd.vicu.util.DueDates
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -169,7 +169,7 @@ private fun buildWorkingText(input: String, consumed: List<IntRange>): String {
             if (i in chars.indices) chars[i] = ' '
         }
     }
-    return String(chars)
+    return chars.concatToString()
 }
 
 private fun overlapsConsumed(start: Int, end: Int, consumed: List<IntRange>): Boolean =

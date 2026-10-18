@@ -80,7 +80,7 @@ class BottomBarItemsTest {
     }
 
     @Test
-    fun `with smart list colours off no icon is coloured, the inbox included`() {
+    fun `with smart list colours off no icon is coloured - the inbox included`() {
         val result = items(BottomBarSlot.DEFAULT_SLOTS, smartListColors = false)
 
         assertEquals(4, result.size)
@@ -91,7 +91,7 @@ class BottomBarItemsTest {
     }
 
     @Test
-    fun `a project or list slot wears the colour chosen for it, whatever the smart list setting`() {
+    fun `a project or list slot wears the colour chosen for it - whatever the smart list setting`() {
         val slots = listOf(
             BottomBarSlot(BottomBarSlotType.PROJECT, "7", colorHex = "#4186e0"),
             BottomBarSlot(BottomBarSlotType.CUSTOM_LIST, "l1", colorHex = "#e8384f"),

@@ -323,7 +323,7 @@ class TaskDetailViewModelAutosaveTest {
     }
 
     @Test
-    fun `a save at dismissal, then another task opened before the screen is gone, saves once and keeps the new task`() = runTest {
+    fun `a save at dismissal - then another task opened before the screen is gone - saves once and keeps the new task`() = runTest {
         val (rig, vm) = opened()
         rig.tasks.put(task(43, "Other task"))
 

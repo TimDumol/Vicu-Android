@@ -36,7 +36,7 @@ class ReorderMoveTest {
     }
 
     @Test
-    fun `a dated task does not move, and nothing moves past it`() {
+    fun `a dated task does not move - and nothing moves past it`() {
         // Dated tasks are listed by due date: a move across them would snap back.
         val tasks = listOf(task(1, due = dated), task(2), task(3))
 

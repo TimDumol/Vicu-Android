@@ -232,7 +232,7 @@ class FilterBeforeNestingViewModelsTest {
     }
 
     @Test
-    fun `a matching subtask of a completed parent shows, and the parent does not unless done tasks are included`() = runTest {
+    fun `a matching subtask of a completed parent shows - and the parent does not unless done tasks are included`() = runTest {
         val rig = customListRig(CustomListFilter(priorityFilter = listOf(4)))
         val parent = task(1, priority = 4, done = true)
         rig.tasks.put(parent)
@@ -281,7 +281,7 @@ class FilterBeforeNestingViewModelsTest {
     private fun vector(name: String) = fixture.customLists.first { it.name == name }.expect
 
     @Test
-    fun `the window follows the day clock, and moves at midnight`() = runTest {
+    fun `the window follows the day clock - and moves at midnight`() = runTest {
         val zone = TimeZone.of("Europe/Amsterdam")
         val rig = customListRig(CustomListFilter(dueDateFilter = "today", includeOverdue = false), "2026-10-06T23:30:00", zone)
         rig.putFixtureTasks(zone)
@@ -311,7 +311,7 @@ class FilterBeforeNestingViewModelsTest {
     }
 
     @Test
-    fun `the server is asked with local-day boundaries, again when the day changes`() = runTest {
+    fun `the server is asked with local-day boundaries - again when the day changes`() = runTest {
         val zone = TimeZone.of("Europe/Amsterdam")
         val rig = customListRig(CustomListFilter(dueDateFilter = "today"), "2026-10-06T23:30:00", zone)
         runCurrent()

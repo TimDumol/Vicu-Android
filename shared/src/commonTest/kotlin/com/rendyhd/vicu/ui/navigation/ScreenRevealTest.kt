@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 class ScreenRevealTest {
 
     @Test
-    fun `a screen arriving by a cross-fade is told so once, by its first composition`() {
+    fun `a screen arriving by a cross-fade is told so once - by its first composition`() {
         val reveal = ScreenReveal()
         reveal.arriving("today")
 
@@ -16,7 +16,7 @@ class ScreenRevealTest {
     }
 
     @Test
-    fun `a screen that did not arrive by a cross-fade (a pop, a slide, the first screen) shows at once`() {
+    fun `a screen that did not arrive by a cross-fade - a pop - a slide - the first screen shows at once`() {
         assertFalse(ScreenReveal().takeArrival("inbox"))
     }
 
@@ -40,7 +40,7 @@ class ScreenRevealTest {
     }
 
     @Test
-    fun `a screen that leaves the composition is forgotten, so a later visit starts afresh`() {
+    fun `a screen that leaves the composition is forgotten - so a later visit starts afresh`() {
         val reveal = ScreenReveal()
         reveal.arriving("today")
         reveal.leaving("inbox", coveredBy = "today")

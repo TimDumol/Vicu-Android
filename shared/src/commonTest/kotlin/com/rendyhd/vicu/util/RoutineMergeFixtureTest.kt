@@ -25,7 +25,7 @@ class RoutineMergeFixtureTest {
     }
 
     @Test
-    fun `merge vectors, in both argument orders, in every zone`() = inEachZone { zone ->
+    fun `merge vectors - in both argument orders - in every zone`() = inEachZone { zone ->
         for (vector in fixture.merge) {
             val forward = RoutineEnvelope.mergePayload(payload(vector.local), payload(vector.remote))
             assertEquals(vector.expect.prunedBefore, forward.prunedBefore, "${vector.name} in $zone")
@@ -38,7 +38,7 @@ class RoutineMergeFixtureTest {
     }
 
     @Test
-    fun `definition merge vectors compare parsed instants, in every zone`() = inEachZone { zone ->
+    fun `definition merge vectors compare parsed instants - in every zone`() = inEachZone { zone ->
         for (vector in fixture.definitionMerge) {
             fun withDefinition(side: RoutineArchiveFixture.DefinitionSide) = payload(
                 RoutineArchiveFixture.Side(),

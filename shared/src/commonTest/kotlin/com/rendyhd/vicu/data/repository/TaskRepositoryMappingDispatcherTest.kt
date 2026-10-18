@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.repository
 
+import kotlinx.coroutines.Runnable
 import com.rendyhd.vicu.data.local.entity.TaskEntity
 import com.rendyhd.vicu.data.repository.TaskRepositoryHarness.Companion.serviceUnavailable
 import kotlinx.coroutines.CoroutineDispatcher
@@ -58,7 +59,7 @@ class TaskRepositoryMappingDispatcherTest {
     }
 
     @Test
-    fun `a metadata row is dropped by its flag, whatever the query returned`() = runTest {
+    fun `a metadata row is dropped by its flag - whatever the query returned`() = runTest {
         val h = TaskRepositoryHarness(taskDao = FakeTaskDao(rows)) { serviceUnavailable() }
 
         assertEquals(listOf(1L), h.repository.getAllTasksFlat().first().map { it.id })

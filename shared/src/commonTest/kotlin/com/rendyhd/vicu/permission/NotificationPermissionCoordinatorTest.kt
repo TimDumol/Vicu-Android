@@ -44,7 +44,7 @@ class NotificationPermissionCoordinatorTest {
     }
 
     @Test
-    fun `setup completion shows the rationale, then the system prompt on accept`() = runTest(UnconfinedTestDispatcher()) {
+    fun `setup completion shows the rationale - then the system prompt on accept`() = runTest(UnconfinedTestDispatcher()) {
         val platform = FakePlatform()
         val store = newStore()
         val c = coordinator(platform, store)
@@ -126,7 +126,7 @@ class NotificationPermissionCoordinatorTest {
     }
 
     @Test
-    fun `the Settings button asks directly, then opens settings`() = runTest(UnconfinedTestDispatcher()) {
+    fun `the Settings button asks directly - then opens settings`() = runTest(UnconfinedTestDispatcher()) {
         val platform = FakePlatform()
         val c = coordinator(platform)
 

@@ -20,7 +20,7 @@ import com.rendyhd.vicu.worker.MissingResourceCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.hours
 
 /**

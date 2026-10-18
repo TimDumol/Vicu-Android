@@ -107,15 +107,12 @@ object RoutineArchiveFixture {
      * zone shows up as a different answer in one of them.
      */
     fun inEachZone(block: (TimeZone) -> Unit) {
-        val original = java.util.TimeZone.getDefault()
-        try {
-            for (zone in CrossAppFixture.zones) {
-                java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone.id))
+        for (zone in CrossAppFixture.zones) {
+            val switched = withSystemTimeZone(zone.id) {
                 check(TimeZone.currentSystemDefault().id == zone.id) { "the system zone did not change to ${zone.id}" }
                 block(zone)
             }
-        } finally {
-            java.util.TimeZone.setDefault(original)
+            check(switched) { "the system zone cannot be set to ${zone.id} on this platform" }
         }
     }
 

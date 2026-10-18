@@ -9,7 +9,19 @@ data class DailySummaryContent(
     val counts: DailySummary.Counts,
     /** Up to a few titles of tasks due today (not overdue), earliest first. */
     val dueTodayTitles: List<String>,
-)
+) {
+    /**
+     * The lines of the expanded notification: today's titles, how many more are due today, then
+     * the overdue and tomorrow counts.
+     */
+    fun lines(): List<String> = buildList {
+        addAll(dueTodayTitles)
+        val remaining = counts.dueToday - dueTodayTitles.size
+        if (remaining > 0) add("+$remaining more today")
+        if (counts.overdue > 0) add("${counts.overdue} overdue tasks need attention")
+        if (counts.dueTomorrow > 0) add("${counts.dueTomorrow} due tomorrow")
+    }
+}
 
 /** Reads the counts of the daily summary from the local database. */
 class DailySummaryReader(private val taskDao: TaskDao) {

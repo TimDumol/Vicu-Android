@@ -369,7 +369,8 @@ async function a6WhenSheet(ctx) {
       if (!picked) { warn('a6: the 20th is past this month; the calendar-day step is skipped'); return }
       await openSheet('day')
       const label = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(picked)
-      const cell = (await v.scrollFind((n) => n.text === label, `calendar day ${label}`, 0.5)).n
+      // The day is read aloud as its full date (MonthCalendar: content description; Material's picker had it as text).
+      const cell = (await v.scrollFind((n) => n.text === label || n['content-desc'] === label, `calendar day ${label}`, 0.5)).n
       await d.tap(cell.cx, cell.cy, 900)
       shot('calendar-day')
       const field = d.dump().find((n) => /EditText/.test(n.class ?? ''))

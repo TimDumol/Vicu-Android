@@ -1,7 +1,7 @@
 package com.rendyhd.vicu.data.sync
 
 import com.rendyhd.vicu.util.AtomicLong
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 /**
  * Tracks when the app last completed a full network refresh, app-wide.

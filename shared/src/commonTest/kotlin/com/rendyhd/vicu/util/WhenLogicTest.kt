@@ -6,7 +6,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -15,8 +14,8 @@ import kotlin.test.assertNull
 class WhenLogicTest {
 
     private val zones = listOf(TimeZone.of("Pacific/Auckland"), TimeZone.of("America/New_York"))
-    private val us12 = DateDisplayFormat(Locale.US, hour12 = true)
-    private val gb24 = DateDisplayFormat(Locale.UK, hour12 = false)
+    private val us12 = DateDisplayFormat("en-US", hour12 = true)
+    private val gb24 = DateDisplayFormat("en-GB", hour12 = false)
 
     // Thursday, October 8 2026.
     private val thursday = LocalDate(2026, 10, 8)
@@ -33,7 +32,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `next mon reads as the coming Monday, date-only, and weekend alone reads as nothing`() {
+    fun `next mon reads as the coming Monday - date-only - and weekend alone reads as nothing`() {
         assertEquals(WhenValue(LocalDate(2026, 10, 12), null), parse("next mon")!!.value)
         assertEquals(WhenValue(LocalDate(2026, 10, 12), null), parse("next monday")!!.value)
         // The weekend is a quick choice of the sheet, not something the text parser reads.
@@ -42,7 +41,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `this weekend is words, not a date (the parser spec), so only the quick choice sets it`() {
+    fun `this weekend is words - not a date - the parser spec - so only the quick choice sets it`() {
         assertNull(parse("this weekend"))
         assertNull(parse("plan the weekend"))
         assertEquals(LocalDate(2026, 10, 10), WhenLogic.quickChoices(thursday).first { it.id == WhenQuickChoice.Id.WEEKEND }.date)
@@ -62,7 +61,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `a date only phrase is judged against the day, not the clock`() {
+    fun `a date only phrase is judged against the day - not the clock`() {
         // Thursday evening: "thursday" is today, not next week.
         val evening = LocalDateTime(2026, 10, 8, 22, 30)
         assertEquals(thursday, parse("thursday", evening)!!.value.date)
@@ -125,7 +124,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `quick choices land on today, tomorrow, the coming Saturday and the coming Monday`() {
+    fun `quick choices land on today - tomorrow - the coming Saturday and the coming Monday`() {
         val choices = WhenLogic.quickChoices(thursday).associate { it.id to it.date }
         assertEquals(thursday, choices[WhenQuickChoice.Id.TODAY])
         assertEquals(LocalDate(2026, 10, 9), choices[WhenQuickChoice.Id.TOMORROW])
@@ -135,7 +134,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `the weekend and next week move on from a Saturday, a Sunday and a Monday`() {
+    fun `the weekend and next week move on from a Saturday - a Sunday and a Monday`() {
         fun on(day: Int): Map<WhenQuickChoice.Id, LocalDate> =
             WhenLogic.quickChoices(LocalDate(2026, 10, day)).associate { it.id to it.date }
         // Saturday 10: the next Saturday, the coming Monday.
@@ -160,7 +159,7 @@ class WhenLogicTest {
     }
 
     @Test
-    fun `hints name the weekday, and next week names the day of the month`() {
+    fun `hints name the weekday - and next week names the day of the month`() {
         val choices = WhenLogic.quickChoices(thursday).associateBy { it.id }
         assertEquals("Thu", WhenLogic.hint(choices.getValue(WhenQuickChoice.Id.TODAY), us12))
         assertEquals("Fri", WhenLogic.hint(choices.getValue(WhenQuickChoice.Id.TOMORROW), us12))
@@ -183,5 +182,37 @@ class WhenLogicTest {
         assertEquals("6:00 PM", WhenLogic.timeLabel(LocalTime(18, 0), us12))
         assertEquals("09:00", WhenLogic.timeLabel(nineAm, gb24))
         assertEquals(listOf("09:00", "12:00", "15:00", "18:00"), WhenLogic.TIME_CHOICES.map { WhenLogic.timeLabel(it, gb24) })
+    }
+
+    // The month grid: the same cases as the desktop `monthGrid` tests.
+
+    @Test
+    fun `the month grid has six Monday-first weeks around the month`() {
+        val grid = WhenLogic.monthGrid(LocalDate(2026, 10, 15))
+        assertEquals(6, grid.size)
+        assertEquals(List(6) { 7 }, grid.map { it.size })
+        // 1 October 2026 is a Thursday: the first row starts on Monday 28 September.
+        assertEquals(GridDay(LocalDate(2026, 9, 28), inMonth = false), grid[0][0])
+        assertEquals(GridDay(LocalDate(2026, 10, 1), inMonth = true), grid[0][3])
+        assertEquals(LocalDate(2026, 11, 8), grid[5][6].date)
+        assertEquals(31, grid.flatten().count { it.inMonth })
+        // Every row runs Monday to Sunday.
+        assertEquals(List(6) { kotlinx.datetime.DayOfWeek.MONDAY }, grid.map { it.first().date.dayOfWeek })
+        assertEquals(List(6) { kotlinx.datetime.DayOfWeek.SUNDAY }, grid.map { it.last().date.dayOfWeek })
+    }
+
+    @Test
+    fun `the month grid handles a month that starts on Monday and February in a leap year`() {
+        assertEquals(GridDay(LocalDate(2026, 6, 1), inMonth = true), WhenLogic.monthGrid(LocalDate(2026, 6, 10))[0][0])
+        assertEquals(29, WhenLogic.monthGrid(LocalDate(2028, 2, 1)).flatten().count { it.inMonth })
+    }
+
+    @Test
+    fun `months move by whole months and clamp the day`() {
+        assertEquals(LocalDate(2026, 2, 28), WhenLogic.addMonths(LocalDate(2026, 1, 31), 1))
+        assertEquals(LocalDate(2028, 2, 29), WhenLogic.addMonths(LocalDate(2028, 1, 31), 1))
+        assertEquals(LocalDate(2025, 12, 15), WhenLogic.addMonths(LocalDate(2026, 10, 15), -10))
+        assertEquals(LocalDate(2027, 1, 5), WhenLogic.addMonths(LocalDate(2026, 12, 5), 1))
+        assertEquals(LocalDate(2026, 10, 1), WhenLogic.monthStart(LocalDate(2026, 10, 15)))
     }
 }

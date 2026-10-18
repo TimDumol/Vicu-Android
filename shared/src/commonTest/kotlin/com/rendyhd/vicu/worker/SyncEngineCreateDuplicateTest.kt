@@ -120,7 +120,7 @@ class SyncEngineCreateDuplicateTest {
     }
 
     @Test
-    fun `a create that timed out online is looked for, one refused before it was sent is not`() = runTest {
+    fun `a create that timed out online is looked for - one refused before it was sent is not`() = runTest {
         val unavailable = TaskRepositoryHarness(taskDao = FakeTaskDao()) { respond("", HttpStatusCode.ServiceUnavailable) }
         val busy = TaskRepositoryHarness(taskDao = FakeTaskDao()) { respond("", HttpStatusCode.TooManyRequests) }
 

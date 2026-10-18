@@ -85,6 +85,7 @@ data class SettingsUiState(
     // Notifications
     val notificationPrefs: NotificationPrefs = NotificationPrefs(),
     val supportsQuickAddTile: Boolean = false,
+    val quickAddHint: String? = null,
     // Behavior (delete confirm, completion sound)
     val behaviorPrefs: BehaviorPrefs = BehaviorPrefs(),
     // Sync
@@ -255,6 +256,7 @@ class SettingsViewModel(
             },
             notificationPrefs = c.notificationPrefs,
             supportsQuickAddTile = platformSettingsHooks.supportsQuickAddTile,
+            quickAddHint = platformSettingsHooks.quickAddHint,
             behaviorPrefs = p.behaviorPrefs,
             pendingActionCount = s.pendingCount,
             failedActionCount = s.failedCount,
@@ -692,6 +694,10 @@ class SettingsViewModel(
 
     fun setShowProjectProgress(enabled: Boolean) {
         viewModelScope.launch { behaviorPrefsStore.setShowProjectProgress(enabled) }
+    }
+
+    fun setShowProjectTaskCount(enabled: Boolean) {
+        viewModelScope.launch { behaviorPrefsStore.setShowProjectTaskCount(enabled) }
     }
 
     fun setLogbookRetentionEnabled(enabled: Boolean) {

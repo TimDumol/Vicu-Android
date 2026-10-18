@@ -88,7 +88,7 @@ class TaskDetailRelationSearchTest {
     }
 
     @Test
-    fun `typing asks the server once, after the text has rested`() = runTest {
+    fun `typing asks the server once - after the text has rested`() = runTest {
         val rig = rig()
 
         listOf("m", "mi", "mil", "milk").forEach {
@@ -121,7 +121,7 @@ class TaskDetailRelationSearchTest {
     }
 
     @Test
-    fun `the results come from the cache, open and completed, without waiting for the server`() = runTest {
+    fun `the results come from the cache - open and completed - without waiting for the server`() = runTest {
         val rig = rig()
         rig.tasks.put(Task(id = 10, title = "Buy milk", projectId = 1))
         rig.tasks.put(Task(id = 11, title = "Milk run", projectId = 1, done = true))

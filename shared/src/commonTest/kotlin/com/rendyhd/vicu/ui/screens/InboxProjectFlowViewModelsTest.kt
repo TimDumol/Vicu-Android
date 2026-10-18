@@ -39,7 +39,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -124,7 +124,7 @@ class InboxProjectFlowViewModelsTest {
     }
 
     @Test
-    fun `an archived inbox is a blocking notice, and a failed refresh does not replace it`() = runTest {
+    fun `an archived inbox is a blocking notice - and a failed refresh does not replace it`() = runTest {
         val auth = Auth().also { it.storage.storeInboxProjectId(5) }
         val fakes = Fakes(listOf(other)).apply { tasks.put(taskIn(1, 5)) } // 5 is not among the active projects
         val vm = InboxViewModel(
@@ -150,7 +150,7 @@ class InboxProjectFlowViewModelsTest {
     }
 
     @Test
-    fun `a failed completion keeps the add button, and Retry completes the task again`() = runTest {
+    fun `a failed completion keeps the add button - and Retry completes the task again`() = runTest {
         val auth = Auth().also { it.storage.storeInboxProjectId(5) }
         val fakes = Fakes(listOf(inbox, other)).apply { tasks.put(taskIn(1, 5)) }
         var offline = true

@@ -17,11 +17,11 @@ workmanager = "2.11.0"
 glance = "1.1.1"
 coil = "3.3.0"
 tink = "1.19.0"
-kotlinx-datetime = "0.6.2"
+kotlinx-datetime = "0.7.1"
 kotlinx-coroutines = "1.10.2"
 ktor = "3.0.1"
 cascade = "1.9.0"
-koin = "4.0.2"
+koin = "4.2.2"
 reorderable = "2.4.3"
 coreKtx = "1.16.0"
 lifecycleRuntime = "2.9.0"
@@ -52,6 +52,8 @@ cascade-editor = { group = "io.github.linreal", name = "cascade-editor", version
 compose-runtime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "compose-multiplatform" }
 compose-foundation = { group = "org.jetbrains.compose.foundation", name = "foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "compose-material3" }
+# Multiplatform BackHandler and PredictiveBackHandler (the androidx.activity ones are Android only).
+compose-ui-backhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandler", version.ref = "compose-multiplatform" }
 # The last release of the multiplatform icon set. JetBrains stopped publishing it, and the AndroidX
 # artifact (1.7.8) has no iOS variants, so the shared module cannot move to it.
 compose-material-icons-extended = { group = "org.jetbrains.compose.material", name = "material-icons-extended", version = "1.7.3" }
@@ -65,7 +67,8 @@ androidx-navigation-compose = { group = "org.jetbrains.androidx.navigation", nam
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0-alpha11" }
+# The stable line Room 2.7.1 is built against (androidx.sqlite 2.5.0).
+sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0" }
 
 # Networking
 
@@ -94,6 +97,8 @@ glance-material3 = { group = "androidx.glance", name = "glance-material3", versi
 # Coil (Image Loading)
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+coil-network-core = { group = "io.coil-kt.coil3", name = "coil-network-core", version.ref = "coil" }
+coil-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil" }
 
 # Auth
 tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }

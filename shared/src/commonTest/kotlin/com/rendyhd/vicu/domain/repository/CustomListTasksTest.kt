@@ -45,7 +45,7 @@ class CustomListTasksTest {
     ): List<Long> = customListTasks(filter, today, zone, activeProjects).map { it.id }
 
     @Test
-    fun `a list reads every open task, not a capped sample`() = runTest {
+    fun `a list reads every open task - not a capped sample`() = runTest {
         val tasks = FakeTaskRepository().apply {
             // 250 undated tasks come first, so a reader that stops at 200 never sees the due ones.
             for (id in 1L..250L) put(task(id))
@@ -93,7 +93,7 @@ class CustomListTasksTest {
     }
 
     @Test
-    fun `a matching subtask shows even when its parent does not match, and nests under a matching one`() = runTest {
+    fun `a matching subtask shows even when its parent does not match - and nests under a matching one`() = runTest {
         val parent = task(1)
         val matchingParent = task(3, due = dueToday)
         val tasks = FakeTaskRepository().apply {
@@ -107,7 +107,7 @@ class CustomListTasksTest {
     }
 
     @Test
-    fun `the list is sorted as configured, with undated tasks last`() = runTest {
+    fun `the list is sorted as configured - with undated tasks last`() = runTest {
         val tasks = FakeTaskRepository().apply {
             put(task(1))
             put(task(2, due = DueDates.dateOnlyDue(LocalDate(2026, 10, 8), zone).toString()))

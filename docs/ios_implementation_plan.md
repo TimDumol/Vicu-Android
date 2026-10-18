@@ -1,6 +1,6 @@
 # Implementation Plan — Kotlin/Compose Multiplatform Migration for iOS Support
 
-> **Status: historical.** iOS support is not being pursued and the targets do not compile. See [ios-status.md](ios-status.md) for the current state.
+> **Status: superseded.** This was the original migration plan, written before the shared module was built. Vicu now runs on iOS by a different route; see [ios.md](ios.md) for how the iOS app is built and how it differs from Android.
 
 **Goal:** Ship Vicu on iPhone by sharing the existing Kotlin + Compose codebase via Compose Multiplatform (CMP), with zero regression on the Android app.
 

@@ -80,7 +80,7 @@ class CustomListFixtureTest {
     }
 
     @Test
-    fun `the server filter keeps everything the evaluator accepts, in every zone at every time`() {
+    fun `the server filter keeps everything the evaluator accepts - in every zone at every time`() {
         val scope = CoroutineScope(Job())
         for (zone in zones) {
             val all = tasks(zone)
@@ -101,7 +101,7 @@ class CustomListFixtureTest {
     }
 
     @Test
-    fun `a blank due date counts as no due date, like the null date`() {
+    fun `a blank due date counts as no due date - like the null date`() {
         for (zone in zones) {
             val withBlank = tasks(zone).map { if (it.dueDate == Constants.NULL_DATE_STRING) it.copy(dueDate = "") else it }
             for (vector in fixture.customLists) {

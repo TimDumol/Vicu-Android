@@ -25,6 +25,7 @@ import com.rendyhd.vicu.util.BuildInfo
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.NetworkMonitor
+import com.rendyhd.vicu.util.NotificationActions
 import com.rendyhd.vicu.data.sync.CarrierFinder
 import com.rendyhd.vicu.data.sync.LabelRefresher
 import com.rendyhd.vicu.data.sync.ProjectRefresher
@@ -34,6 +35,9 @@ import com.rendyhd.vicu.data.sync.SyncStaleness
 import com.rendyhd.vicu.data.sync.TaskRefresher
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TimeSource
+import com.rendyhd.vicu.widget.TaskWidgetStates
+import kotlinx.coroutines.flow.first
+import com.rendyhd.vicu.util.CustomListContext
 import com.rendyhd.vicu.worker.SyncEngine
 import com.rendyhd.vicu.worker.CollaborationSync
 
@@ -210,6 +214,25 @@ val repositoryModule = module {
 }
 
 val commonModule = module {
+    single { DailySummaryReader(get()) }
+    single { NotificationActions(taskRepository = get(), routineRepository = get(), reminders = get(), hooks = get()) }
+    single { TokenRefreshRun(authManager = get(), tokenStorage = get(), baseUrlHolder = get()) }
+    single {
+        TaskWidgetStates(
+            taskDao = get(),
+            projectDao = get(),
+            taskRepository = get(),
+            tokenStorage = get(),
+            customListStore = get(),
+            widgetPrefsStore = get(),
+            behaviorPrefsStore = get(),
+            time = get(),
+            collaborationContext = {
+                val collaboration: CollaborationRepository = get()
+                CustomListContext.of(collaboration.state.first(), collaboration.signals.first())
+            },
+        )
+    }
     single {
         ProjectTaskCounts(
             api = get(),
@@ -331,5 +354,6 @@ val sharedModules = listOf(
     databaseModule,
     networkModule,
     repositoryModule,
-    commonModule
+    commonModule,
+    viewModelModule,
 )

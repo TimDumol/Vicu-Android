@@ -30,9 +30,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
@@ -237,7 +237,7 @@ class TaskEntryViewModelDueDateTest {
     }
 
     @Test
-    fun `clearing the date by hand wins over a typed date, and the words stay in the title`() = runTest {
+    fun `clearing the date by hand wins over a typed date - and the words stay in the title`() = runTest {
         val rig = rig()
         rig.vm.initWithDefaults(defaultProjectId = 1, defaultDueDate = todayDue)
         runCurrent()

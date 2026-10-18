@@ -1,0 +1,9 @@
+// Profile: the debug app's identity (Vicu Debug, its own ids, URL scheme and App Group, so it
+// installs beside the release app with the debug provisioning) built with optimizations, the
+// Kotlin framework included. For trying the app's speed on a device: a Debug build's Kotlin code
+// is not optimized and scrolls noticeably slower on a phone.
+#include "Debug.xcconfig"
+
+// The Kotlin Gradle plugin maps only the configurations named Debug and Release to a framework
+// build type; for any other it reads this.
+KOTLIN_FRAMEWORK_BUILD_TYPE = release

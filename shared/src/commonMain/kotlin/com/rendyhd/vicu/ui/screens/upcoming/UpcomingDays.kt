@@ -43,7 +43,8 @@ fun buildUpcomingDays(
             Triple(DueDates.localDateOf(due, zone), due, task)
         }
         .groupBy({ it.first }, { it.second to it.third })
-        .toSortedMap()
+        .entries
+        .sortedBy { it.key }
         .map { (date, rows) ->
             val ordered = rows
                 .sortedWith(compareBy({ it.first }, { it.second.position }, { it.second.id }))

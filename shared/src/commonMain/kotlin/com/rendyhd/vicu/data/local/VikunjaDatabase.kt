@@ -49,5 +49,9 @@ abstract class VikunjaDatabase : RoomDatabase() {
     abstract fun collaborationDao(): CollaborationDao
 }
 
-@Suppress("NO_ACTUAL_FOR_EXPECT")
-expect object VikunjaDatabaseConstructor : RoomDatabaseConstructor<VikunjaDatabase>
+// Room's KSP processor generates the actual for each target. The override is declared here so the
+// common metadata compilation (which has no generated actual) sees a complete object.
+@Suppress("NO_ACTUAL_FOR_EXPECT", "KotlinNoActualForExpect")
+expect object VikunjaDatabaseConstructor : RoomDatabaseConstructor<VikunjaDatabase> {
+    override fun initialize(): VikunjaDatabase
+}

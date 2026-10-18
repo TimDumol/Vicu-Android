@@ -1,20 +1,67 @@
 package com.rendyhd.vicu.auth
 
+import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.convert
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.value
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import platform.Foundation.*
-import platform.Security.*
-import platform.darwin.OSStatus
-import kotlinx.cinterop.*
+import platform.CoreFoundation.CFDictionaryAddValue
+import platform.CoreFoundation.CFDictionaryCreateMutable
+import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFRelease
+import platform.CoreFoundation.CFStringRef
+import platform.CoreFoundation.CFTypeRef
+import platform.CoreFoundation.CFTypeRefVar
+import platform.CoreFoundation.kCFBooleanTrue
+import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
+import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
+import platform.Foundation.CFBridgingRelease
+import platform.Foundation.CFBridgingRetain
+import platform.Foundation.NSData
+import platform.Foundation.NSString
+import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.NSUserDefaults
+import platform.Foundation.create
+import platform.Foundation.dataUsingEncoding
+import platform.Security.SecItemAdd
+import platform.Security.SecItemCopyMatching
+import platform.Security.SecItemDelete
+import platform.Security.errSecSuccess
+import platform.Security.kSecAttrAccessible
+import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+import platform.Security.kSecAttrAccount
+import platform.Security.kSecAttrService
+import platform.Security.kSecClass
+import platform.Security.kSecClassGenericPassword
+import platform.Security.kSecMatchLimit
+import platform.Security.kSecMatchLimitOne
+import platform.Security.kSecReturnData
+import platform.Security.kSecValueData
 
+/**
+ * The tokens live in the Keychain, readable after the first unlock so background refresh can use
+ * them, and never migrated to another device. The rest of the session (server URL, auth method,
+ * Inbox id, expiries) is in this app's own user defaults. Keychain items outlive an uninstall
+ * while user defaults do not, so the first start after an install deletes any tokens left behind.
+ */
 class IosKeychainTokenStorage : TokenStorage {
     private val defaults = NSUserDefaults.standardUserDefaults
-    
+
+    init {
+        if (!defaults.boolForKey(KEY_INSTALLED)) {
+            ACCOUNTS.forEach(::deleteKeychainItem)
+            defaults.setBool(true, KEY_INSTALLED)
+        }
+    }
+
     private val _authMethodFlow = MutableStateFlow<String?>(defaults.stringForKey(KEY_AUTH_METHOD))
     override val authMethodFlow: Flow<String?> = _authMethodFlow.asStateFlow()
-    
+
     private val _vikunjaUrlFlow = MutableStateFlow<String?>(defaults.stringForKey(KEY_VIKUNJA_URL))
     private val _inboxProjectIdFlow = MutableStateFlow<Long?>(readInboxProjectId())
     override val inboxProjectIdFlow: Flow<Long?> = _inboxProjectIdFlow.asStateFlow()
@@ -31,57 +78,72 @@ class IosKeychainTokenStorage : TokenStorage {
         private const val KEY_API_TOKEN_EXPIRY = "api_token_expiry"
         private const val KEY_BACKUP_TOKEN_ID = "backup_api_token_id"
         private const val KEY_INSTALL_ID = "install_id"
-        
+        private const val KEY_INSTALLED = "keychain_owned_by_install"
+
         private const val SERVICE_NAME = "com.rendyhd.vicu"
         private const val ACCOUNT_JWT = "jwt"
         private const val ACCOUNT_REFRESH_TOKEN = "refresh_token"
         private const val ACCOUNT_API_TOKEN = "api_token"
+        private val ACCOUNTS = listOf(ACCOUNT_JWT, ACCOUNT_REFRESH_TOKEN, ACCOUNT_API_TOKEN)
+    }
+
+    /**
+     * Runs [block] with a Keychain query for [account] plus [extra]. Values are CF objects
+     * (constants such as kSecClassGenericPassword) or Objective-C objects (a String, NSData),
+     * which are bridged for the call and released after it.
+     */
+    private inline fun <T> withQuery(
+        account: String,
+        vararg extra: Pair<CFStringRef?, Any?>,
+        block: (CFDictionaryRef?) -> T,
+    ): T {
+        val pairs = listOf<Pair<CFStringRef?, Any?>>(
+            kSecClass to kSecClassGenericPassword,
+            kSecAttrService to SERVICE_NAME,
+            kSecAttrAccount to account,
+        ) + extra
+        val dict = CFDictionaryCreateMutable(
+            null, pairs.size.convert(), kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr,
+        )
+        val bridged = mutableListOf<CFTypeRef?>()
+        for ((key, value) in pairs) {
+            val cfValue: CFTypeRef? = when (value) {
+                null -> null
+                is CPointer<*> -> value.reinterpret()
+                else -> CFBridgingRetain(value).also { bridged += it }
+            }
+            CFDictionaryAddValue(dict, key, cfValue)
+        }
+        try {
+            return block(dict)
+        } finally {
+            bridged.forEach { CFRelease(it) }
+            CFRelease(dict)
+        }
     }
 
     private fun saveKeychainString(account: String, value: String): Boolean {
-        val query = NSMutableDictionary().apply {
-            setObject(kSecClassGenericPassword, kSecClass)
-            setObject(SERVICE_NAME, kSecAttrService)
-            setObject(account, kSecAttrAccount)
-        }
-        
-        // Delete any existing item first
-        SecItemDelete(query as CFDictionaryRef)
-        
-        // Add new item
-        val data = (value as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: return false
-        query.setObject(data, kSecValueData)
-        val status = SecItemAdd(query as CFDictionaryRef, null)
-        return status == errSecSuccess
+        deleteKeychainItem(account)
+        val data = NSString.create(string = value).dataUsingEncoding(NSUTF8StringEncoding) ?: return false
+        return withQuery(
+            account,
+            kSecValueData to data,
+            kSecAttrAccessible to kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ) { query -> SecItemAdd(query, null) == errSecSuccess }
     }
 
-    private fun getKeychainString(account: String): String? {
-        val query = NSMutableDictionary().apply {
-            setObject(kSecClassGenericPassword, kSecClass)
-            setObject(SERVICE_NAME, kSecAttrService)
-            setObject(account, kSecAttrAccount)
-            setObject(kCFBooleanTrue, kSecReturnData)
-            setObject(kSecMatchLimitOne, kSecMatchLimit)
-        }
-        
-        memScoped {
-            val result = alloc<CFTypeRefVar>()
-            val status = SecItemCopyMatching(query as CFDictionaryRef, result.ptr)
-            if (status == errSecSuccess) {
-                val data = result.value as? NSData ?: return null
-                return NSString.create(data = data, encoding = NSUTF8StringEncoding) as String?
+    private fun getKeychainString(account: String): String? =
+        withQuery(account, kSecReturnData to kCFBooleanTrue, kSecMatchLimit to kSecMatchLimitOne) { query ->
+            memScoped {
+                val result = alloc<CFTypeRefVar>()
+                if (SecItemCopyMatching(query, result.ptr) != errSecSuccess) return@memScoped null
+                val data = CFBridgingRelease(result.value) as? NSData ?: return@memScoped null
+                NSString.create(data = data, encoding = NSUTF8StringEncoding)?.toString()
             }
         }
-        return null
-    }
 
     private fun deleteKeychainItem(account: String) {
-        val query = NSMutableDictionary().apply {
-            setObject(kSecClassGenericPassword, kSecClass)
-            setObject(SERVICE_NAME, kSecAttrService)
-            setObject(account, kSecAttrAccount)
-        }
-        SecItemDelete(query as CFDictionaryRef)
+        withQuery(account) { query -> SecItemDelete(query) }
     }
 
     override suspend fun storeJwt(jwt: String, expiry: Long) {

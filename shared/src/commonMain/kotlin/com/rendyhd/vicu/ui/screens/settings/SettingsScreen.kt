@@ -1,8 +1,5 @@
 package com.rendyhd.vicu.ui.screens.settings
 
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,9 +20,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rendyhd.vicu.ui.rememberCompletionSoundPicker
 import com.rendyhd.vicu.ui.components.shared.VicuTopAppBar
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -59,26 +56,8 @@ fun SettingsScreen(
     val notificationsListState = rememberLazyListState()
     val gesturesListState = rememberLazyListState()
 
-    // Custom completion-sound picker. Uses OpenDocument so we get a persistable
-    // URI that survives reboots. The picker grants persistent read permission;
-    // we re-claim it on result and stash the URI string in BehaviorPrefsStore.
-    val context = LocalContext.current
-    val pickSoundLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            } catch (_: SecurityException) {
-                // Some pickers don't grant persistable permission. The URI may still
-                // work for the current process; if not, the player will log and skip.
-            }
-            viewModel.setCompletionSoundUri(uri.toString())
-        }
-    }
+    // Custom completion-sound picker; the platform keeps access to the file across restarts.
+    val pickCompletionSound = rememberCompletionSoundPicker { viewModel.setCompletionSoundUri(it) }
 
     // Show snackbar messages
     LaunchedEffect(state.error, state.successMessage) {
@@ -123,7 +102,7 @@ fun SettingsScreen(
                     useDeviceColors = useDeviceColors,
                     viewModel = viewModel,
                     openDialog = { dialog = it },
-                    onPickCompletionSound = { pickSoundLauncher.launch(arrayOf("audio/*")) },
+                    onPickCompletionSound = pickCompletionSound,
                     listState = generalListState,
                 )
                 1 -> ProjectsTab(

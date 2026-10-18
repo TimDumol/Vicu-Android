@@ -49,7 +49,7 @@ class SharedRefreshPathTest {
     )
 
     @Test
-    fun `after the engine reconciled, a screen refresh is incremental`() = runTest {
+    fun `after the engine reconciled - a screen refresh is incremental`() = runTest {
         val server = TaskListServer().apply { put(1, "A", updated = "2026-10-06T08:00:00Z") }
         val h = harness(server)
         h.engine.performSync()
@@ -68,7 +68,7 @@ class SharedRefreshPathTest {
     }
 
     @Test
-    fun `after a screen refresh reconciled, the next sync is incremental`() = runTest {
+    fun `after a screen refresh reconciled - the next sync is incremental`() = runTest {
         val server = TaskListServer().apply { put(1, "A", updated = "2026-10-06T08:00:00Z") }
         val h = harness(server)
         repositoryOver(h).refreshAll()

@@ -1,11 +1,10 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.util.parser.DateOptions
-import com.rendyhd.vicu.util.parser.deviceLocaleTag
 import com.rendyhd.vicu.util.parser.extractDate
 import com.rendyhd.vicu.util.parser.isDayFirstLocale
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -29,6 +28,9 @@ data class WhenQuickChoice(val id: Id, val label: String, val date: LocalDate) {
 
 /** What the quick-add parser made of typed text: the value and the part of the text it read. */
 data class WhenParse(val value: WhenValue, val matched: String)
+
+/** A day of the month grid. [inMonth] is false for the dimmed days of the weeks around the month. */
+data class GridDay(val date: LocalDate, val inMonth: Boolean)
 
 /**
  * The rules of the When sheet, the same as the desktop When panel (`src/renderer/lib/when-logic.ts`,
@@ -117,4 +119,28 @@ object WhenLogic {
 
     /** The clock text of a time chip. */
     fun timeLabel(time: LocalTime, fmt: DateDisplayFormat): String = DateDisplay.formatTime(time, fmt)
+
+    // --- Month grid (the calendar of the When sheet and the reminder picker) -------------
+
+    /** The first day of the month [date] is in. */
+    fun monthStart(date: LocalDate): LocalDate = LocalDate(date.year, date.month, 1)
+
+    /** [months] months later (negative: earlier), the day of the month kept or clamped to the month's end. */
+    fun addMonths(date: LocalDate, months: Int): LocalDate = date.plus(months, DateTimeUnit.MONTH)
+
+    /**
+     * Six weeks starting on Monday that cover the month of [month]; always six rows so the grid
+     * keeps its height. Weeks start on Monday whatever the device's region prefers, as everywhere
+     * else in Vicu (docs/cross-app-semantics-v1.md section 2); the desktop `monthGrid`.
+     */
+    fun monthGrid(month: LocalDate): List<List<GridDay>> {
+        val first = monthStart(month)
+        val start = DueDates.startOfWeek(first)
+        return List(6) { row ->
+            List(7) { column ->
+                val date = start.plus(row * 7 + column, DateTimeUnit.DAY)
+                GridDay(date, inMonth = monthStart(date) == first)
+            }
+        }
+    }
 }

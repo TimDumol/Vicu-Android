@@ -38,7 +38,7 @@ class TaskRepositoryOfflineCreateAlarmTest {
     }
 
     @Test
-    fun `an online create schedules the alarm once, under the real id`() = runTest {
+    fun `an online create schedules the alarm once - under the real id`() = runTest {
         val h = TaskRepositoryHarness { request ->
             if (request.method.value == "POST") {
                 respond(

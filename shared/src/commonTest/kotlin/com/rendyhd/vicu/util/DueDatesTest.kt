@@ -4,7 +4,7 @@ import com.rendyhd.vicu.util.CrossAppFixture.date
 import com.rendyhd.vicu.util.CrossAppFixture.local
 import com.rendyhd.vicu.util.CrossAppFixture.wall
 import com.rendyhd.vicu.util.CrossAppFixture.zones
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -59,7 +59,7 @@ class DueDatesTest {
     }
 
     @Test
-    fun `date-only is judged in the given zone, not UTC`() {
+    fun `date-only is judged in the given zone - not UTC`() {
         // 21:59:59Z is 23:59:59 in Amsterdam but 17:59:59 in New York.
         val instant = Instant.parse("2026-10-06T21:59:59Z")
         assertTrue(DueDates.isDateOnly(instant, amsterdam))
@@ -158,7 +158,7 @@ class DueDatesTest {
     }
 
     @Test
-    fun `a task due at exactly local midnight tomorrow belongs to upcoming, not today`() {
+    fun `a task due at exactly local midnight tomorrow belongs to upcoming - not today`() {
         for (zone in zones) {
             val today = date("2026-10-06")
             val due = DueDates.startOfTomorrow(today, zone)
@@ -168,7 +168,7 @@ class DueDatesTest {
     }
 
     @Test
-    fun `the date picker exchanges calendar dates, never instants`() {
+    fun `the date picker exchanges calendar dates - never instants`() {
         for (zone in zones) {
             val due = DueDates.dateOnlyDue(date("2026-10-06"), zone)
             // Pre-select: a 23:59:59 local due date opens on its own calendar day...
@@ -189,6 +189,14 @@ class DueDatesTest {
             val picked = DueDates.pickDate(DueDates.dateFromDatePickerMillis(pickedMillis), zone)
             assertEquals("2026-10-20T23:59:59", wall(picked, zone), "$zone")
         }
+    }
+
+    @Test
+    fun `a day kept as picker millis reads back as the same day`() {
+        for (day in listOf(date("2026-10-06"), date("2028-02-29"), date("1999-12-31"))) {
+            assertEquals(day, DueDates.dateFromDatePickerMillis(DueDates.datePickerMillis(day)))
+        }
+        assertEquals(Instant.parse("2026-10-20T00:00:00Z").toEpochMilliseconds(), DueDates.datePickerMillis(date("2026-10-20")))
     }
 
     @Test

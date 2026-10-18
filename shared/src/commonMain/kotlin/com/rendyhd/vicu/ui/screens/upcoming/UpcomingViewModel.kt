@@ -1,6 +1,5 @@
 package com.rendyhd.vicu.ui.screens.upcoming
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rendyhd.vicu.domain.model.Task

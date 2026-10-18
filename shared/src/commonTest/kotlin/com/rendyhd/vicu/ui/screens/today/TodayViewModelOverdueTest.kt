@@ -150,7 +150,7 @@ class TodayViewModelOverdueTest {
     }
 
     @Test
-    fun `a task due earlier today is in the Today section, not overdue`() = runTest {
+    fun `a task due earlier today is in the Today section - not overdue`() = runTest {
         val zone = TimeZone.of("Europe/Amsterdam")
         val rig = rig("2026-10-06T10:00:00", zone)
         rig.tasks.todayTasks.value = dueTasks(zone)

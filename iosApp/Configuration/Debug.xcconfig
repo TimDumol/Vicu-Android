@@ -1,0 +1,7 @@
+#include "Base.xcconfig"
+
+// The debug build installs next to the release build, like the Android debug build.
+VICU_BUNDLE_ID = $(VICU_BUNDLE_ID_BASE).debug
+VICU_APP_GROUP = $(VICU_APP_GROUP_BASE).debug
+VICU_URL_SCHEME = vicu-debug
+VICU_DISPLAY_NAME = Vicu Debug

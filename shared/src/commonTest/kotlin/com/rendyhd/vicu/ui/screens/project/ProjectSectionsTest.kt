@@ -2,11 +2,11 @@ package com.rendyhd.vicu.ui.screens.project
 
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.Task
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.Test
 
 class ProjectSectionsTest {
 

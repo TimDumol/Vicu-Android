@@ -17,7 +17,7 @@ import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -76,7 +76,7 @@ class ApiTokenPermissionTest {
     // --- The check ---------------------------------------------------------------------------
 
     @Test
-    fun `a comment the token may not post says what the token lacks, and the session stays`() = runTest {
+    fun `a comment the token may not post says what the token lacks - and the session stays`() = runTest {
         val h = LoginHarness { request ->
             when {
                 request.method == HttpMethod.Post && request.url.encodedPath == "/api/v2/tasks/12/comments" -> unauthorized()
@@ -178,7 +178,7 @@ class ApiTokenPermissionTest {
     }
 
     @Test
-    fun `a 401 outside the collaboration endpoints still ends the session, unchecked`() = runTest {
+    fun `a 401 outside the collaboration endpoints still ends the session - unchecked`() = runTest {
         val h = LoginHarness { request ->
             when {
                 request.method == HttpMethod.Get && request.url.encodedPath == "/api/v2/user" -> unauthorized()

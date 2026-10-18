@@ -45,6 +45,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.ui.backhandler)
             implementation(libs.compose.material.icons.extended)
             implementation(libs.cascade.editor)
 
@@ -67,6 +68,7 @@ kotlin {
             implementation(libs.androidx.navigation.compose)
             implementation(libs.reorderable)
             implementation(libs.coil.compose)
+            implementation(libs.coil.network.core)
         }
 
         androidMain.dependencies {
@@ -77,17 +79,29 @@ kotlin {
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+            implementation(libs.coil.network.ktor3)
+        }
+
+        // The platform.* bindings (Foundation, UIKit, Security) are marked experimental. Every iOS
+        // source set opts in, since a source set must use the opt-ins of the ones it depends on.
+        matching { it.name.startsWith("ios") }.configureEach {
+            languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+            languageSettings.optIn("kotlinx.cinterop.BetaInteropApi")
         }
 
         getByName("androidHostTest").dependencies {
+            implementation(libs.junit)
             implementation(libs.sqlite.jdbc)
         }
 
         commonTest.dependencies {
             implementation(kotlin("test"))
-            implementation(libs.junit)
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.test)
+        }
+
+        iosTest.dependencies {
+            implementation(libs.koin.test)
         }
     }
 }
@@ -104,6 +118,25 @@ dependencies {
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
 }
+
+// The iOS tests read test-fixtures/ from this repository (the simulator runs on this Mac and can
+// read its files), at the path written into a generated constant.
+val generateIosTestPaths by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated/iosTestPaths/kotlin")
+    val repoRoot = rootDir.absolutePath
+    inputs.property("repoRoot", repoRoot)
+    outputs.dir(outputDir)
+    doLast {
+        val file = outputDir.get().file("com/rendyhd/vicu/util/TestPaths.kt").asFile
+        file.parentFile.mkdirs()
+        val escaped = repoRoot.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+        file.writeText(
+            "package com.rendyhd.vicu.util\n\n" +
+                "internal object TestPaths {\n    const val REPO_ROOT = \"$escaped\"\n}\n",
+        )
+    }
+}
+kotlin.sourceSets.matching { it.name == "iosTest" }.configureEach { kotlin.srcDir(generateIosTestPaths) }
 
 // The Kotlin Multiplatform library plugin has no `test` task (only testAndroidHostTest and
 // allTests, which also lists the iOS targets), so `./gradlew test` would skip this module's tests.

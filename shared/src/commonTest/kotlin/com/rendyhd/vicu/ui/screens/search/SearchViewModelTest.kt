@@ -59,7 +59,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `the cached matches show at once, before the server was asked`() = runTest {
+    fun `the cached matches show at once - before the server was asked`() = runTest {
         val rig = rig(task(1, "Buy milk"), task(2, "Walk the dog"))
         rig.tasks.refreshGate = CompletableDeferred()
 
@@ -78,7 +78,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `the server only updates the cache, and the list follows it`() = runTest {
+    fun `the server only updates the cache - and the list follows it`() = runTest {
         val rig = rig(task(1, "Buy milk"))
         rig.viewModel.onQueryChanged("milk")
         advanceTimeBy(SEARCH_REFRESH_DEBOUNCE_MS + 1)
@@ -129,7 +129,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `a text with nothing cached shows nothing, ready, while the server is still asked`() = runTest {
+    fun `a text with nothing cached shows nothing - ready - while the server is still asked`() = runTest {
         val rig = rig(task(1, "Buy milk"))
         rig.tasks.refreshGate = CompletableDeferred()
 
@@ -143,7 +143,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `typing quickly asks the server once, about the last text`() = runTest {
+    fun `typing quickly asks the server once - about the last text`() = runTest {
         val rig = rig()
 
         listOf("m", "mi", "mil", "milk").forEach {
@@ -242,7 +242,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `a task completed here stays in place for a moment, then moves to the completed section`() = runTest {
+    fun `a task completed here stays in place for a moment - then moves to the completed section`() = runTest {
         val milk = task(1, "Milk bottle")
         val rig = rig(milk, task(2, "Milk shake"))
         rig.viewModel.onQueryChanged("milk")

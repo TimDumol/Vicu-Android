@@ -1,13 +1,13 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import kotlin.math.abs
 
 class DateUtilsTest {
@@ -19,18 +19,18 @@ class DateUtilsTest {
         requireNotNull(parsed) { "isoDaysAgo should produce a parseable ISO instant" }
         val expected = Clock.System.now().minus(days.toLong(), DateTimeUnit.DAY, TimeZone.currentSystemDefault())
         val diffSeconds = abs(parsed.epochSeconds - expected.epochSeconds)
-        assertTrue("expected within ~5s of now-$days days but diff was ${diffSeconds}s", diffSeconds < 5)
+        assertTrue(diffSeconds < 5, "expected within ~5s of now-$days days but diff was ${diffSeconds}s")
     }
 
     @Test
     fun `isoDaysAgo with a larger window is earlier`() {
         val recent = DateUtils.parseIsoDate(DateUtils.isoDaysAgo(30))!!
         val older = DateUtils.parseIsoDate(DateUtils.isoDaysAgo(365))!!
-        assertTrue("365-day cutoff should be before 30-day cutoff", older < recent)
+        assertTrue(older < recent, "365-day cutoff should be before 30-day cutoff")
     }
 
     @Test
-    fun `formatRecurrence treats monthly (repeatMode 1, repeatAfter 0) as recurring`() {
+    fun `formatRecurrence treats monthly - repeatMode 1 - repeatAfter 0 as recurring`() {
         // Regression: monthly recurrence carries repeatAfter==0 and was previously shown as
         // non-recurring because the gate only checked repeatAfter > 0.
         assertTrue(DateUtils.formatRecurrence(0, 1).isNotBlank())

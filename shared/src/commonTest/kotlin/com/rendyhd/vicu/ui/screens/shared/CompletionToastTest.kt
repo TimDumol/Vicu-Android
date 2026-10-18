@@ -11,7 +11,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -123,7 +123,7 @@ class CompletionToastTest {
     }
 
     @Test
-    fun `a task completed, reopened elsewhere and completed again gets a toast again`() = runTest {
+    fun `a task completed - reopened elsewhere and completed again gets a toast again`() = runTest {
         val rig = rig()
 
         rig.toast.collapsed(1)

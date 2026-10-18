@@ -144,6 +144,15 @@ internal fun LazyListScope.displaySection(
         )
     }
 
+    item(key = "show_project_task_count") {
+        SwitchRow(
+            label = "Show task count",
+            description = "How many open tasks each project has, next to it in the drawer",
+            checked = state.behaviorPrefs.showProjectTaskCount,
+            onCheckedChange = viewModel::setShowProjectTaskCount,
+        )
+    }
+
     item(key = "display_divider") {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
     }

@@ -20,7 +20,7 @@ class TopLevelNavigationTest {
     }
 
     @Test
-    fun `the Inbox is the root, so it is re-created rather than restored`() {
+    fun `the Inbox is the root - so it is re-created rather than restored`() {
         assertEquals(
             TopLevelNavOptions(saveState = true, launchSingleTop = true, restoreState = false),
             topLevelNavOptions(InboxRoute, leavingKeepsState = true),
@@ -39,14 +39,14 @@ class TopLevelNavigationTest {
     }
 
     @Test
-    fun `a smart list being left keeps its state wherever the move goes, the Inbox and projects included`() {
+    fun `a smart list being left keeps its state wherever the move goes - the Inbox and projects included`() {
         listOf(InboxRoute, TodayRoute, ProjectRoute(3L), CustomListRoute("x")).forEach { route ->
             assertEquals(true, topLevelNavOptions(route, leavingKeepsState = true).saveState, route.toString())
         }
     }
 
     @Test
-    fun `a project, tag or list being left saves nothing, since it is never restored`() {
+    fun `a project - tag or list being left saves nothing - since it is never restored`() {
         listOf(InboxRoute, TodayRoute, ProjectRoute(3L)).forEach { route ->
             assertEquals(false, topLevelNavOptions(route, leavingKeepsState = false).saveState, route.toString())
         }
@@ -68,7 +68,7 @@ class TopLevelNavigationTest {
     }
 
     @Test
-    fun `two projects have different keys, so choosing another project is not ignored`() {
+    fun `two projects have different keys - so choosing another project is not ignored`() {
         assertNotEquals(routeKey(ProjectRoute(1L)), routeKey(ProjectRoute(2L)))
         assertEquals(routeKey(ProjectRoute(1L)), routeKey(ProjectRoute(1L)))
     }

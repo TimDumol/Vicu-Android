@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.util
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
@@ -29,7 +29,7 @@ class ReminderPickerStartTest {
     }
 
     @Test
-    fun `a reminder after local midnight opens on its local day, not the UTC day`() {
+    fun `a reminder after local midnight opens on its local day - not the UTC day`() {
         // 22:30Z on the 6th is 00:30 on the 7th in Amsterdam.
         val start = ReminderPickerStart.of("2026-10-06T22:30:00Z", Instant.parse("2026-10-01T08:00:00Z"), amsterdam)
         assertEquals(millisOf("2026-10-07"), start.dateMillis)
@@ -52,7 +52,7 @@ class ReminderPickerStartTest {
     }
 
     @Test
-    fun `a new reminder late in the evening opens on tomorrow, not on a time already past`() {
+    fun `a new reminder late in the evening opens on tomorrow - not on a time already past`() {
         val start = ReminderPickerStart.of(
             existing = "",
             now = Instant.parse("2026-10-06T21:40:00Z"), // 23:40 in Amsterdam

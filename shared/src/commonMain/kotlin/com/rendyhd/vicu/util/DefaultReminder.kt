@@ -1,7 +1,7 @@
 package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.TaskReminder
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
 object DefaultReminder {

@@ -18,7 +18,7 @@ What was done:
    to it as `../vicu` (`SharedContractIdentityTest`, the UI harnesses), which does not change.
 3. Links: the README (Obtainium and Releases), the unreleased 2.2.0 notes and the docs name the
    new repository. Older release notes (`docs/releases/`) keep their links; GitHub redirects them.
-   Still to do: the desktop repository's README, which links to Vicu-Android once.
+   The desktop repository's README links to Vicu-Mobile too.
 4. Releases: one tag and one version (`version.properties`) per release for both platforms.
    Publishing the GitHub release runs `release.yml` (the signed APK); the iOS build goes to
    TestFlight from a Mac with `iosApp/scripts/testflight.sh` (`docs/ios.md`, Release).

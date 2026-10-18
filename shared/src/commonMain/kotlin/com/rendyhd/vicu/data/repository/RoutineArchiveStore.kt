@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.repository
 
+import com.rendyhd.vicu.auth.CurrentUser
 import com.rendyhd.vicu.data.remote.api.CreateTaskDto
 import com.rendyhd.vicu.data.remote.api.MergePatches
 import com.rendyhd.vicu.data.remote.api.TaskDto
@@ -33,6 +34,8 @@ import kotlinx.serialization.json.put
 class RoutineArchiveStore(
     private val api: VikunjaApiService,
     private val json: Json,
+    /** Only the user's own parts count; a shared project can hold another user's. */
+    private val currentUser: CurrentUser = CurrentUser.fixed(null),
 ) {
     private companion object {
         const val TAG = "RoutineArchive"
@@ -53,6 +56,10 @@ class RoutineArchiveStore(
     /** The archive part tasks this process has seen, with the routine each belongs to; no request. */
     fun knownPartRoutines(): Map<Long, String> = known.mapValues { it.value.routineId }
 
+    /** True for a part [me] created, or when either side is not known. */
+    private fun isMine(task: TaskDto, me: Long?): Boolean =
+        me == null || task.createdBy == null || task.createdBy.id <= 0L || task.createdBy.id == me
+
     /** The task as the server holds it right now (the freshest copy of a main carrier). */
     suspend fun fetchTask(taskId: Long): TaskDto = api.getTask(taskId)
 
@@ -61,7 +68,8 @@ class RoutineArchiveStore(
             put("filter", "done = true")
             if (!fullScan) put("q", RoutineArchive.SEARCH)
         }
-        return api.getAllTasks(filters).mapNotNull { task ->
+        val me = currentUser.id()
+        return api.getAllTasks(filters).filter { isMine(it, me) }.mapNotNull { task ->
             RoutineEnvelope.parseArchive(task.description, json).part
                 ?.let { RoutineArchive.PartRef(task.id, it) }
         }
@@ -82,7 +90,9 @@ class RoutineArchiveStore(
         for (taskId in known.keys) {
             if (taskId in byTask) continue
             try {
-                RoutineEnvelope.parseArchive(api.getTask(taskId).description, json).part
+                val task = api.getTask(taskId)
+                if (!isMine(task, currentUser.knownId())) continue
+                RoutineEnvelope.parseArchive(task.description, json).part
                     ?.let { byTask[taskId] = RoutineArchive.PartRef(taskId, it) }
             } catch (e: CancellationException) {
                 throw e

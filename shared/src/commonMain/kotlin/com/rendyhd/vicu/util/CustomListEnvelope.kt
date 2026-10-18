@@ -29,9 +29,6 @@ object CustomListEnvelope {
     fun hasMarker(description: String?): Boolean =
         !description.isNullOrEmpty() && anyMarkerRegex.containsMatchIn(description)
 
-    fun isAnyMetadataTask(description: String?): Boolean =
-        hasMarker(description) || RoutineEnvelope.hasMarker(description)
-
     fun compareRevision(left: CustomListRevision, right: CustomListRevision): Int =
         compareValues(left.wallTimeMs, right.wallTimeMs).takeIf { it != 0 }
             ?: compareValues(left.counter, right.counter).takeIf { it != 0 }

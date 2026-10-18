@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.sync
 
+import com.rendyhd.vicu.auth.CurrentUser
 import com.rendyhd.vicu.auth.authTestJson
 import com.rendyhd.vicu.data.local.SyncCursorStore
 import com.rendyhd.vicu.data.local.entity.PendingActionEntity
@@ -24,6 +25,7 @@ class RefresherHarness(
     val hooks: RecordingRepositoryHooks = RecordingRepositoryHooks(),
     val time: MutableTimeSource = MutableTimeSource(Instant.parse("2026-10-06T12:00:00Z")),
     val cursorStore: SyncCursorStore = SyncCursorStore(InMemoryPreferencesDataStore()),
+    val currentUser: CurrentUser = CurrentUser.fixed(1),
 ) {
     private val client = HttpClient(MockEngine { request -> server.handle(this, request) }) {
         install(ContentNegotiation) { json(authTestJson) }
@@ -39,6 +41,7 @@ class RefresherHarness(
         platformHooks = hooks,
         cursorStore = cursorStore,
         time = time,
+        currentUser = currentUser,
     )
 
     suspend fun queueTaskAction(taskId: Long, type: String = "update", status: String = "pending") {

@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.repository
 
+import com.rendyhd.vicu.auth.InMemoryTokenStorage
 import com.rendyhd.vicu.auth.authHarness
 import com.rendyhd.vicu.auth.authTestJson
 import com.rendyhd.vicu.auth.authTestJsonHeaders
@@ -79,7 +80,7 @@ class CustomListFirstSyncOrderTest {
 
         fun taskJson(): String {
             val escaped = Json.encodeToString(JsonPrimitive.serializer(), JsonPrimitive(description))
-            return """{"id":900,"title":"${CustomListEnvelope.CARRIER_TITLE}","description":$escaped,"done":true,"project_id":5}"""
+            return """{"id":900,"title":"${CustomListEnvelope.CARRIER_TITLE}","description":$escaped,"done":true,"project_id":5,"created_by":{"id":1}}"""
         }
     }
 
@@ -116,7 +117,7 @@ class CustomListFirstSyncOrderTest {
         val repository = CustomListRepositoryImpl(
             store = store,
             api = api,
-            authManager = authHarness(backgroundScope) { respond("", HttpStatusCode.NotFound) }.manager,
+            authManager = authHarness(backgroundScope, InMemoryTokenStorage(initialUserId = 1)) { respond("", HttpStatusCode.NotFound) }.manager,
             platformHooks = RecordingRepositoryHooks(),
             json = json,
             carrierFinder = CarrierFinder(api, CarrierIdStore(InMemoryPreferencesDataStore())),

@@ -1,6 +1,6 @@
 package com.rendyhd.vicu.data.local
 
-import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.sql.Connection
@@ -139,7 +139,7 @@ class TaskMetadataMigrationTest {
 
         val flags = connection.flags()
         samples.forEachIndexed { index, (name, description) ->
-            assertEquals(CustomListEnvelope.isAnyMetadataTask(description), flags.getValue(index + 1L) == 1, name)
+            assertEquals(HiddenTasks.isHidden(description), flags.getValue(index + 1L) == 1, name)
         }
     }
 
@@ -151,7 +151,7 @@ class TaskMetadataMigrationTest {
         migrate(connection)
 
         assertEquals(1, connection.flags().getValue(1L), "LIKE ignores case")
-        assertEquals(false, CustomListEnvelope.isAnyMetadataTask("<!-- VICU-ROUTINE:v1:abc -->"), "the write rule does not")
+        assertEquals(false, HiddenTasks.isHidden("<!-- VICU-ROUTINE:v1:abc -->"), "the write rule does not")
     }
 
     @Test

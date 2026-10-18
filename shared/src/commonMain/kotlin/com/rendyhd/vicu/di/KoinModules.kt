@@ -43,7 +43,7 @@ import com.rendyhd.vicu.worker.CollaborationSync
 
 val databaseModule = module {
     single {
-        getDatabaseBuilder(get()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+        getDatabaseBuilder(get()).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build()
     }
     single { get<VikunjaDatabase>().taskDao() }
     single { get<VikunjaDatabase>().projectDao() }
@@ -97,7 +97,7 @@ val repositoryModule = module {
     single { ProjectMapper() }
     single { AttachmentMapper() }
 
-    single { TaskRefresher(taskDao = get(), pendingActionDao = get(), api = get(), taskMapper = get(), platformHooks = get(), cursorStore = get(), time = get()) }
+    single { TaskRefresher(taskDao = get(), pendingActionDao = get(), api = get(), taskMapper = get(), platformHooks = get(), cursorStore = get(), time = get(), currentUser = get<AuthManager>()) }
     single {
         LabelRefresher(
             labelDao = get(),
@@ -197,7 +197,7 @@ val repositoryModule = module {
         )
     }
     single { CollaborationSync(api = get(), collaborationDao = get(), pendingActionDao = get(), tokenStorage = get()) }
-    single { RoutineArchiveStore(api = get(), json = get()) }
+    single { RoutineArchiveStore(api = get(), json = get(), currentUser = get<AuthManager>()) }
     single<RoutineRepository> {
         RoutineRepositoryImpl(
             taskDao = get(),

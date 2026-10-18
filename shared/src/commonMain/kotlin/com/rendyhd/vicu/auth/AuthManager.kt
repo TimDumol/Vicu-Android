@@ -80,7 +80,7 @@ class AuthManager(
     private val appScope: CoroutineScope,
     private val networkMonitor: NetworkMonitor,
     private val deviceTokenTitle: () -> String = { getDeviceTokenTitle() },
-) {
+) : CurrentUser {
     companion object {
         private const val TAG = "AuthManager"
         private const val JWT_EXPIRY_BUFFER_SECS = 60L
@@ -567,6 +567,21 @@ class AuthManager(
      * later re-login can tell "same account again" (keep the offline queue) from "someone else"
      * (wipe). Does nothing once an id is stored.
      */
+    private val userIdMutex = Mutex()
+
+    override suspend fun knownId(): Long? = tokenStorage.getUserId()?.takeIf { it > 0L }
+
+    override suspend fun id(): Long? = knownId() ?: userIdMutex.withLock {
+        knownId() ?: try {
+            apiServiceProvider().getCurrentUser().id.takeIf { it > 0L }?.also { tokenStorage.storeUserId(it) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(TAG, "Could not read the user id: ${e.message}")
+            null
+        }
+    }
+
     private fun ensureUserIdStored() {
         appScope.launch {
             try {

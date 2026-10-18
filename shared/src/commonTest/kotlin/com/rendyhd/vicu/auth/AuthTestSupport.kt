@@ -32,6 +32,8 @@ import kotlinx.serialization.json.Json
 /** In-memory [TokenStorage] that mirrors the contract the platform implementations follow. */
 class InMemoryTokenStorage(
     private val installId: String = "a1b2c3",
+    /** The signed-in user's id, as if stored at sign-in. */
+    initialUserId: Long? = null,
 ) : TokenStorage {
     private var jwt: String? = null
     private var jwtExpiry: Long = 0L
@@ -44,7 +46,7 @@ class InMemoryTokenStorage(
     private var providerKey: String? = null
     private val vikunjaUrl = MutableStateFlow<String?>(null)
     private val inboxProjectId = MutableStateFlow<Long?>(null)
-    private var userId: Long? = null
+    private var userId: Long? = initialUserId
 
     override suspend fun storeJwt(jwt: String, expiry: Long) {
         this.jwt = jwt

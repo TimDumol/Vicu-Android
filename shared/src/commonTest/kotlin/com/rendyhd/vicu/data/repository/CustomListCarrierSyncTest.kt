@@ -46,7 +46,7 @@ class CustomListCarrierSyncTest {
     private class Rig(val repository: CustomListRepositoryImpl, val tasks: TaskListServer)
 
     private fun taskJson(task: TaskListServer.T): String =
-        """{"id":${task.id},"title":${quote(task.title)},"description":${quote(task.description)},"done":true,"project_id":5}"""
+        """{"id":${task.id},"title":${quote(task.title)},"description":${quote(task.description)},"done":true,"project_id":5,"created_by":{"id":1}}"""
 
     private fun quote(value: String): String = Json.encodeToString(JsonPrimitive.serializer(), JsonPrimitive(value))
 
@@ -83,6 +83,7 @@ class CustomListCarrierSyncTest {
         val storage = InMemoryTokenStorage().also {
             it.storeVikunjaUrl("https://vikunja.example")
             it.storeInboxProjectId(5)
+            it.storeUserId(1)
         }
         val repository = CustomListRepositoryImpl(
             store = CustomListStore(InMemoryPreferencesDataStore()),
@@ -109,7 +110,7 @@ class CustomListCarrierSyncTest {
         val rig = rig(seededServer())
 
         assertEquals(CustomListSyncStatus.Idle, rig.repository.sync())
-        assertEquals(1, rig.listings().size, "the first sync has nothing remembered")
+        assertEquals(2, rig.listings().size, "the first sync has nothing remembered: a scan and a search")
         rig.tasks.requests.clear()
 
         time.advance(10.seconds)

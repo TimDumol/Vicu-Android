@@ -18,7 +18,7 @@ import com.rendyhd.vicu.domain.repository.QuickDue
 import com.rendyhd.vicu.domain.repository.TaskRepository
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.util.DateUtils
-import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.NetworkResult
@@ -400,7 +400,7 @@ class TaskRepositoryImpl(
             // The server puts a new task at the top; moving it to the end happens in the
             // background, so the create returns as soon as the task exists. Metadata tasks
             // (routine carriers) are hidden from every list, so their position does not matter.
-            if (!CustomListEnvelope.isAnyMetadataTask(task.description)) {
+            if (!HiddenTasks.isHidden(task.description)) {
                 positioner.anchorAtEndInBackground(task.projectId, created.id)
             }
             platformHooks.updateWidgets()
@@ -685,7 +685,7 @@ class TaskRepositoryImpl(
             val createdSubtask = with(taskMapper) { linkedChildEntity.toDomain() }
             // Like any new task: its reminders are armed, and it goes to the end of its list.
             platformHooks.scheduleAlarm(createdSubtask)
-            if (!CustomListEnvelope.isAnyMetadataTask(subtask.description)) {
+            if (!HiddenTasks.isHidden(subtask.description)) {
                 positioner.anchorAtEndInBackground(subtask.projectId, createdSubtask.id)
             }
             platformHooks.updateWidgets()

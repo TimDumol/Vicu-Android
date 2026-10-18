@@ -30,8 +30,8 @@ class CustomListEnvelopeTest {
 
         assertEquals("Überblick 🗂", parsed.document?.lists?.get("one")?.value?.name)
         assertTrue(json.encodeToString(document).contains("\"add_to_project_id\":42"))
-        assertTrue(CustomListEnvelope.isAnyMetadataTask(marker))
-        assertFalse(CustomListEnvelope.isAnyMetadataTask("ordinary notes"))
+        assertTrue(HiddenTasks.isHidden(marker))
+        assertFalse(HiddenTasks.isHidden("ordinary notes"))
     }
 
     @Test

@@ -41,7 +41,7 @@ import com.rendyhd.vicu.util.mayHaveReachedServer
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.RelationKind
 import com.rendyhd.vicu.util.RoutineEnvelope
-import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 import io.ktor.client.plugins.ResponseException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -501,7 +501,7 @@ class SyncEngine(
                             // Same title in the same project is common; the description tells a
                             // real earlier attempt of this create from a different task.
                             dto.description == task.description &&
-                                !CustomListEnvelope.isAnyMetadataTask(dto.description)
+                                !HiddenTasks.isHidden(dto.description)
                         }
                 }
         }
@@ -576,7 +576,7 @@ class SyncEngine(
                 if (action.entityId != created.id) platformHooks.cancelAlarm(action.entityId)
                 // The server prepends new tasks. A create that was answered by an earlier attempt
                 // was positioned by it; metadata carriers and completed tasks are in no list.
-                if (adopted == null && !task.done && !CustomListEnvelope.isAnyMetadataTask(task.description)) {
+                if (adopted == null && !task.done && !HiddenTasks.isHidden(task.description)) {
                     positioner?.anchorAtEndInBackground(task.projectId, created.id)
                 }
                 linkToQueuedParents(task, created.id, tempIdMap)

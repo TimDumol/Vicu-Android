@@ -32,6 +32,8 @@ class TaskListServer {
         var projectId: Long = 7,
         var dueDate: String = "",
         var remindersJson: String = "[]",
+        /** The user who created it (`created_by.id`); hidden tasks only count for their creator. */
+        var createdBy: Long = 1,
     )
 
     val tasks = LinkedHashMap<Long, T>()
@@ -49,7 +51,8 @@ class TaskListServer {
         description: String = "",
         dueDate: String = "",
         remindersJson: String = "[]",
-    ): T = T(id, title, done, updated, doneAt, description, 7, dueDate, remindersJson).also { tasks[id] = it }
+        createdBy: Long = 1,
+    ): T = T(id, title, done, updated, doneAt, description, 7, dueDate, remindersJson, createdBy).also { tasks[id] = it }
 
     fun remove(id: Long) {
         tasks.remove(id)
@@ -61,7 +64,8 @@ class TaskListServer {
     private fun T.toJson(): String =
         """{"id":$id,"title":${quote(title)},"description":${quote(description)},"done":$done,""" +
             """"done_at":${quote(doneAt)},"due_date":${quote(dueDate)},"project_id":$projectId,""" +
-            """"updated":${quote(updated)},"reminders":$remindersJson}"""
+            """"updated":${quote(updated)},"reminders":$remindersJson,""" +
+            """"created_by":{"id":$createdBy,"username":"user$createdBy"}}"""
 
     private fun quote(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 

@@ -5,6 +5,7 @@ import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TimeSource
@@ -20,7 +21,7 @@ class CarrierSpec(
     val kind: String,
     /** `q` text that finds this kind's carriers; the server matches the marker name inside the description. */
     val search: String,
-    /** True for a carrier of this kind, readable or not. */
+    /** True for a carrier of this kind, readable or not. Decided by the marker alone, never the title. */
     val isCarrier: (TaskDto) -> Boolean,
 ) {
     companion object {
@@ -28,7 +29,7 @@ class CarrierSpec(
         val CUSTOM_LISTS = CarrierSpec(
             kind = "custom-lists",
             search = "vicu-custom-lists",
-            isCarrier = { it.title == CustomListEnvelope.CARRIER_TITLE || CustomListEnvelope.hasMarker(it.description) },
+            isCarrier = { CustomListEnvelope.hasMarker(it.description) },
         )
     }
 }
@@ -38,13 +39,15 @@ class CarrierSpec(
  * (A-CL-1; the desktop does the same in `carrier-discovery.ts`).
  *
  * - The ids seen so far are remembered per server ([CarrierIdStore]) and fetched directly, one
- *   `GET /tasks/{id}` each.
- * - New carriers (created by another device) are found with a `q` search for the marker name plus
- *   `done = true`, at most once per [DISCOVERY_INTERVAL] and whenever none is known yet. Vikunja
- *   2.4 matches the marker text inside the HTML comment; a literal `<!--` matches nothing, so the
- *   search text is the marker name only.
+ *   `GET /tasks/{id}` each, done or not: a carrier someone reopened in the web UI is still the
+ *   carrier, and the next write marks it done again (docs/cross-app-semantics-v1.md, section 10.2).
+ * - New carriers (created by another device) are found with a `q` search for the marker name, at
+ *   most once per [DISCOVERY_INTERVAL] and whenever none is known yet. Vikunja 2.4 matches the
+ *   marker text inside the HTML comment, done and open tasks alike.
  * - A full scan of the completed tasks is only the fallback: when a remembered id is gone (404 or
  *   403), the first time, and once a day for a server whose search does not look into descriptions.
+ * - Only the signed-in user's carriers count (`created_by`, section 10.3): a shared project shows
+ *   other people's, which are never read, written or deleted.
  *
  * A request that fails for any other reason (offline, a server error) is thrown: nothing can be
  * said about the carriers then, and "no carriers" could make the caller create a second one.
@@ -89,12 +92,12 @@ class CarrierFinder(
      * for [server] but none has been read in this process yet, one [find] reads them (a request per
      * remembered carrier). Nothing when none is remembered; a failure is ignored and tried again next time.
      */
-    suspend fun ensureKnown(spec: CarrierSpec, server: String) {
+    suspend fun ensureKnown(spec: CarrierSpec, server: String, ownerId: Long) {
         val key = flightKeyOf(spec.kind, server)
         if (seenProjects[key] != null || mutex.withLock { key in warmed }) return
         if (store.get(server, spec.kind).ids.isEmpty()) return
         try {
-            find(spec, server)
+            find(spec, server, ownerId)
             mutex.withLock { warmed += key }
         } catch (e: CancellationException) {
             throw e
@@ -103,8 +106,10 @@ class CarrierFinder(
         }
     }
 
-    /** Every carrier of [spec] on [server], ascending by id. */
-    suspend fun find(spec: CarrierSpec, server: String): List<TaskDto> = mutex.withLock {
+    /** Every carrier of [spec] on [server] that [ownerId] created, ascending by id. */
+    suspend fun find(spec: CarrierSpec, server: String, ownerId: Long): List<TaskDto> = mutex.withLock {
+        fun mine(task: TaskDto) = spec.isCarrier(task) && HiddenTasks.isOwn(task, ownerId)
+
         val state = store.get(server, spec.kind)
         val found = LinkedHashMap<Long, TaskDto>()
         var gone = false
@@ -112,8 +117,8 @@ class CarrierFinder(
         for (id in state.ids) {
             try {
                 val task = api.getTask(id)
-                // Reopened or rewritten into something else: it is not a carrier any more.
-                if (task.id == id && task.done && spec.isCarrier(task)) found[id] = task
+                // Rewritten into something else: it is not a carrier any more. Reopened is still one.
+                if (task.id == id && mine(task)) found[id] = task
             } catch (e: VikunjaApiException) {
                 if (e.httpStatus == 404 || e.httpStatus == 403) gone = true else throw e
             }
@@ -127,18 +132,19 @@ class CarrierFinder(
 
         if (fullScanDue || searchDue) {
             try {
+                suspend fun search() = api.getAllTasks(mapOf("q" to spec.search, "per_page" to SCAN_PAGE_SIZE), expandSubtasks = false)
                 val listing = if (fullScanDue) {
-                    api.getAllTasks(
+                    val scan = api.getAllTasks(
                         mapOf("filter" to "done = true", "sort_by" to "updated", "order_by" to "desc", "per_page" to SCAN_PAGE_SIZE),
                         expandSubtasks = false,
                     )
+                    // The scan lists done tasks only; a reopened carrier nobody remembers is found
+                    // by the search.
+                    if (state.ids.isEmpty()) scan + search() else scan
                 } else {
-                    api.getAllTasks(
-                        mapOf("q" to spec.search, "filter" to "done = true", "per_page" to SCAN_PAGE_SIZE),
-                        expandSubtasks = false,
-                    )
+                    search()
                 }
-                listing.filter { it.done && spec.isCarrier(it) }.forEach { found[it.id] = it }
+                listing.filter { mine(it) }.forEach { found[it.id] = it }
                 lastDiscoveryAtMs[flightKey] = now
                 if (fullScanDue) lastFullScanAtMs = now
             } catch (e: CancellationException) {

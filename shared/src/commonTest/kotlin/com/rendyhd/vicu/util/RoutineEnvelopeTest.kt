@@ -94,7 +94,7 @@ class RoutineEnvelopeTest {
         assertTrue(RoutineEnvelope.hasMarker(description), "hidden like every routine metadata task")
         assertTrue(RoutineEnvelope.hasArchiveMarker(description))
         assertFalse(RoutineEnvelope.hasCarrierMarker(description))
-        assertTrue(CustomListEnvelope.isAnyMetadataTask(description))
+        assertTrue(HiddenTasks.isHidden(description))
         val parsed = RoutineEnvelope.parse(description, json)
         assertFalse(parsed.isCarrier, "an archive part is never read as a routine")
         assertNull(parsed.payload)

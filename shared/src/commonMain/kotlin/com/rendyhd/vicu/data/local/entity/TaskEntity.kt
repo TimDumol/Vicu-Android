@@ -4,7 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 
 @Entity(
     tableName = "tasks",
@@ -54,7 +54,7 @@ data class TaskEntity(
      * with a looser SQL `LIKE`, and the next write of such a row corrects any false positive.
      */
     @ColumnInfo(defaultValue = "0")
-    val isMetadata: Boolean = CustomListEnvelope.isAnyMetadataTask(description),
+    val isMetadata: Boolean = HiddenTasks.isHidden(description),
     /** Who the task is assigned to, as JSON `UserDto`s in the server's order (cross-app semantics 9.2). */
     @ColumnInfo(defaultValue = "[]")
     val assigneesJson: String = "[]",

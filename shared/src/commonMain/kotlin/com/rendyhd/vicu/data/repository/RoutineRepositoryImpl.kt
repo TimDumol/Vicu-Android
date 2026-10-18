@@ -102,7 +102,10 @@ class RoutineRepositoryImpl(
     private val parsedFlow: Flow<ParsedCarriers> = taskDao.getRoutineCarriersFlow().map { entities ->
         val routines = mutableListOf<Routine>()
         val issues = mutableListOf<RoutineParseIssue>()
-        entities.forEach { entity ->
+        // Another user's routine (a carrier in a shared project) is theirs, not this account's
+        // (docs/cross-app-semantics-v1.md, section 10.3). A row created offline has no creator yet.
+        val me = authManager.knownId()
+        entities.filter { me == null || it.createdById <= 0L || it.createdById == me }.forEach { entity ->
             val parsed = RoutineEnvelope.parse(entity.description, json)
             // An archive part is metadata too, but not a routine and not damaged.
             if (!parsed.isCarrier) return@forEach

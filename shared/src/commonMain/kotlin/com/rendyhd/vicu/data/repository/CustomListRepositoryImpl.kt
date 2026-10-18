@@ -133,13 +133,13 @@ class CustomListRepositoryImpl(
         platformHooks.updateWidgets()
     }
 
-    private suspend fun carriers(): Triple<List<Pair<TaskDto, CustomListSyncDocumentV1>>, Int, Int?> {
+    private suspend fun carriers(ownerId: Long): Triple<List<Pair<TaskDto, CustomListSyncDocumentV1>>, Int, Int?> {
         val valid = mutableListOf<Pair<TaskDto, CustomListSyncDocumentV1>>()
         var malformed = 0
         var futureVersion: Int? = null
         // The carriers seen before are fetched by id; completed history is not paged through on
         // every sync (CarrierFinder falls back to a scan when an id is gone, and daily).
-        carrierFinder.find(CarrierSpec.CUSTOM_LISTS, serverKey())
+        carrierFinder.find(CarrierSpec.CUSTOM_LISTS, serverKey(), ownerId)
             .forEach { task ->
                 val parsed = CustomListEnvelope.parse(task.description, json)
                 when {
@@ -188,7 +188,9 @@ class CustomListRepositoryImpl(
         _syncStatus.value = CustomListSyncStatus.Syncing
         try {
             val generation = clearGeneration
-            val (remoteCarriers, malformed, futureVersion) = carriers()
+            // Whose carriers are whose is not known yet: try again once it is.
+            val ownerId = authManager.id() ?: return@withLock CustomListSyncStatus.Pending.also { _syncStatus.value = it }
+            val (remoteCarriers, malformed, futureVersion) = carriers(ownerId)
             if (generation != clearGeneration) {
                 return@withLock CustomListSyncStatus.Idle.also { _syncStatus.value = it }
             }

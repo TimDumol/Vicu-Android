@@ -34,7 +34,7 @@ import com.rendyhd.vicu.data.local.entity.TaskSignalEntity
         TaskSignalEntity::class,
         TaskCommentEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @ConstructedBy(VikunjaDatabaseConstructor::class)

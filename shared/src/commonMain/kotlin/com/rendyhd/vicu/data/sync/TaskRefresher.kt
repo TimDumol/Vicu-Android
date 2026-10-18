@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.sync
 
+import com.rendyhd.vicu.auth.CurrentUser
 import com.rendyhd.vicu.data.local.SyncCursorStore
 import com.rendyhd.vicu.data.local.dao.PendingActionDao
 import com.rendyhd.vicu.data.local.dao.TaskDao
@@ -10,7 +11,7 @@ import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
-import com.rendyhd.vicu.util.CustomListEnvelope
+import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.RoutineEnvelope
@@ -67,6 +68,8 @@ class TaskRefresher(
     private val platformHooks: PlatformRepositoryHooks,
     private val cursorStore: SyncCursorStore,
     private val time: TimeSource = SystemTimeSource,
+    /** Whose routine carriers are whose: another user's, in a shared project, never enter the cache. */
+    private val currentUser: CurrentUser = CurrentUser.fixed(null),
 ) {
     companion object {
         private const val TAG = "TaskRefresher"
@@ -195,14 +198,17 @@ class TaskRefresher(
         val vanished = taskDao.getOpenOrLocalOnlyIds().filter { it !in serverIds && it !in protectedIds }
         remove(vanished, acc)
 
-        // Archive parts are read on demand and never cached; an older build may have cached some.
+        // Archive parts are read on demand and never cached; an older build may have cached some,
+        // and another user's carriers from a shared project too.
         val cachedCarriers = taskDao.getRoutineCarriersSync()
-        remove(cachedCarriers.filter { RoutineEnvelope.hasArchiveMarker(it.description) }.map { it.id }, acc)
+        val me = currentUser.knownId()
+        val foreign = cachedCarriers.filter { it.id > 0L && !isOwnRow(it, me) }.map { it.id }
+        remove(cachedCarriers.filter { RoutineEnvelope.hasArchiveMarker(it.description) }.map { it.id } + foreign, acc)
 
         // Cached routine carriers the search did not return may be deleted on the server, or the
         // search may have missed them: ask the server about each one.
         val unlisted = cachedCarriers.filter {
-            it.id > 0L && !RoutineEnvelope.hasArchiveMarker(it.description) &&
+            it.id > 0L && !RoutineEnvelope.hasArchiveMarker(it.description) && it.id !in foreign &&
                 it.id !in serverIds && it.id !in protectedIds
         }
         verifyCarriers(unlisted.take(MAX_CARRIER_CHECKS), acc)
@@ -301,12 +307,23 @@ class TaskRefresher(
         var removed = 0
     }
 
-    /** Stores what the server returned, except rows with queued changes and metadata tasks. */
+    /** True for a cached routine carrier of [me]'s, or when either side is not known. */
+    private fun isOwnRow(entity: TaskEntity, me: Long?): Boolean =
+        me == null || entity.createdById <= 0L || entity.createdById == me
+
+    /**
+     * Stores what the server returned, except rows with queued changes and hidden tasks. Of the
+     * hidden tasks only the user's own routine carriers are cached (the routines live there); archive
+     * parts are read on demand, the custom-list and preferences carriers belong to their own sync,
+     * and a kind this version does not know, or another user's carrier, is no business of the cache.
+     */
     private suspend fun merge(dtos: List<TaskDto>, acc: Accumulator) {
-        // Routine archive parts are read on demand and never cached; custom-list carriers belong
-        // to CustomListRepository and must never enter user task data.
+        val me = currentUser.knownId()
         val visible = dtos.filterNot {
-            CustomListEnvelope.hasMarker(it.description) || RoutineEnvelope.hasArchiveMarker(it.description)
+            HiddenTasks.isHidden(it.description) && !(
+                RoutineEnvelope.hasCarrierMarker(it.description) &&
+                    (me == null || it.createdBy == null || it.createdBy.id <= 0L || it.createdBy.id == me)
+                )
         }
         if (visible.isEmpty()) return
         val entities = visible.map { with(taskMapper) { it.toEntity() } }.distinctBy { it.id }

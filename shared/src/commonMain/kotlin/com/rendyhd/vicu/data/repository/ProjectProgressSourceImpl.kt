@@ -49,7 +49,7 @@ class ProjectProgressSourceImpl(
         taskDao.getDoneMetadataRefs().forEach { projectOfTask[it.id] = it.projectId }
         val server = authManager.getVikunjaUrl().orEmpty()
         // A cold start has read no carrier yet: read the remembered ones once.
-        carrierFinder.ensureKnown(CarrierSpec.CUSTOM_LISTS, server)
+        authManager.knownId()?.let { carrierFinder.ensureKnown(CarrierSpec.CUSTOM_LISTS, server, it) }
         carrierFinder.knownProjects(CarrierSpec.CUSTOM_LISTS, server).forEach { (id, project) -> projectOfTask[id] = project }
 
         // An archive part lives in the project of its routine's main carrier.

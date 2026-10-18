@@ -33,9 +33,10 @@ object VikunjaImages {
 
 /**
  * The Coil interceptor for [VikunjaImages] on platforms whose image loader does not go through
- * OkHttp (iOS; Android does the same in its OkHttp interceptor).
+ * OkHttp (iOS; Android does the same in its OkHttp VikunjaImageInterceptor, in :app, a different
+ * class: the names must differ, or the Android release build has the class twice).
  */
-class VikunjaImageInterceptor(
+class VikunjaCoilInterceptor(
     private val fullBaseUrl: suspend () -> String,
     private val token: suspend () -> String?,
 ) : Interceptor {

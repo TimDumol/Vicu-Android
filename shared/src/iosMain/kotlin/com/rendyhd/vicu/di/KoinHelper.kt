@@ -10,7 +10,7 @@ import com.rendyhd.vicu.auth.PlatformAuthHooks
 import com.rendyhd.vicu.auth.TokenStorage
 import com.rendyhd.vicu.data.local.PlatformContext
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
-import com.rendyhd.vicu.data.remote.VikunjaImageInterceptor
+import com.rendyhd.vicu.data.remote.VikunjaCoilInterceptor
 import com.rendyhd.vicu.data.repository.IosRepositoryHooks
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.ios.BackgroundActivityLog
@@ -168,7 +168,7 @@ val iosModule = module {
         ImageLoader.Builder(coil3.PlatformContext.INSTANCE)
             .components {
                 add(
-                    VikunjaImageInterceptor(
+                    VikunjaCoilInterceptor(
                         fullBaseUrl = {
                             baseUrlHolder.ensureInitialized()
                             baseUrlHolder.getFullBaseUrl()

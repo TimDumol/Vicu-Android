@@ -111,7 +111,7 @@ and every call names that UDID. Taps and typing are done by hand or with the iOS
 
 | Seam | iOS implementation |
 |---|---|
-| `TokenStorage` | `IosKeychainTokenStorage` (Keychain, after first unlock, this device only) |
+| `TokenStorage` | `IosKeychainTokenStorage` (tokens and install id in the Keychain, after first unlock, this device only; the other session values in `session/session.json` in Application Support, excluded from backup) |
 | HTTP | Ktor Darwin, with NSURLSession's own cookie handling off (the app sends the refresh cookie itself) |
 | `NetworkMonitor` | `IosNetworkMonitor` (NWPathMonitor) |
 | `PlatformFiles` | `IosPlatformFiles` (staged copies, streamed uploads, Quick Look, share sheet) |
@@ -126,18 +126,26 @@ and every call names that UDID. Taps and typing are done by hand or with the iOS
 | Images | Coil with the Ktor fetcher and the common `VikunjaCoilInterceptor` |
 | Completion sound | `IosCompletionSoundPlayer` (AVAudioPlayer, ambient session) |
 
-The database and preferences live in Application Support (excluded from backup), not in the App
-Group: the extensions never read them, and an app that holds an SQLite lock in a shared
-container when it is suspended is killed by iOS. The App Group holds only what the app and its
-extensions exchange:
+The database, preferences and session values live in Application Support (excluded from
+backup), not in the App Group: the extensions never read them, and an app that holds an SQLite
+lock in a shared container when it is suspended is killed by iOS. Nothing of the account is
+backed up, so a device restored from a backup starts signed out with its own install id (older
+versions kept the session in the user defaults; the first start of a newer one moves it, or
+drops it when the Keychain has no tokens, which means the defaults came from another device).
+The App Group holds only what the app and its extensions exchange, in two folders excluded from
+backup:
 
 ```
 widgets/catalog.json        the views a widget can show, whether anyone is signed in, colours
 widgets/views/<key>.json    one view (smart list, project, custom list) for today and tomorrow
 widgets/routines.json       the routine widget's days
 widgets/actions/*.json      taps on widget buttons the app has not stored yet
+widgets/account             the signed-in account's tag (app only; see Widgets)
 share-inbox/<id>/           a share: item.json and files/ (<id>.part while the sheet is open)
 ```
+
+Sign-out and a switch to another account (`LocalDataWiper.wipeEverything`) empty
+`share-inbox/`, drop widget taps not taken in yet and retire the account's tag.
 
 ### Notifications
 
@@ -181,7 +189,12 @@ background are budgeted).
 - **Tasks** widget (small, medium, large): any smart list, project or custom list, chosen in
   Edit Widget. The circle completes a task; a row opens the task and the rest of the widget
   opens the list (a small widget always opens the list); + opens the task entry (medium and
-  large).
+  large). WidgetKit keeps the choice across a sign-out, so the id of a project or custom list
+  carries the account's tag (`project-12@<tag>`, `WidgetSnapshots.entityId`): a widget chosen
+  under another account says to choose another list instead of showing the new account's
+  project 12. Smart lists show whichever account is signed in. A widget chosen before the ids
+  carried a tag belongs to the account that was signed in when the app first wrote the catalog
+  after the update (`untaggedAccount`).
 - **Routines** widget (small, medium, large): today's routines; the circle logs one.
 - **Add task** control (iOS 18): Control Center, the Lock Screen and the Action Button.
 - **Shortcuts**: "Add a task in Vicu" for Siri, Spotlight and the Shortcuts app

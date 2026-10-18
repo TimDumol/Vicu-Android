@@ -44,6 +44,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -143,6 +144,17 @@ class IosWidgetSnapshotsTest {
 
     private fun exists(path: String) = SystemFileSystem.exists(Path(path))
 
+    private fun catalog(): WidgetCatalog = json.decodeFromString(WidgetCatalog.serializer(), read("$folder/catalog.json"))
+
+    /** A catalog as versions before the account tag wrote it: no account, no ids. */
+    private fun olderCatalog(signedIn: Boolean) {
+        val (light, dark) = WidgetSnapshots.palettes()
+        val entries = listOf(WidgetCatalogEntry(key = "project-1", name = "Home", kind = "project"))
+        // Without encodeDefaults the new fields (all at their defaults) are left out.
+        write("$folder/catalog.json", Json.encodeToString(WidgetCatalog.serializer(), WidgetCatalog(signedIn, entries, light, dark)))
+        assertFalse(read("$folder/catalog.json").contains("account"))
+    }
+
     private suspend fun signIn() {
         storage.storeVikunjaUrl("https://vikunja.test")
         storage.storeApiToken("tk_1", 0L)
@@ -203,6 +215,89 @@ class IosWidgetSnapshotsTest {
         // Nothing changed: WidgetKit is not asked again (background reloads are budgeted).
         widgets.write()
         assertEquals(1, reloads)
+    }
+
+    @Test
+    fun projectsAndListsCarryTheAccountTheyWereChosenUnder() = runTest {
+        signIn()
+        val widgets = snapshots()
+
+        widgets.write()
+
+        val catalog = catalog()
+        val account = catalog.account.orEmpty()
+        assertTrue(account.isNotEmpty())
+        assertEquals(account, read("$folder/account"))
+        // Smart lists show whichever account is signed in, so their ids carry none.
+        assertEquals(listOf("today", "inbox", "upcoming", "anytime", "project-1@$account"), catalog.views.map { it.id })
+        assertEquals(listOf("today", "inbox", "upcoming", "anytime", "project-1"), catalog.views.map { it.key })
+        // Nothing was set up before the ids carried the account.
+        assertEquals("", catalog.untaggedAccount)
+    }
+
+    @Test
+    fun anotherAccountGetsANewTagAndTheOldOnesWidgetTapsAreDropped() = runTest {
+        signIn()
+        val widgets = snapshots()
+        widgets.write()
+        val first = catalog().account
+        write("$folder/actions/0001-a.json", """{"kind":"completeTask","taskId":7}""")
+
+        // Sign-out or another account: LocalDataWiper.wipeEverything through IosRepositoryHooks.
+        widgets.retireAccount()
+        widgets.write()
+
+        val second = catalog().account.orEmpty()
+        assertNotEquals(first, second)
+        assertEquals("project-1@$second", catalog().views.last().id)
+        // Task 7 was the old account's: not completed in the new one.
+        assertTrue(doneCalls.isEmpty())
+        assertFalse(exists("$folder/actions/0001-a.json"))
+    }
+
+    @Test
+    fun theTagLastsUntilTheAccountsDataIsWiped() = runTest {
+        signIn()
+        val widgets = snapshots()
+        widgets.write()
+        val tag = catalog().account
+
+        // Signed out without a wipe (the session expired), then the same account again.
+        storage.clear()
+        widgets.write()
+        assertEquals("", catalog().account)
+        signIn()
+        widgets.write()
+
+        assertEquals(tag, catalog().account)
+    }
+
+    @Test
+    fun widgetsSetUpBeforeTheTagBelongToTheAccountSignedInThen() = runTest {
+        signIn()
+        olderCatalog(signedIn = true)
+        val widgets = snapshots()
+
+        widgets.write()
+        val tag = catalog().account
+        assertEquals(tag, catalog().untaggedAccount)
+        widgets.write()
+        assertEquals(tag, catalog().untaggedAccount)
+
+        widgets.retireAccount()
+        widgets.write()
+        assertNotEquals(tag, catalog().account)
+        assertEquals(tag, catalog().untaggedAccount)
+    }
+
+    @Test
+    fun widgetsSetUpBeforeTheTagWhileSignedOutBelongToNoAccount() = runTest {
+        signIn()
+        olderCatalog(signedIn = false)
+
+        snapshots().write()
+
+        assertEquals("", catalog().untaggedAccount)
     }
 
     @Test

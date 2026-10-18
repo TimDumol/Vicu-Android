@@ -177,13 +177,14 @@ class LocalDataWiperTest {
     }
 
     @Test
-    fun `wiping everything stops the account's background work and resets its widgets`() = runTest {
+    fun `wiping everything stops the account's background work and resets its widgets and shares`() = runTest {
         val f = fixture()
 
         f.wiper.wipeEverything()
 
         assertEquals(1, f.hooks.cancelAccountBackgroundWorkCalls)
         assertEquals(1, f.hooks.clearWidgetConfigurationsCalls)
+        assertEquals(1, f.hooks.discardPendingSharesCalls)
     }
 
     @Test
@@ -202,6 +203,7 @@ class LocalDataWiperTest {
         assertEquals(false, f.widgetPrefs.smartAdd.first())
         assertEquals(0, f.hooks.cancelAccountBackgroundWorkCalls)
         assertEquals(0, f.hooks.clearWidgetConfigurationsCalls)
+        assertEquals(0, f.hooks.discardPendingSharesCalls)
     }
 
     // --- counts ---

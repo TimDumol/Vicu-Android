@@ -14,6 +14,7 @@ import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.IosPaths
 import com.rendyhd.vicu.util.Logger
+import com.rendyhd.vicu.util.randomUuid
 import com.rendyhd.vicu.worker.SyncRequester
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -45,6 +46,11 @@ interface AppleWidgetBridge {
  * routine day, and the colours. Before writing it takes in the actions the widget buttons left
  * in `widgets/actions/` (a task completed, a routine logged), stores them as the app would and
  * syncs. Writes are debounced; WidgetKit is then asked to reload through [bridge].
+ *
+ * The catalog names the signed-in account by a tag (`widgets/account`), which the ids of projects
+ * and custom lists carry: WidgetKit keeps a widget's configuration across a sign-out, and one
+ * chosen under another account must not show this account's project with the same id
+ * ([WidgetSnapshots.entityId]). The folder is kept out of backups.
  */
 class IosWidgetSnapshots(
     private val states: TaskWidgetStates,
@@ -56,7 +62,7 @@ class IosWidgetSnapshots(
     private val syncRequester: () -> SyncRequester,
     private val appScope: CoroutineScope,
     /** The folder shared with the widget extension; null when the build has no App Group. */
-    private val folder: () -> String? = { IosPaths.appGroup?.let { IosPaths.subdirectory(it, "widgets") } },
+    private val folder: () -> String? = { IosPaths.appGroupFolder("widgets") },
 ) {
     var bridge: AppleWidgetBridge? = null
 
@@ -97,6 +103,20 @@ class IosWidgetSnapshots(
         }
     }
 
+    /**
+     * The account's data was wiped (sign-out, another account): a new tag is made for the next
+     * account, so widgets set to this one's projects and lists say to choose another. Widget taps
+     * not taken in yet are dropped, since their task ids are this account's.
+     */
+    suspend fun retireAccount(): Unit = mutex.withLock {
+        val root = root ?: return@withLock
+        SystemFileSystem.delete(Path("$root/${WidgetSnapshots.ACCOUNT_FILE}"), mustExist = false)
+        val actions = Path("$root/${WidgetSnapshots.ACTIONS_DIR}")
+        if (SystemFileSystem.exists(actions)) {
+            SystemFileSystem.list(actions).filter { it.name.endsWith(".json") }.forEach { SystemFileSystem.delete(it, mustExist = false) }
+        }
+    }
+
     /** Stores what the widget buttons did while the app was not running; true when there was something. */
     suspend fun drainActions(): Boolean = mutex.withLock { root?.let { drainActions(it) } ?: false }
 
@@ -131,6 +151,8 @@ class IosWidgetSnapshots(
         val viewsDir = IosPaths.subdirectory(root, WidgetSnapshots.VIEWS_DIR)
         val (light, dark) = WidgetSnapshots.palettes()
         val signedIn = states.isSignedIn()
+        val previous = readCatalog(root)
+        val account = if (signedIn) accountTag(root) else ""
         val written = mutableSetOf<String>()
         val catalog = mutableListOf<WidgetCatalogEntry>()
 
@@ -159,7 +181,12 @@ class IosWidgetSnapshots(
                 )
                 changed = writeFile("$viewsDir/${snapshot.key}.json", json.encodeToString(TaskWidgetSnapshot.serializer(), snapshot)) || changed
                 written += "${snapshot.key}.json"
-                catalog += WidgetCatalogEntry(snapshot.key, config.viewName, kind)
+                catalog += WidgetCatalogEntry(
+                    key = snapshot.key,
+                    name = config.viewName,
+                    kind = kind,
+                    id = WidgetSnapshots.entityId(config.viewType, snapshot.key, account),
+                )
             }
 
             val routines = RoutineWidgetSnapshot(
@@ -185,9 +212,35 @@ class IosWidgetSnapshots(
             changed = true
         }
 
-        val index = WidgetCatalog(signedIn = signedIn, views = catalog, light = light, dark = dark)
+        val index = WidgetCatalog(
+            signedIn = signedIn,
+            views = catalog,
+            light = light,
+            dark = dark,
+            account = account,
+            untaggedAccount = WidgetSnapshots.untaggedAccount(previous, account),
+        )
         return writeFile("$root/${WidgetSnapshots.CATALOG_FILE}", json.encodeToString(WidgetCatalog.serializer(), index)) || changed
     }
+
+    private fun readCatalog(root: String): WidgetCatalog? = try {
+        readText(Path("$root/${WidgetSnapshots.CATALOG_FILE}"))?.let { json.decodeFromString(WidgetCatalog.serializer(), it) }
+    } catch (e: Exception) {
+        Logger.w(TAG, "Widget catalog not readable: ${e.message}")
+        null
+    }
+
+    /** The signed-in account's tag, made up the first time after its data was wiped. */
+    private fun accountTag(root: String): String {
+        val path = "$root/${WidgetSnapshots.ACCOUNT_FILE}"
+        readText(Path(path))?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        val tag = randomUuid().replace("-", "").take(ACCOUNT_TAG_LENGTH)
+        writeFile(path, tag)
+        return tag
+    }
+
+    private fun readText(path: Path): String? =
+        if (SystemFileSystem.exists(path)) SystemFileSystem.source(path).buffered().use { it.readString() } else null
 
     /**
      * Written whole, then moved into place, so the widget never reads half a file; left alone
@@ -195,7 +248,7 @@ class IosWidgetSnapshots(
      */
     private fun writeFile(path: String, text: String): Boolean {
         val target = Path(path)
-        if (SystemFileSystem.exists(target) && SystemFileSystem.source(target).buffered().use { it.readString() } == text) return false
+        if (readText(target) == text) return false
         val partial = Path("$path.part")
         SystemFileSystem.sink(partial).buffered().use { it.writeString(text) }
         SystemFileSystem.atomicMove(partial, target)
@@ -204,6 +257,7 @@ class IosWidgetSnapshots(
 
     private companion object {
         const val TAG = "IosWidgetSnapshots"
+        const val ACCOUNT_TAG_LENGTH = 12
         val DEBOUNCE = 1.seconds
     }
 }

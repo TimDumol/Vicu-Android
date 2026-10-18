@@ -21,6 +21,11 @@ struct WidgetCatalogEntry: Codable, Hashable {
     let name: String
     /// "list" (a smart list), "project" or "customList".
     let kind: String
+    /// The id a widget configuration keeps: the key, with the account's tag for a project or
+    /// custom list ("project-12@4f0c2a9e1b7d"). Missing in a catalog written before.
+    let id: String?
+
+    var entityId: String { id ?? key }
 }
 
 struct WidgetCatalog: Codable {
@@ -28,6 +33,20 @@ struct WidgetCatalog: Codable {
     let views: [WidgetCatalogEntry]
     let light: WidgetPalette
     let dark: WidgetPalette
+    /// The signed-in account's tag; empty when signed out, missing in a catalog written before.
+    let account: String?
+    /// The account whose projects and lists widgets configured before the ids carried one show.
+    let untaggedAccount: String?
+
+    /// The view a widget's configured id names, when it belongs to the account signed in now.
+    /// A project or list chosen under another account has none: WidgetKit keeps a widget's
+    /// configuration across a sign-out, and the new account's project with the same id is not it.
+    func view(id: String) -> WidgetCatalogEntry? {
+        if let entry = views.first(where: { $0.entityId == id }) { return entry }
+        // Chosen before the ids carried the account: only the account signed in then has it.
+        guard !id.contains("@"), account == nil || account == untaggedAccount else { return nil }
+        return views.first { $0.key == id }
+    }
 }
 
 struct WidgetSnapshotRow: Codable, Hashable, Identifiable {

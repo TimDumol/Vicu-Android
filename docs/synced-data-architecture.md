@@ -1,6 +1,7 @@
 # Synced app data: architecture
 
-**Status:** accepted 2026-10-18 (section 13), not implemented yet. The choices marked
+**Status:** accepted 2026-10-18 (section 13); implemented for Android and iOS on branch
+`feat/synced-data` (see the plan's Outcome section), desktop on its own `feat/synced-data`. The choices marked
 **Decision** are the owner's to make; the recommendation is given with each.
 
 This proposes one architecture for the data Vicu keeps on the Vikunja server for itself (the

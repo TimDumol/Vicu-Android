@@ -159,7 +159,12 @@ Both apps decide by the marker, never by the title, and both know two marker nam
 
 ## Known gaps
 
-`docs/synced-data-architecture.md` proposes how to fix these.
+`docs/synced-data-architecture.md` proposes how to fix these. Release 2.2.0 (branch
+`feat/synced-data`) fixes on Android and iOS: 1 (owner by `created_by`), 2 (tombstones pruned),
+3 (every `vicu-` marker hidden, Room schema 5), 5 (a reopened carrier stays the carrier), 6
+(unknown routine fields kept), 7 (covered duplicates deleted), 10 (no write over an unreadable
+routine carrier) and 11 (marker only). It also adds a fourth kind, the preferences carrier
+(`vicu-prefs:v1`, contract section 11). The desktop half is tracked in the plan.
 
 1. **Carriers are not tied to their owner, in either app.** Nothing checks who created a
    carrier (`created_by`). Vikunja's task search covers every project the user can see, shared

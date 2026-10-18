@@ -8,6 +8,21 @@ of them for Android and iOS, says what happens to each, and compares the desktop
 Read it before adding a setting (the checklist is in section 10) and before making a setting
 sync with the desktop (section 11).
 
+## Changes in 2.2.0
+
+This document describes the apps before 2.2.0. That release (branch `feat/synced-data`, plan in
+`docs/superpowers/plans/2026-10-18-synced-data.md`) changes these points on Android and iOS:
+
+- **The Inbox project syncs.** It is the `inbox_project_id` entry of the preferences carrier
+  (section 1 below gains a row: `vicu-prefs:v1`, `SyncedPreferences`, contract section 11). The
+  session still holds the Inbox the screens read, and `SyncedPreferences` keeps it in step: choosing
+  an Inbox writes the entry, a sync that brings another device's choice moves this device's Inbox.
+- **The task order** (global and per project) is a synced setting too (`TaskOrderPreferences`).
+- A new account-specific store, `SyncedPrefsStore` (`synced_prefs`): cleared by `wipeEverything`,
+  excluded from Android backup, counted as unsynced work at sign-out.
+- Gap 8 (unknown routine fields), gap 9 (discard keeps unsynced custom-list changes) and gap 11
+  (an account switch leaves the old session's values) are fixed.
+
 ## Summary
 
 | Where | What | Reaches the desktop and other devices | Survives sign-out | In a backup |

@@ -15,6 +15,27 @@ were wrong and are corrected in the docs: mobile drops a reopened custom-list ca
 desktop does (`CarrierFinder.find` keeps a remembered id only while it is done), and the task
 refresh keeps custom-list carriers and archive parts out of Room (`TaskRefresher.merge`).
 
+## Outcome (2026-10-18)
+
+Phases 0 to 5 are done for Android and iOS on branch `feat/synced-data` (not pushed), phase 6 in
+its own session on `claude/elated-kepler-352825` (not merged here), the desktop half on the
+desktop repo's `feat/synced-data`. Nothing is released. Where the work differs from the steps below:
+
+- **Tombstone vectors** are in `cross-app-semantics-v1.json` (`hiddenTasks.tombstones`), next to the
+  other hidden-task vectors, not in `custom-list-sync-v1.json`.
+- **The Inbox (4.4):** the session (`TokenStorage`) still holds the Inbox its ten readers use;
+  `SyncedPreferences` keeps it in step with the synced entry (choosing writes both, a sync moves a
+  set-up device to another device's choice). That kept every reader unchanged.
+- **Discovery (2.5, N6):** a first load runs the search next to its scan of done tasks, so a
+  reopened carrier no device remembers is found too.
+- **Malformed carriers (3.2):** a Pending result still wins over the malformed report; the next
+  sync that converges reports it.
+- **PR #34 (phase 5):** its seven commits are on the branch with their author, rebased onto the iOS
+  port (the Settings binding in `ViewModelModule`, the widget order in `TaskWidgetStates`), then
+  one commit moves its storage to the synced preferences and its sort to the contract rules.
+- Not done: the by-hand checks of the Release section, merging the iOS branch, the iOS gate on
+  the merged code, publishing.
+
 ## Where things stand
 
 | Item | State |
@@ -60,13 +81,13 @@ Mac now, so this session can).
     (the leak, reproduced; `collab.mjs` has the two-user setup).
   Write the results into `docs/hidden-tasks.md` ("Finding them") and adjust phases 2 and 3 if a
   check fails.
-- [ ] **0.2 Land the docs.** Merge `docs/synced-data` (the three docs, CLAUDE.md, this plan).
+- [x] **0.2 Land the docs.** Merge `docs/synced-data` (the three docs, CLAUDE.md, this plan).
 
 ## Phase 1: contract (both repos, byte-identical)
 
 `SharedContractIdentityTest` compares the files; run it with `--rerun`.
 
-- [ ] **1.1 `docs/cross-app-semantics-v1.md`**, three new sections after section 9:
+- [x] **1.1 `docs/cross-app-semantics-v1.md`**, three new sections after section 9:
   - **10. Hidden tasks** (architecture 5.1 to 5.8): marker grammar and the hiding regex
     `<!--\s*vicu-[a-z0-9-]+:`, hiding by marker everywhere, shape and forced fields, ownership by
     `created_by`, placement and discovery (remembered ids whatever their state, N6), duplicates,
@@ -79,7 +100,7 @@ Mac now, so this session can).
   - **12. Task order** (architecture 9, decisions T1 to T5): orders, sort rules (lowercased
     titles, parsed dates, missing dates last, ties by position then id), inheritance with cycles
     ended, drag rules, where it applies. This is the first time a sort is in the contract.
-- [ ] **1.2 Vectors** in `test-fixtures/cross-app-semantics-v1.json`:
+- [x] **1.2 Vectors** in `test-fixtures/cross-app-semantics-v1.json`:
   - `hiddenTasks`: descriptions that are hidden (each known kind, an unknown kind, `routine:archive`,
     extra whitespace, marker inside other text) and that are not (`<!-- vicu -->`, `vicu-x:` without
     a comment, upper case kind, a title-only carrier).
@@ -90,28 +111,28 @@ Mac now, so this session can).
   - `taskOrder`: task lists with each order's result, ties, a parent chain with a cycle, and the
     drag rule per order.
   - Tombstone pruning vectors go in `custom-list-sync-v1.json` (a document, a now, the result).
-- [ ] **1.3 Fixture tests on mobile**, failing until the later phases: `HiddenTasksFixtureTest`,
+- [x] **1.3 Fixture tests on mobile**, failing until the later phases: `HiddenTasksFixtureTest`,
   `SyncedPrefsFixtureTest`, `TaskOrderFixtureTest`, and the pruning case in the custom-list
   round-trip test. Mark them `@Ignore` with the phase that enables them, or add them in that
   phase.
 
 ## Phase 2: hidden-task fixes that do not need the engine
 
-- [ ] **2.1 `HiddenTasks` (`util/HiddenTasks.kt`)**: the marker regex, `isHidden(description)`,
+- [x] **2.1 `HiddenTasks` (`util/HiddenTasks.kt`)**: the marker regex, `isHidden(description)`,
   `isOwn(task, userId)`, and the forced fields every write sends (done, null due date, no repeat,
   no reminders). `CustomListEnvelope.isAnyMetadataTask` delegates to it, then its callers move
   over (`TaskEntity.isMetadata` default, the duplicate checks in `TaskRepositoryImpl` and
   `SyncEngine`). `CarrierSpec.CUSTOM_LISTS.isCarrier` drops the title match (N5).
-- [ ] **2.2 Room schema 5.** `MIGRATION_4_5` recomputes `isMetadata`: select the rows whose
+- [x] **2.2 Room schema 5.** `MIGRATION_4_5` recomputes `isMetadata`: select the rows whose
   description `LIKE '%vicu-%'` and set the column with `HiddenTasks.isHidden` in Kotlin, so the
   backfill equals the rule instead of approximating it. Commit `shared/schemas/.../5.json`, register
   the migration in `KoinModules.kt`, and add `HiddenTasksMigrationTest` (sqlite-jdbc,
   `ExportedSchema.database(4)`) next to `TaskMetadataMigrationTest`.
-- [ ] **2.3 Room keeps out every hidden task but routine carriers.** `TaskRefresher.merge` drops
+- [x] **2.3 Room keeps out every hidden task but routine carriers.** `TaskRefresher.merge` drops
   `HiddenTasks.isHidden && !RoutineEnvelope.hasCarrierMarker` instead of naming the custom-list and
   archive markers, so a `vicu-prefs` carrier never enters Room. `ProjectProgressSourceImpl`
   subtracts the preferences carrier's project too (once phase 4 adds its `CarrierSpec`).
-- [ ] **2.4 Owner.** `AuthManager` exposes the user id as a `StateFlow<Long?>` (from
+- [x] **2.4 Owner.** `AuthManager` exposes the user id as a `StateFlow<Long?>` (from
   `TokenStorage.getUserId`, backfilled by `ensureUserIdStored`). Then:
   - `CarrierFinder` takes the owner id and returns only own carriers; with no id yet it returns
     nothing and the sync reports Pending.
@@ -121,15 +142,15 @@ Mac now, so this session can).
   - `RoutineArchiveStore.fetchParts` keeps only own parts.
   - Test fakes gain `created_by`: `TaskListServer`, `FakeTaskServer`, and the private
     `CarrierServer`s.
-- [ ] **2.5 Reopened carriers (D8).** `CarrierFinder` keeps a remembered id whatever its done
+- [x] **2.5 Reopened carriers (D8).** `CarrierFinder` keeps a remembered id whatever its done
   state, and the search drops `done = true` (N6). The next write marks it done. Update the
   `CarrierFinderTest` case that asserts the opposite.
-- [ ] **2.6 Routines keep unknown fields (D9).** `RoutinePayload`, `RoutineDefinition`,
+- [x] **2.6 Routines keep unknown fields (D9).** `RoutinePayload`, `RoutineDefinition`,
   `RoutineSlot`, `RoutineOccurrenceRecord` and `RoutineArchivePart` get an unknown-fields holder
   through `UnknownFieldsSerializer` (`CustomListSync.kt`). `RoutineEnvelope.mergePayload` keeps the
   winning side's unknown fields at each level, top level included. Tests: a round trip with
   unknown fields at each level, and a merge.
-- [ ] **2.7 Routines never overwrite what they cannot read (5.7).** A higher version is "update
+- [x] **2.7 Routines never overwrite what they cannot read (5.7).** A higher version is "update
   required", told apart from "needs repair" in `RoutinesScreen`. `TaskRepositoryImpl.sendUpdate`
   and the queued routine edit in `SyncEngine` no longer send the local patch when the server's
   payload does not parse: the action fails visibly (the failed-actions banner) and stays for
@@ -141,7 +162,7 @@ The custom-list tests (`CustomListCarrierSyncTest`, `CustomListFirstSyncOrderTes
 `CustomListRepositoryUnknownFieldsTest`, the `custom-list-sync-v1.json` round trip) must pass
 unchanged after 3.1. They are the safety net for the refactor.
 
-- [ ] **3.1 Extract, no behaviour change.** In `data/sync/`:
+- [x] **3.1 Extract, no behaviour change.** In `data/sync/`:
   - `SyncedDocumentCodec<Doc>`: parse, encode, normalize, merge, `pruneTombstones(doc, now)`,
     `same`, the version.
   - `SyncedDocumentStore`: the local copy (`device_id`, `document`, `dirty`, `carrier_task_id`,
@@ -151,34 +172,34 @@ unchanged after 3.1. They are the safety net for the refactor.
     `CustomListSyncStatus` maps to.
   - `CustomListRepositoryImpl` keeps its interface and uses the engine with a
     `CustomListCodec`. Wire it in `repositoryModule`; run `KoinGraphTest` and `IosKoinGraphTest`.
-- [ ] **3.2 Small correctness fixes in the loop:** rethrow `CancellationException` (the current
+- [x] **3.2 Small correctness fixes in the loop:** rethrow `CancellationException` (the current
   `catch (error: Exception)` swallows it); a malformed-carrier report survives a Pending or Idle
   result; a v1 marker whose JSON says a higher version is "update required", not malformed.
-- [ ] **3.3 Tombstones (D6).** Prune tombstones older than 90 days (`TimeSource`) before
+- [x] **3.3 Tombstones (D6).** Prune tombstones older than 90 days (`TimeSource`) before
   comparing and writing. Enable the pruning vectors.
-- [ ] **3.4 Duplicates (D7).** After a successful write and read-back, each other own carrier is
+- [x] **3.4 Duplicates (D7).** After a successful write and read-back, each other own carrier is
   fetched again and deleted when `same(prune(merge(kept, extra)), kept)`. Never a malformed or
   newer one. Tests: two carriers covered (one deleted), one not covered (kept), one of another
   user (untouched, never even read), a malformed extra (kept).
-- [ ] **3.5 Unknown fields at the document level (5.8)** for custom lists: the document, its
+- [x] **3.5 Unknown fields at the document level (5.8)** for custom lists: the document, its
   records and the list order keep unknown fields, like list values and filters already do.
 
 ## Phase 4: synced preferences and the Inbox
 
-- [ ] **4.1 The preferences document.** `SyncedPrefsDocument` (`version`, `entries` of
+- [x] **4.1 The preferences document.** `SyncedPrefsDocument` (`version`, `entries` of
   `{value: JsonElement?, revision}`, unknown fields kept) with its codec, and
   `CarrierSpec.PREFS` (`kind = "prefs"`, search `vicu-prefs`, title
   `Vicu preferences (sync metadata — do not delete)`). Enable `SyncedPrefsFixtureTest`.
-- [ ] **4.2 `SyncedPreferences`** (`data/repository/`): typed keys with defaults, `Flow` readers
+- [x] **4.2 `SyncedPreferences`** (`data/repository/`): typed keys with defaults, `Flow` readers
   from the local copy, setters that write the local copy, mark it unsynced and ask for a sync. A
   carrier is created only once an entry exists. The one-time move (6.5) runs after the first
   successful read of the carrier.
-- [ ] **4.3 Wiring.** Store `synced_prefs` in `databaseModule`. Exclude it in `backup_rules.xml`
+- [x] **4.3 Wiring.** Store `synced_prefs` in `databaseModule`. Exclude it in `backup_rules.xml`
   and in both sections of `data_extraction_rules.xml`. `LocalDataWiper.wipeEverything` clears it,
   `unsyncedChangeCount` and `SessionCleanup` count it, the sign-out dialog names it, and the
   discard variant drops it (N4). `SyncEngine` runs it next to the custom-list sync (step 7 of
   `performSyncLocked`), with the same retry rule. Koin graph tests.
-- [ ] **4.4 The Inbox (D1, 7.2).**
+- [x] **4.4 The Inbox (D1, 7.2).**
   - `inbox_project_id` becomes a synced entry. `AuthManager.inboxProjectId`,
     `getInboxProjectId` and `onInboxProjectSelected` read and write `SyncedPreferences`, so the
     Flow readers (ten view models) and the one-shot readers keep their call sites. `TaskWidgetStates.prepare`
@@ -189,7 +210,7 @@ unchanged after 3.1. They are the safety net for the refactor.
     else Vikunja's `default_project_id` from `GET user` (read only), is preselected.
   - An Inbox that no longer exists or is not accessible (deleted, unshared) asks again, as
     today.
-- [ ] **4.5 Account switch leftovers (N3).** On WIPE_ALL, `AccountSession` clears the session
+- [x] **4.5 Account switch leftovers (N3).** On WIPE_ALL, `AccountSession` clears the session
   values except the install id before the new sign-in stores its own. Test in
   `SessionCleanupTest` or a new `AccountSessionTest`.
 
@@ -198,18 +219,18 @@ unchanged after 3.1. They are the safety net for the refactor.
 The owner's reply asks the author to rebase once phases 1 to 4 are on `main`. The rebase, by
 the author or by us, has to:
 
-- [ ] Replace `TaskOrderPrefsStore` with a view of `SyncedPreferences` (keys `task_order` and
+- [x] Replace `TaskOrderPrefsStore` with a view of `SyncedPreferences` (keys `task_order` and
   `task_order.project.<id>`; "Default" writes `null`). Its own DataStore file, its `clear()` and
   its `LocalDataWiper` parameter go away: the synced document is cleared with the account.
-- [ ] Move the `SettingsViewModel` binding to a spelled-out `viewModel { ... }` in
+- [x] Move the `SettingsViewModel` binding to a spelled-out `viewModel { ... }` in
   `ViewModelModule.kt` (it already has 22 parameters, `viewModelOf`'s maximum).
-- [ ] Move the widget ordering from `TaskWidgetWorker` into `TaskWidgetStates` (`Batch.query`,
+- [x] Move the widget ordering from `TaskWidgetWorker` into `TaskWidgetStates` (`Batch.query`,
   settings and `parentOf` read once in `prepare`), so iOS follows. Today the Inbox widget lists
   `created DESC` and the project widget `position ASC`; the PR description says both change.
-- [ ] Sort with the contract rules (section 12): parse due and created dates instead of comparing
+- [x] Sort with the contract rules (section 12): parse due and created dates instead of comparing
   strings, lowercase titles instead of `String.CASE_INSENSITIVE_ORDER`, ties by position then id.
   Enable `TaskOrderFixtureTest`.
-- [ ] `InboxViewModel` sets the order and the tasks in one state update; the project screen
+- [x] `InboxViewModel` sets the order and the tasks in one state update; the project screen
   builds the parent map once, not per section.
 
 ## Phase 6: iOS storage fixes (D13)

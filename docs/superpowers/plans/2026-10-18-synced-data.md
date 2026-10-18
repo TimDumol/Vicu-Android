@@ -235,15 +235,15 @@ the author or by us, has to:
 
 ## Phase 6: iOS storage fixes (D13)
 
-- [ ] **6.1 Install id and session values out of the backup** (`settings.md` gap 1). The install
+- [x] **6.1 Install id and session values out of the backup** (`settings.md` gap 1). The install
   id moves to the Keychain (this device only); the other `NSUserDefaults` session values move to
   a file in Application Support (excluded). On the first start of the new version, a device whose
   Keychain still holds its tokens moves its values; a device without them is a restored copy and
   gets a new install id, so it never deletes the original's backup token.
-- [ ] **6.2 Widget configurations across an account switch** (gap 3). WidgetKit keeps the
+- [x] **6.2 Widget configurations across an account switch** (gap 3). WidgetKit keeps the
   configuration, so the snapshot catalog carries an account tag and a widget configured under
   another account shows "choose another" instead of the new account's project with the same id.
-- [ ] **6.3 The App Group** (gap 4): exclude `widgets/` and `share-inbox/` from backup, and empty
+- [x] **6.3 The App Group** (gap 4): exclude `widgets/` and `share-inbox/` from backup, and empty
   `share-inbox/` in `wipeEverything` on iOS.
 - [ ] Run the iOS gate after each common-code phase (W4), on this Mac.
 

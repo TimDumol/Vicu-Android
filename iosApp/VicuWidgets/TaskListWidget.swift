@@ -30,17 +30,19 @@ struct ViewEntity: AppEntity {
     }
 
     init(_ entry: WidgetCatalogEntry) {
-        self.init(id: entry.key, name: entry.name, kind: entry.kind)
+        self.init(id: entry.entityId, name: entry.name, kind: entry.kind)
     }
 }
 
-/// The views from the app's catalog. One that is gone (a deleted project) still resolves, so the
-/// widget keeps it and says it is not available instead of quietly switching to Today.
+/// The views from the app's catalog. One that is gone (a deleted project, or one of another
+/// account) still resolves, so the widget keeps it and says it is not available instead of
+/// quietly switching to Today.
 struct ViewQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [ViewEntity] {
-        let views = WidgetStore.catalog()?.views ?? []
+        let catalog = WidgetStore.catalog()
         return identifiers.map { id in
-            views.first { $0.key == id }.map(ViewEntity.init) ?? ViewEntity(id: id, name: "Not available", kind: "")
+            catalog?.view(id: id).map { ViewEntity(id: id, name: $0.name, kind: $0.kind) }
+                ?? ViewEntity(id: id, name: "Not available", kind: "")
         }
     }
 
@@ -124,7 +126,7 @@ struct TaskListProvider: AppIntentTimelineProvider {
 
         guard let catalog else { return message("Open Vicu to set up the widget", name: "Vicu") }
         guard catalog.signedIn else { return message("Log in to see your tasks") }
-        guard let snapshot = WidgetStore.snapshot(key: view.id) else {
+        guard let entry = catalog.view(id: view.id), let snapshot = WidgetStore.snapshot(key: entry.key) else {
             return message("This list is no longer available. Edit the widget to choose another.")
         }
 

@@ -50,7 +50,7 @@ class IosShareInbox(
     private val networkMonitor: NetworkMonitor,
     private val appMessages: AppMessages,
     private val syncRequester: () -> SyncRequester,
-    private val folder: () -> String? = { IosPaths.appGroup?.let { IosPaths.subdirectory(it, "share-inbox") } },
+    private val folder: () -> String? = { IosPaths.appGroupFolder("share-inbox") },
 ) {
     private val mutex = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
@@ -91,6 +91,16 @@ class IosShareInbox(
         }
         if (changed) syncRequester().request()
         added.size
+    }
+
+    /**
+     * Drops every share that was not added yet, finished or still open in the share sheet: the
+     * account it was meant for is gone (sign-out, another account), and the next one's Inbox is
+     * not where it was sent. The folder itself stays, with its backup exclusion.
+     */
+    suspend fun discardAll(): Unit = mutex.withLock {
+        val root = folder()?.let(::Path) ?: return@withLock
+        if (SystemFileSystem.exists(root)) SystemFileSystem.list(root).forEach(::delete)
     }
 
     private sealed interface Outcome {

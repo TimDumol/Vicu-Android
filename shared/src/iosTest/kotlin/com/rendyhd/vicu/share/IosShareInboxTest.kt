@@ -161,6 +161,23 @@ class IosShareInboxTest {
     }
 
     @Test
+    fun sharesForAnAccountThatIsGoneAreDropped() = runTest {
+        share("h", """{"title":"For the old account","files":["photo.jpg"]}""", "photo.jpg")
+        write("$folder/i.part/item.json", """{"title":"Still in the share sheet"}""")
+        val inbox = inbox()
+
+        inbox.discardAll()
+
+        // The folder stays, with its backup exclusion; what was in it is gone.
+        assertTrue(exists(folder))
+        assertTrue(SystemFileSystem.list(Path(folder)).isEmpty())
+        signIn()
+        createSucceeds()
+        assertEquals(0, inbox.import())
+        assertTrue(tasks.created.isEmpty())
+    }
+
+    @Test
     fun aRefusedShareIsReportedAndDropped() = runTest {
         signIn()
         tasks.createHandler = { NetworkResult.Error("Forbidden", code = 403) }

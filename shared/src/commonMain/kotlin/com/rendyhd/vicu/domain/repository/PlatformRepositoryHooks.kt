@@ -37,6 +37,13 @@ interface PlatformRepositoryHooks {
      */
     suspend fun clearWidgetConfigurations() {}
 
+    /**
+     * Drops what other apps shared to Vicu that has not been added as a task yet: it was meant
+     * for the account that is gone. Only iOS keeps shares waiting (its share extension saves
+     * them for the app); Android adds a share while the share screen is open.
+     */
+    suspend fun discardPendingShares() {}
+
     /** Called after a routine definition or occurrence changes. */
     suspend fun routinesChanged() {
         updateWidgets()

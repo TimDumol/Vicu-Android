@@ -88,6 +88,7 @@ val iosModule = module {
             notifications = { get() },
             backgroundTasks = { get() },
             widgets = { get() },
+            shareInbox = { get() },
             appScope = get(),
         )
     }

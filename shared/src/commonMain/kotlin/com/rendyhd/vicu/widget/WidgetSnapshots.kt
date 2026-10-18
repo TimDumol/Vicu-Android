@@ -63,7 +63,13 @@ data class TaskWidgetSnapshot(
 
 /** A view the widget configuration offers. */
 @Serializable
-data class WidgetCatalogEntry(val key: String, val name: String, val kind: String)
+data class WidgetCatalogEntry(
+    val key: String,
+    val name: String,
+    val kind: String,
+    /** The id the widget configuration keeps ([WidgetSnapshots.entityId]). */
+    val id: String = key,
+)
 
 /** The views to choose from, whether anyone is signed in, and the widgets' colours. */
 @Serializable
@@ -72,6 +78,13 @@ data class WidgetCatalog(
     val views: List<WidgetCatalogEntry>,
     val light: WidgetPalette,
     val dark: WidgetPalette,
+    /**
+     * A tag for the account signed in, made up by the app and kept until that account's data is
+     * wiped; empty while signed out. Null in a catalog written before the views carried it.
+     */
+    val account: String? = null,
+    /** The account whose projects and lists the widgets configured before then show. */
+    val untaggedAccount: String = "",
 )
 
 /** Colours as #RRGGBB, from the Vicu scheme the app uses on iOS. */
@@ -120,6 +133,9 @@ object WidgetSnapshots {
     const val VIEWS_DIR = "views"
     const val ACTIONS_DIR = "actions"
 
+    /** The signed-in account's tag ([WidgetCatalog.account]); the app's own, the extension never reads it. */
+    const val ACCOUNT_FILE = "account"
+
     /** A file-safe key for a view: today, inbox, upcoming, anytime, project-12, list-<id>. */
     fun key(type: WidgetViewType, id: String): String = when (type) {
         WidgetViewType.TODAY -> "today"
@@ -128,6 +144,30 @@ object WidgetSnapshots {
         WidgetViewType.ANYTIME -> "anytime"
         WidgetViewType.PROJECT -> "project-$id"
         WidgetViewType.CUSTOM_LIST -> "list-" + id.map { if (it.isLetterOrDigit() || it == '-' || it == '_') it else '_' }.joinToString("")
+    }
+
+    /**
+     * The id WidgetKit keeps for a widget configured to show a view. A smart list shows whichever
+     * account is signed in, so its id is its key. A project or custom list belongs to the account
+     * it was chosen under, so its id carries that account's tag (`project-12@4f0c2a9e1b7d`): WidgetKit
+     * keeps the configuration across a sign-out, and a widget chosen under another account then
+     * says to choose another list instead of showing the new account's project 12.
+     */
+    fun entityId(type: WidgetViewType, key: String, account: String): String = when (type) {
+        WidgetViewType.PROJECT, WidgetViewType.CUSTOM_LIST -> if (account.isEmpty()) key else "$key@$account"
+        WidgetViewType.TODAY, WidgetViewType.INBOX, WidgetViewType.UPCOMING, WidgetViewType.ANYTIME -> key
+    }
+
+    /**
+     * Whose projects and lists the widgets configured before the ids carried an account show
+     * (ids such as `project-12`): the account signed in when this version first wrote the catalog
+     * over one written before, carried from catalog to catalog after that. [previous] is the
+     * catalog being replaced, null when there is none; [account] the tag of the one being written.
+     */
+    fun untaggedAccount(previous: WidgetCatalog?, account: String): String = when {
+        previous == null -> ""
+        previous.account == null -> if (previous.signedIn) account else ""
+        else -> previous.untaggedAccount
     }
 
     /** The smart lists every widget can show, in the order the configuration lists them. */

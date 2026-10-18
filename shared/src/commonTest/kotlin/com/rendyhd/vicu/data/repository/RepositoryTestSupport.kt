@@ -439,6 +439,8 @@ class RecordingRepositoryHooks : PlatformRepositoryHooks {
         private set
     var clearWidgetConfigurationsCalls = 0
         private set
+    var discardPendingSharesCalls = 0
+        private set
 
     override fun triggerSync() {
         syncTriggers++
@@ -472,6 +474,10 @@ class RecordingRepositoryHooks : PlatformRepositoryHooks {
 
     override suspend fun clearWidgetConfigurations() {
         clearWidgetConfigurationsCalls++
+    }
+
+    override suspend fun discardPendingShares() {
+        discardPendingSharesCalls++
     }
 }
 

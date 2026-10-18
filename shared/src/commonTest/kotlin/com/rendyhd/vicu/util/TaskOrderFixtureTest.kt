@@ -63,7 +63,7 @@ class TaskOrderFixtureTest {
     }
 
     @Test
-    fun `a project uses its own order, else its nearest parent's, else the global one`() {
+    fun `a project uses its own order - else its nearest parent's - else the global one`() {
         val parentOf = block.resolve.parents.mapKeys { it.key.toLong() }
         for (v in block.resolve.vectors) {
             val settings = TaskOrderSettings.fromEntries(v.entries)
@@ -82,7 +82,7 @@ class TaskOrderFixtureTest {
     }
 
     @Test
-    fun `the global order reads as the default when absent, null or unknown`() {
+    fun `the global order reads as the default when absent - null or unknown`() {
         val reads = root.getValue("syncedPrefs").jsonObject.getValue("read").let { json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(ReadVector.serializer()), it) }
         for (v in reads.filter { it.key == SyncedPrefKeys.TASK_ORDER }) {
             assertEquals(v.expect.jsonPrimitive.content, TaskOrderSettings.fromEntries(v.entries).global.key, v.name)

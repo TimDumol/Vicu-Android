@@ -174,7 +174,7 @@ class SyncedPreferencesTest {
     }
 
     @Test
-    fun `a reset writes null so it reaches the other devices, and a default is never written`() = runTest {
+    fun `a reset writes null so it reaches the other devices - and a default is never written`() = runTest {
         val rig = rig(inbox = null)
 
         rig.prefs.set(SyncedPrefKeys.TASK_ORDER, null)

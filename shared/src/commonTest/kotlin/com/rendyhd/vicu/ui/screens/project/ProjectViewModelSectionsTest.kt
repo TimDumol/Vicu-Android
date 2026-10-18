@@ -132,7 +132,7 @@ class ProjectViewModelSectionsTest {
     }
 
     @Test
-    fun `each group is sorted in its project's order, inherited from the nearest parent`() = runTest {
+    fun `each group is sorted in its project's order - inherited from the nearest parent`() = runTest {
         val stores = Stores().apply {
             tasks.put(Task(id = 1, title = "b", projectId = 1, position = 1.0))
             tasks.put(Task(id = 2, title = "a", projectId = 1, position = 2.0))

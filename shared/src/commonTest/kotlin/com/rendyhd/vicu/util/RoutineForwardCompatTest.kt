@@ -66,7 +66,7 @@ class RoutineForwardCompatTest {
     }
 
     @Test
-    fun `the winning definition and records carry their own unknown fields, the server wins at the top`() {
+    fun `the winning definition and records carry their own unknown fields - the server wins at the top`() {
         val local = assertNotNull(RoutineEnvelope.parse(carrier(payloadJson(updatedAt = "2026-10-06T09:00:00.000Z")), json).payload)
             .let { it.copy(unknown = JsonObject(mapOf("future_top" to JsonPrimitive("local"), "local_only" to JsonPrimitive(1)))) }
         val remote = assertNotNull(RoutineEnvelope.parse(carrier(payloadJson()), json).payload)
@@ -97,7 +97,7 @@ class RoutineForwardCompatTest {
     }
 
     @Test
-    fun `a newer payload version is update required, not damage`() {
+    fun `a newer payload version is update required - not damage`() {
         val parsed = RoutineEnvelope.parse(carrier(payloadJson(version = 2)), json)
         assertNull(parsed.payload)
         assertTrue(parsed.isNewerVersion)

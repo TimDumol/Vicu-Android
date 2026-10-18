@@ -158,7 +158,7 @@ class SyncedDocumentSyncTest {
     }
 
     @Test
-    fun `another user's carrier is never read, merged or deleted`() = runTest {
+    fun `another user's carrier is never read - merged or deleted`() = runTest {
         val tasks = TaskListServer()
         tasks.put(900, done = true, description = carrier(document("a" to CustomListSyncRecord(wire("a"), rev(10)))))
         tasks.put(899, done = true, createdBy = 2, description = carrier(document("theirs" to CustomListSyncRecord(wire("theirs"), rev(20)))))

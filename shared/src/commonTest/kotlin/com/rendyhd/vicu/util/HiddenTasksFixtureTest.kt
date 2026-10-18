@@ -41,12 +41,12 @@ class HiddenTasksFixtureTest {
     }
 
     @Test
-    fun `a task is hidden by its marker, whatever the kind and never by its title`() {
+    fun `a task is hidden by its marker - whatever the kind and never by its title`() {
         for (v in block.markers) assertEquals(v.hidden, HiddenTasks.isHidden(v.description), v.name)
     }
 
     @Test
-    fun `only the signed-in user's carriers are used, and the lowest id is written`() {
+    fun `only the signed-in user's carriers are used - and the lowest id is written`() {
         for (v in block.ownership) {
             val tasks = v.carriers.map { TaskDto(id = it.id, createdBy = it.createdBy?.let { id -> UserDto(id = id) }) }
             val used = tasks.filter { HiddenTasks.isOwn(it, v.me) }.map { it.id }.sorted()

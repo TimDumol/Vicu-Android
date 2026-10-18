@@ -61,7 +61,7 @@ class TaskOrderSortTest {
     }
 
     @Test
-    fun `priority puts the highest first, then dated before undated`() {
+    fun `priority puts the highest first - then dated before undated`() {
         assertEquals(listOf(2L, 3L, 1L, 4L), ids(TaskOrder.PRIORITY))
     }
 
@@ -107,7 +107,7 @@ class TaskOrderSortTest {
     private fun project(id: Long, parent: Long = 0) = Project(id = id, title = "p$id", parentProjectId = parent)
 
     @Test
-    fun `a project follows its own choice, then its nearest parent's, then the global one`() {
+    fun `a project follows its own choice - then its nearest parent's - then the global one`() {
         val projects = listOf(project(1), project(2, parent = 1), project(3, parent = 2), project(4))
         val settings = TaskOrderSettings(
             global = TaskOrder.TITLE,

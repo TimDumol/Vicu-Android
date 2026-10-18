@@ -48,8 +48,22 @@ the device.
 
 ## Finding them
 
-Vikunja 2.4's `q` search matches text inside a description's HTML comment, but not a literal
-`<!--`, so every search uses the marker name alone, with the filter `done = true`.
+Vikunja 2.4's `q` search matches text inside a description's HTML comment, so every search uses
+the marker name alone.
+
+Checked against Vikunja 2.4.0 on 2026-10-18 (the seeded test server):
+
+- Every task in a list, a search and `GET tasks/{id}` carries `created_by` with the user id, and
+  a task created over an API token belongs to the token's user. `GET user` works over an API
+  token.
+- `q=vicu-prefs` finds a carrier whether it is done or open; `filter=done = true` or
+  `done = false` narrows it. One kind's name does not match another kind (`vicu-prefs` and
+  `vicu-custom-lists`), while `q=vicu-` matches every kind.
+- A member of a shared project finds the owner's carriers in that project (not the owner's other
+  projects), with the owner as `created_by`.
+- Tasks of an archived project are left out of `GET tasks` and of every search (also with
+  `include_archived`), but `GET tasks/{id}` still returns them. Creating, changing or deleting a
+  task there answers 412.
 
 - **Custom-list carrier** (`CarrierFinder`, desktop `carrier-discovery.ts`). The ids seen before
   are remembered (`CarrierIdStore`, for the current server only; desktop `carrier-ids.json`, per
@@ -127,7 +141,7 @@ Both apps decide by the marker, never by the title, and both know two marker nam
 | Given a due date, repeat or reminders in the web UI | Still hidden. The next write puts the fields back | The same |
 | Moved to another project | Still found (by id, or by the search over every project). Writes never send the project | Still found. New archive parts go to its new project; existing ones stay where they are and are still found |
 | Description edited in the web UI | A broken marker makes it malformed: it is ignored, never deleted, and every sync reports it. When no readable carrier is left, the next sync that has lists creates a new one. Text added next to the marker is lost on the next write | Mobile shows "routine record needs repair" in the Routines screen; the desktop leaves the routine out without a message. Text next to the marker is kept |
-| Its project archived | Neither app handles it. Vikunja refuses changes in an archived project, so writes fail until the project is restored | The same |
+| Its project archived | Found only by a remembered id: searches and scans leave archived projects out. Vikunja refuses changes there (412), so writes fail until the project is restored, and a device that does not remember the id creates a new carrier | The same; the task refresh does not see it either |
 | A newer version wrote it | Both apps stop syncing custom lists with "update required"; local edits are still kept locally | Mobile reports it as needing repair, the desktop leaves it out. Neither writes it |
 
 ## Where the apps differ

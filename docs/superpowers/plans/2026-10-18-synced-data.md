@@ -47,7 +47,8 @@ Mac now, so this session can).
 
 ## Phase 0: prerequisites
 
-- [ ] **0.1 Server checks (W3).** Run the seed in the desktop repo (`node scripts/ui-verify/seed.mjs`,
+- [x] **0.1 Server checks (W3).** Done 2026-10-18; all as expected except that archived
+  projects are invisible to search and scan (results in `docs/hidden-tasks.md`, Finding them). Run the seed in the desktop repo (`node scripts/ui-verify/seed.mjs`,
   which resets the test user's projects on the shared test server, so no harness may run at the
   same time), then check against `localhost:3456`, as a small script in the scratchpad:
   - `GET tasks?q=vicu-custom-lists&filter=done = true` returns `created_by.id` on each task.

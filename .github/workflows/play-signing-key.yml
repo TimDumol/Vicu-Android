@@ -1,0 +1,51 @@
+name: Export the release key for Play App Signing
+
+# Exports the release key (the key the GitHub APKs are signed with) with Google's PEPK tool,
+# encrypted with the Play Console's encryption public key, so Play signs its builds with the
+# same key (Play Console, App signing, Change key, Export and upload a key from Java keystore).
+# Only Google can decrypt the ZIP; it is kept as an artifact for one day.
+
+on:
+  workflow_dispatch:
+    inputs:
+      encryption_key_base64:
+        description: 'encryption_public_key.pem from the Play Console, base64-encoded'
+        required: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Decode keystore and encryption key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          ENCRYPTION_KEY_BASE64: ${{ inputs.encryption_key_base64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > release-key.jks
+          echo "$ENCRYPTION_KEY_BASE64" | base64 -d > encryption_public_key.pem
+
+      - name: Export the encrypted key
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          curl -sSfL -o pepk.jar https://www.gstatic.com/play-apps-publisher-rapid/signing-tool/prod/pepk.jar
+          java -jar pepk.jar --keystore=release-key.jks --alias="$KEY_ALIAS" \
+            --keystore-pass="$STORE_PASSWORD" --key-pass="$KEY_PASSWORD" \
+            --output=play-signing-key.zip --include-cert \
+            --rsa-aes-encryption --encryption-key-path=encryption_public_key.pem
+          rm release-key.jks
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: play-signing-key
+          path: play-signing-key.zip
+          retention-days: 1

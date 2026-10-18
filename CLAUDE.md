@@ -34,6 +34,7 @@ iOS (on a Mac with Xcode 26 and XcodeGen):
 iosApp/scripts/generate.sh                # Version.xcconfig + Vicu.xcodeproj from iosApp/project.yml
 xcodebuild -project iosApp/Vicu.xcodeproj -scheme Vicu -destination 'platform=iOS Simulator,name=iPhone 17' build
 node scripts/ui-verify-ios/install.mjs    # build, team-sign and install on a simulator
+iosApp/scripts/testflight.sh              # archive the release app and upload it to TestFlight (the user runs it)
 ```
 
 The iOS gate is the test task and the `xcodebuild` build; `.github/workflows/ios.yml` runs it on `main`. Run it after changing `commonMain` or `iosMain` when a Mac is at hand. Use JDK 17 or newer (CI uses Temurin 17; Android Studio's bundled JDK works locally).
@@ -292,7 +293,7 @@ Android classes are stubbed in JVM tests with `isReturnDefaultValues = true`. Co
 ## CI / Releases
 
 - `.github/workflows/ci.yml` runs `./gradlew test lint assembleDebug :shared:compileCommonMainKotlinMetadata` on every push and pull request (JDK 17, Gradle cache).
-- `.github/workflows/ios.yml` runs the iOS gate on `main`, and on a published release (or by hand) archives the app and uploads it to TestFlight with an App Store Connect API key (secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`).
+- `.github/workflows/ios.yml` runs the iOS gate on `main`, and on a published release (or by hand) archives the app and uploads it to TestFlight with an App Store Connect API key (secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`). GitHub's standard macOS runner has too little memory for that archive (gotcha 21), so builds go to TestFlight from a Mac with `iosApp/scripts/testflight.sh` (the Xcode account or an API key; `docs/ios.md`, Release).
 - `.github/workflows/release.yml` builds a **signed release APK** when a GitHub release is published, with the repository secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD` and `STORE_PASSWORD`, and attaches `app-release.apk`.
 - **When creating a release**: bump `versionCode` and `versionName` in `version.properties` (both apps read it), write the notes in `docs/releases/vX.Y.Z.md`, then `gh release create <tag> --title "..." --notes-file docs/releases/vX.Y.Z.md` **without attaching a local APK**. CI builds and uploads the signed APK. Never attach a debug APK manually.
 

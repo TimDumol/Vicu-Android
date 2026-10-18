@@ -36,7 +36,8 @@ most iOS breakage without a Mac.
   live heap peaks near 7.6 GB, in the devirtualization analysis, and a 6 GB heap runs out) and
   keeps the Gradle daemon at 2 GB. Build it on a Mac with 16 GB of memory. GitHub's standard
   macOS runner has 7 GB, too little for the TestFlight job in `ios.yml`: it needs a larger
-  runner (or a link that needs less memory).
+  runner (or a link that needs less memory). Until then, upload from a Mac with
+  `iosApp/scripts/testflight.sh` (see [Release](#release)).
 - Signing: put `DEVELOPMENT_TEAM = <your team id>` in `iosApp/Configuration/Local.xcconfig`
   (git-ignored) to run on a device.
 - Debug and release install side by side: `com.rendyhd.vicu.debug` ("Vicu Debug", URL scheme
@@ -226,11 +227,22 @@ background refresh, then syncs and says so in the snackbar.
      App Groups capability, and the App Group `group.com.rendyhd.vicu` assigned to all three.
      The debug ids (`.debug`) are only needed to run the debug build on a device.
    - An App Store Connect app record for `com.rendyhd.vicu`.
-   - An App Store Connect API key (App Manager), stored as the repository secrets
-     `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the .p8 contents), plus `APPLE_TEAM_ID`.
-2. Publishing a GitHub release runs the `testflight` job of `ios.yml`: it archives with automatic
-   signing (`-allowProvisioningUpdates`) and uploads the build to TestFlight. It can also be run
-   by hand (workflow_dispatch, with `upload` checked; `build_attempt` re-uploads a version).
+   - For uploads from GitHub: an App Store Connect API key (App Manager), stored as the
+     repository secrets `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the .p8 contents), plus
+     `APPLE_TEAM_ID`. Uploads from a Mac can use the Apple account signed in to Xcode instead.
+2. Upload a build to TestFlight, from a Mac or from GitHub. Both archive the Release
+   configuration with automatic signing (`-allowProvisioningUpdates`) and export it with
+   `iosApp/ExportOptions.plist`, which uploads it.
+   - **From a Mac** with 16 GB of memory: `iosApp/scripts/testflight.sh`. It signs with the
+     Apple account signed in to Xcode (Settings > Accounts) and the team in `Local.xcconfig`, or
+     with an API key when `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` are set. It takes
+     about 15 minutes; `BUILD_ATTEMPT=1` uploads the same version again, `--no-upload` only
+     archives (into `iosApp/build/testflight/`). The same can be done by hand in Xcode: Any iOS
+     Device, Product > Archive, then Distribute App > TestFlight & App Store.
+   - **From GitHub**: publishing a release runs the `testflight` job of `ios.yml`, which can also
+     be run by hand (workflow_dispatch, with `upload` checked; `build_attempt` re-uploads a
+     version). It needs a runner with more memory than GitHub's standard macOS runner (see
+     [Building and running](#building-and-running)).
 3. Submit the TestFlight build for review in App Store Connect. Review notes should give a demo
    Vikunja server and account that stays up, say that Vicu creates no accounts and connects to
    the user's own server, and explain why App Transport Security allows http (self-hosted

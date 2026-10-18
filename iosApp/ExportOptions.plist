@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- Export of the release archive to App Store Connect (TestFlight), used by .github/workflows/ios.yml. -->
+<!-- Export of the release archive to App Store Connect (TestFlight), used by scripts/testflight.sh and .github/workflows/ios.yml. -->
 <plist version="1.0">
 <dict>
 	<key>method</key>

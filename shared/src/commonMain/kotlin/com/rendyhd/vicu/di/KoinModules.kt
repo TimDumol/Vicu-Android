@@ -69,6 +69,7 @@ val databaseModule = module {
     single { RoutinePrefsStore(createDataStore(get(), "routine_prefs")) }
     single { SnoozeStore(createDataStore(get(), "snooze_prefs"), get()) }
     single { SyncCursorStore(createDataStore(get(), "sync_cursor")) }
+    single { SyncedPrefsStore(createDataStore(get(), "synced_prefs")) }
     single { TempIdGenerator(createDataStore(get(), "temp_ids")) }
     single { ThemePrefsStore(createDataStore(get(), "theme_prefs")) }
     single { WidgetPrefsStore(createDataStore(get(), "widget_prefs")) }
@@ -182,6 +183,19 @@ val repositoryModule = module {
             time = get(),
         )
     }
+    single {
+        SyncedPreferences(
+            store = get(),
+            api = get(),
+            carrierFinder = get(),
+            authManager = get(),
+            platformHooks = get(),
+            json = get(),
+            projectDao = get(),
+            messages = get(),
+            time = get(),
+        )
+    }
     single<CollaborationRepository> {
         CollaborationRepositoryImpl(
             collaborationDao = get(),
@@ -282,6 +296,7 @@ val commonModule = module {
             syncCursor = get(),
             carrierIds = get(),
             listPositions = get(),
+            syncedPreferences = get(),
         )
     }
     single { CoroutineScope(SupervisorJob() + Dispatchers.Main) }
@@ -293,6 +308,7 @@ val commonModule = module {
             repositoryHooks = get(),
             dayClock = get(),
             collaboration = get(),
+            syncedPreferences = get(),
         )
     }
     single {
@@ -347,6 +363,7 @@ val commonModule = module {
             projectCounts = get(),
             collabSync = get(),
             collaboration = get(),
+            syncedPreferences = get(),
         )
     }
 }

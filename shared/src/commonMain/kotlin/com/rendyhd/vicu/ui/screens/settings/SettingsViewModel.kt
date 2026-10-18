@@ -370,7 +370,7 @@ class SettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     /** Custom-list changes not on the server yet (sign-out deletes them). */
-    val customListChangesUnsynced: StateFlow<Boolean> = sessionCleanup.customListChangesUnsynced
+    val syncedDataUnsynced: StateFlow<Boolean> = sessionCleanup.syncedDataUnsynced
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     /**

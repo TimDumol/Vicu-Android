@@ -2,12 +2,15 @@ package com.rendyhd.vicu.data.local
 
 import com.rendyhd.vicu.data.local.dao.LocalDataDao
 import com.rendyhd.vicu.data.repository.ListPositioner
+import com.rendyhd.vicu.data.repository.SyncedPreferences
 import com.rendyhd.vicu.data.sync.SyncStaleness
 import com.rendyhd.vicu.domain.repository.CustomListRepository
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.worker.SyncEngine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * The only place that clears local data, so every screen that does it keeps the same promise:
@@ -41,6 +44,8 @@ class LocalDataWiper(
     private val carrierIds: CarrierIdStore,
     /** What was learned about the old account's lists (view ids, last positions). */
     private val listPositions: ListPositioner,
+    /** The account's synced settings; their unsynced changes count like custom lists'. */
+    private val syncedPreferences: SyncedPreferences? = null,
 ) {
     /**
      * Entries of routine history that have not been uploaded to the server yet (the phone-only
@@ -51,15 +56,19 @@ class LocalDataWiper(
     /** Queued changes (waiting, in flight or failed) that have not reached the server. */
     suspend fun unsyncedActionCount(): Int = dao.countUnsyncedActions()
 
-    /** Custom-list changes the server may not have yet; they are not in the queue. */
-    val customListChangesUnsynced: Flow<Boolean> = customLists.hasUnsyncedChanges
+    private val prefsUnsynced: Flow<Boolean> = syncedPreferences?.hasUnsyncedChanges ?: flowOf(false)
+
+    /** Custom-list or synced-settings changes the server may not have yet; they are not in the queue. */
+    val syncedDataUnsynced: Flow<Boolean> = combine(customLists.hasUnsyncedChanges, prefsUnsynced) { lists, prefs -> lists || prefs }
 
     /**
      * Everything [wipeEverything] would lose that has not reached the server: the queued changes,
-     * and unsynced custom-list changes, counted as one.
+     * and unsynced custom-list and settings changes, each counted as one.
      */
     suspend fun unsyncedChangeCount(): Int =
-        unsyncedActionCount() + if (customListChangesUnsynced.first()) 1 else 0
+        unsyncedActionCount() +
+            (if (customLists.hasUnsyncedChanges.first()) 1 else 0) +
+            (if (prefsUnsynced.first()) 1 else 0)
 
     suspend fun clearCaches() {
         SyncEngine.exclusive {
@@ -72,6 +81,10 @@ class LocalDataWiper(
     suspend fun discardUnsyncedAndClearCaches() {
         SyncEngine.exclusive {
             dao.discardUnsyncedAndClearCaches()
+            // The custom lists and settings changed here and not yet synced go too; the next sync
+            // reads them back from their carriers.
+            customLists.clearLocal()
+            syncedPreferences?.clearLocal()
             syncCursor.clear()
             syncStaleness.reset()
         }
@@ -81,6 +94,7 @@ class LocalDataWiper(
         SyncEngine.exclusive {
             dao.clearEverything()
             customLists.clearLocal()
+            syncedPreferences?.clearLocal()
             bottomBarPrefs.clear()
             // Preferences keyed by the old account's project and label ids, and the routine
             // device id. A cache clear keeps them: the same account is synced again.

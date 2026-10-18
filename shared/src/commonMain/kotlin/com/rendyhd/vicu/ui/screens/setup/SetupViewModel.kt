@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.ui.screens.setup
 
+import com.rendyhd.vicu.data.repository.SyncedPreferences
 import com.rendyhd.vicu.util.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -87,6 +88,8 @@ class SetupViewModel(
     private val platformAuthHooks: PlatformAuthHooks,
     private val syncStaleness: SyncStaleness,
     private val repositoryHooks: PlatformRepositoryHooks,
+    /** The Inbox the account's other devices chose is preselected, and this choice reaches them. */
+    private val syncedPreferences: SyncedPreferences? = null,
 ) : ViewModel() {
 
     companion object {
@@ -402,7 +405,7 @@ class SetupViewModel(
     fun confirmSetup() {
         val projectId = _uiState.value.selectedProjectId ?: return
         viewModelScope.launch {
-            authManager.onInboxProjectSelected(projectId)
+            syncedPreferences?.chooseInbox(projectId) ?: authManager.onInboxProjectSelected(projectId)
             // Whatever the cache holds is not this account's yet: the screens opening next must
             // refresh, and a sync starts now instead of waiting for the first screen to ask.
             syncStaleness.reset()
@@ -410,6 +413,29 @@ class SetupViewModel(
             platformAuthHooks.updateWidgets()
             platformAuthHooks.scheduleRefresh()
             repositoryHooks.triggerSync()
+        }
+    }
+
+    /** The synced Inbox after one settings sync, else Vikunja's default project; null when neither. */
+    private suspend fun suggestedInbox(): Long? {
+        val synced = try {
+            syncedPreferences?.let { prefs ->
+                prefs.sync()
+                prefs.syncedInboxProjectId()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(TAG, "Could not read the synced settings: ${e.message}")
+            null
+        }
+        if (synced != null) return synced
+        return try {
+            apiService.getCurrentUser().settings?.defaultProjectId?.takeIf { it > 0L }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -423,14 +449,18 @@ class SetupViewModel(
                     parentProjectId = dto.parentProjectId,
                 )
             }
-            // Show only top-level projects for inbox selection
-            val topLevel = projects.filter { it.parentProjectId == 0L }
+            // The Inbox another device of this account chose (cross-app semantics 11.4), else the
+            // default project of the Vikunja account, else a project called Inbox.
+            val suggested = suggestedInbox()?.let { id -> projects.firstOrNull { it.id == id } }
+            // Show only top-level projects for inbox selection, and the suggested one wherever it is.
+            val topLevel = projects.filter { it.parentProjectId == 0L || it.id == suggested?.id }
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     step = SetupStep.ProjectSelection,
                     projects = topLevel,
-                    selectedProjectId = (topLevel.firstOrNull { it.title.equals("Inbox", ignoreCase = true) } ?: topLevel.firstOrNull())?.id,
+                    selectedProjectId = suggested?.id
+                        ?: (topLevel.firstOrNull { it.title.equals("Inbox", ignoreCase = true) } ?: topLevel.firstOrNull())?.id,
                 )
             }
         } catch (e: Exception) {

@@ -26,8 +26,8 @@ class SessionCleanup(
     /** Entries of routine history not uploaded to the server yet (sign-out deletes them). */
     val routineHistoryCount: Flow<Int> get() = wiper.routineHistoryCount
 
-    /** Custom-list changes not on the server yet (sign-out deletes them). */
-    val customListChangesUnsynced: Flow<Boolean> get() = wiper.customListChangesUnsynced
+    /** Custom-list or synced-settings changes not on the server yet (sign-out deletes them). */
+    val syncedDataUnsynced: Flow<Boolean> get() = wiper.syncedDataUnsynced
 
     /**
      * Signs out and deletes local data. With queued changes and [discardUnsynced] false nothing

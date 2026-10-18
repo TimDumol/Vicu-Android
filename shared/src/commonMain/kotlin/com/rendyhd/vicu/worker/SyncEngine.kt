@@ -51,6 +51,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.rendyhd.vicu.data.repository.SyncedPreferences
+import com.rendyhd.vicu.data.sync.SyncedDocumentStatus
 import kotlinx.serialization.json.JsonObject
 import kotlin.time.Duration.Companion.seconds
 
@@ -95,6 +97,8 @@ class SyncEngine(
     private val collabSync: CollaborationSync? = null,
     /** Reads project members and comment signals after the refresh. */
     private val collaboration: CollaborationRepository? = null,
+    /** The settings every device of the account shares (cross-app semantics section 11). */
+    private val syncedPreferences: SyncedPreferences? = null,
 ) {
     private val missing = MissingResourceCheck(api)
 
@@ -173,6 +177,11 @@ class SyncEngine(
             when (customListRepository.sync()) {
                 CustomListSyncStatus.Pending,
                 is CustomListSyncStatus.Offline -> run.hasRetriableFailures = true
+                else -> Unit
+            }
+            when (syncedPreferences?.sync()) {
+                SyncedDocumentStatus.Pending,
+                is SyncedDocumentStatus.Offline -> run.hasRetriableFailures = true
                 else -> Unit
             }
             val outcome = refreshAllFromServer()

@@ -118,6 +118,11 @@ class SyncedDocumentSync<Doc : Any>(
     private val onStatus: (SyncedDocumentStatus) -> Unit = {},
     /** After a sync that may have changed the device's copy (widgets read some documents). */
     private val onChanged: suspend () -> Unit = {},
+    /**
+     * Runs once the carriers were read and merged, before anything is written, on the merged copy;
+     * what it returns is written (the one-time move of settings kept on the device, section 11.5).
+     */
+    private val afterMerge: suspend (SyncedDocumentState<Doc>) -> Doc = { it.document },
 ) {
     private companion object {
         const val TAG = "SyncedDocumentSync"
@@ -188,8 +193,9 @@ class SyncedDocumentSync<Doc : Any>(
             val state = local.load()
             var document = codec.normalize(state.document)
             carriers.forEach { (_, remote) -> document = codec.merge(document, remote) }
-            merged = codec.pruneTombstones(document, now)
-            local.save(state.copy(document = merged))
+            document = codec.pruneTombstones(document, now)
+            merged = afterMerge(state.copy(document = document))
+            local.save(state.copy(document = merged, dirty = state.dirty || !codec.same(merged, document)))
         }
 
         val canonical = carriers.minByOrNull { it.first.id }

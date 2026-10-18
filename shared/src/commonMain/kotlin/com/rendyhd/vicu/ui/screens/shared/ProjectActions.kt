@@ -1,6 +1,7 @@
 package com.rendyhd.vicu.ui.screens.shared
 
 import com.rendyhd.vicu.auth.AuthManager
+import com.rendyhd.vicu.data.repository.SyncedPreferences
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.ProjectShares
 import com.rendyhd.vicu.domain.model.User
@@ -57,6 +58,8 @@ class ProjectActions(
     private val dayClock: DayClock,
     /** Sharing (cross-app semantics 9.7); null where the app is built without it (tests). */
     private val collaboration: CollaborationRepository? = null,
+    /** Where the Inbox choice reaches the other devices; null in tests that do not sync it. */
+    private val syncedPreferences: SyncedPreferences? = null,
 ) {
     /** The Inbox project's id, null until one is chosen. */
     val inboxProjectId: Flow<Long?> get() = authManager.inboxProjectId
@@ -75,9 +78,9 @@ class ProjectActions(
         return projectRepository.update(updated).toResult("Project updated")
     }
 
-    /** Makes [projectId] the Inbox: the same as choosing it in the Inbox project picker. */
+    /** Makes [projectId] the Inbox, on every device of the account: the same as the Inbox project picker. */
     suspend fun setInbox(projectId: Long): ProjectActionResult {
-        authManager.onInboxProjectSelected(projectId)
+        syncedPreferences?.chooseInbox(projectId) ?: authManager.onInboxProjectSelected(projectId)
         return ProjectActionResult.Done("Inbox project updated")
     }
 

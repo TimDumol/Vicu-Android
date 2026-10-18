@@ -42,7 +42,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val useDeviceColors by viewModel.useDeviceColors.collectAsStateWithLifecycle()
     val routineHistoryCount by viewModel.routineHistoryCount.collectAsStateWithLifecycle()
-    val customListChangesUnsynced by viewModel.customListChangesUnsynced.collectAsStateWithLifecycle()
+    val syncedDataUnsynced by viewModel.syncedDataUnsynced.collectAsStateWithLifecycle()
     val projectRows by viewModel.projectRows.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -132,7 +132,7 @@ fun SettingsScreen(
         dialog = dialog,
         state = state,
         routineHistoryCount = routineHistoryCount,
-        customListChangesUnsynced = customListChangesUnsynced,
+        syncedDataUnsynced = syncedDataUnsynced,
         viewModel = viewModel,
         open = { dialog = it },
         dismiss = { dialog = null },

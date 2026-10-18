@@ -7,6 +7,7 @@ import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import com.rendyhd.vicu.util.CustomListEnvelope
 import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.Logger
+import com.rendyhd.vicu.util.SyncedPrefsEnvelope
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TimeSource
 import kotlin.concurrent.Volatile
@@ -30,6 +31,13 @@ class CarrierSpec(
             kind = "custom-lists",
             search = "vicu-custom-lists",
             isCarrier = { CustomListEnvelope.hasMarker(it.description) },
+        )
+
+        /** The synced preferences (docs/cross-app-semantics-v1.md, section 11). */
+        val PREFS = CarrierSpec(
+            kind = "prefs",
+            search = SyncedPrefsEnvelope.SEARCH,
+            isCarrier = { SyncedPrefsEnvelope.hasMarker(it.description) },
         )
     }
 }

@@ -44,10 +44,12 @@ class AccountSession(
     suspend fun apply(plan: LoginPlan) {
         if (plan.action == LoginDataAction.WIPE_ALL) {
             wiper.wipeEverything()
-            // The Inbox project belonged to the account that is gone. Left in place, it would send
-            // the app straight to an Inbox that does not exist for the new account, skipping the
-            // project selection that sets the right one.
-            tokenStorage.clearInboxProjectId()
+            // Everything stored about the old session goes before the new sign-in stores its own:
+            // a sign-in writes only what its method uses, so the old refresh token, OIDC provider
+            // or JWT would otherwise stay behind. The Inbox goes too: left in place, it would send
+            // the app straight to an Inbox that does not exist for the new account. The install id
+            // stays (it belongs to the device).
+            tokenStorage.clear()
         }
     }
 

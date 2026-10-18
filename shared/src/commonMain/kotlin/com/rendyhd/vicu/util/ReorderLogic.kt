@@ -6,8 +6,7 @@ import com.rendyhd.vicu.domain.model.TaskOrder
 /** Vikunja position spacing used when appending to the end of a list view. */
 const val POSITION_STEP = 65_536.0
 
-private fun isDated(t: Task): Boolean =
-    t.dueDate.isNotBlank() && !DateUtils.isNullDate(t.dueDate)
+private fun isDated(t: Task): Boolean = isDatedTask(t)
 
 /**
  * Whether [t] is placed by hand in a list sorted by [order]. In the default order the undated

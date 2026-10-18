@@ -3,7 +3,8 @@ package com.rendyhd.vicu.ui.screens.project
 import androidx.lifecycle.SavedStateHandle
 import com.rendyhd.vicu.data.local.BehaviorPrefsStore
 import com.rendyhd.vicu.data.local.ProjectSectionPrefsStore
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.InMemorySyncedEntries
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.Task
@@ -62,7 +63,7 @@ class ProjectViewModelStateTest {
             refresher = fakeScreenRefresher(tasks, projects, labels),
             behaviorPrefsStore = BehaviorPrefsStore(InMemoryPreferencesDataStore()),
             projectSectionPrefsStore = ProjectSectionPrefsStore(InMemoryPreferencesDataStore()),
-            taskOrderPrefsStore = TaskOrderPrefsStore(InMemoryPreferencesDataStore()),
+            taskOrderPreferences = TaskOrderPreferences(InMemorySyncedEntries()),
             projectActions = testProjectActions(projects),
             reviewPrefsStore = ReviewPrefsStore(InMemoryPreferencesDataStore()),
             appMessages = AppMessages(),

@@ -98,4 +98,40 @@ class TaskWidgetStatesTest {
         assertTrue(states.isSignedIn())
         assertEquals(TaskWidgetStates.SIGNED_OUT, states.signedOut().error)
     }
+
+    @Test
+    fun aProjectWidgetListsInTheProjectsSyncedOrderBeforeTakingRows() = runTest {
+        val rows = listOf(
+            TaskEntity(id = 1, title = "b undated", projectId = 4, position = 200.0),
+            TaskEntity(id = 2, title = "a dated later", projectId = 4, dueDate = "2026-10-20T10:00:00Z", position = 100.0),
+            TaskEntity(id = 3, title = "c dated sooner", projectId = 4, dueDate = "2026-10-13T10:00:00Z", position = 300.0),
+            TaskEntity(id = 4, title = "d undated", projectId = 4, position = 50.0),
+        )
+        val dao = object : TaskDao by FakeTaskDao() {
+            override suspend fun getByProjectIdSync(projectId: Long, limit: Int): List<TaskEntity> {
+                assertEquals(-1, limit, "the whole list is read, then sorted")
+                return rows
+            }
+        }
+        val entries = com.rendyhd.vicu.data.repository.InMemorySyncedEntries()
+        val orders = com.rendyhd.vicu.data.repository.TaskOrderPreferences(entries)
+        val widget = TaskWidgetStates(
+            taskDao = dao,
+            projectDao = FakeProjectDao(listOf(ProjectEntity(id = 4, title = "Garden"))),
+            taskRepository = FakeTaskRepository(),
+            tokenStorage = storage,
+            customListStore = CustomListStore(InMemoryPreferencesDataStore()),
+            widgetPrefsStore = WidgetPrefsStore(InMemoryPreferencesDataStore()),
+            behaviorPrefsStore = BehaviorPrefsStore(InMemoryPreferencesDataStore()),
+            time = FixedTimeSource(Instant.parse("2026-10-12T08:00:00Z"), zone),
+            collaborationContext = { CustomListContext.NONE },
+            taskOrders = orders,
+        )
+        val config = WidgetConfig(WidgetViewType.PROJECT, "4", "Garden")
+
+        assertEquals(listOf(3L, 2L, 4L, 1L), widget.prepare(day).build(config).tasks.map { it.id }, "default: dated first, then manual")
+
+        orders.setProjectOrder(4, com.rendyhd.vicu.domain.model.TaskOrder.TITLE)
+        assertEquals(listOf(2L, 1L, 3L, 4L), widget.prepare(day).build(config).tasks.map { it.id })
+    }
 }

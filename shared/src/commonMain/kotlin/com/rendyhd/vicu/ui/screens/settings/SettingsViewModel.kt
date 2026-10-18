@@ -8,7 +8,7 @@ import com.rendyhd.vicu.auth.SessionCleanup
 import com.rendyhd.vicu.auth.SignOutResult
 import com.rendyhd.vicu.auth.TokenStorage
 import com.rendyhd.vicu.data.local.BehaviorPrefs
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.domain.model.TaskOrder
 import com.rendyhd.vicu.domain.model.TaskOrderSettings
 import com.rendyhd.vicu.data.local.BehaviorPrefsStore
@@ -176,7 +176,7 @@ class SettingsViewModel(
     private val platformSettingsHooks: PlatformSettingsHooks,
     private val syncCursor: SyncCursorStore,
     private val projectActions: ProjectActions,
-    private val taskOrderPrefsStore: TaskOrderPrefsStore,
+    private val taskOrderPreferences: TaskOrderPreferences,
 ) : ViewModel() {
 
     private val _messages = MutableStateFlow<Pair<String?, String?>>(null to null)
@@ -242,7 +242,7 @@ class SettingsViewModel(
         sync,
         account,
         prefs,
-        combine(routinePrefsStore.visibility, taskOrderPrefsStore.settings) { visibility, orders -> visibility to orders },
+        combine(routinePrefsStore.visibility, taskOrderPreferences.settings) { visibility, orders -> visibility to orders },
     ) { c, s, a, p, (routineVisibility, taskOrders) ->
         SettingsUiState(
             taskOrders = taskOrders,
@@ -701,12 +701,12 @@ class SettingsViewModel(
 
     /** The order of every project that has none of its own (and of the widgets showing one). */
     fun setGlobalTaskOrder(order: TaskOrder) {
-        viewModelScope.launch { taskOrderPrefsStore.setGlobalOrder(order) }
+        viewModelScope.launch { taskOrderPreferences.setGlobalOrder(order) }
     }
 
     /** Every project follows the global order again. */
     fun clearProjectTaskOrders() {
-        viewModelScope.launch { taskOrderPrefsStore.clearProjectOverrides() }
+        viewModelScope.launch { taskOrderPreferences.clearProjectOverrides() }
     }
 
     fun setShowProjectProgress(enabled: Boolean) {

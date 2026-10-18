@@ -36,7 +36,6 @@ class LocalDataWiper(
     private val syncStaleness: SyncStaleness,
     private val projectSectionPrefs: ProjectSectionPrefsStore,
     private val labelOrderPrefs: LabelOrderPrefsStore,
-    private val taskOrderPrefs: TaskOrderPrefsStore,
     private val routinePrefs: RoutinePrefsStore,
     private val widgetPrefs: WidgetPrefsStore,
     /** Forgotten with the cache, so the next refresh starts from the server's full list. */
@@ -101,7 +100,6 @@ class LocalDataWiper(
             // device id. A cache clear keeps them: the same account is synced again.
             projectSectionPrefs.clear()
             labelOrderPrefs.clear()
-            taskOrderPrefs.clear()
             routinePrefs.clear()
             widgetPrefs.clear()
             carrierIds.clear()

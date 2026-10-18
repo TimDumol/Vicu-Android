@@ -1,10 +1,15 @@
 package com.rendyhd.vicu.domain.model
 
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+
 /**
  * How the tasks of a project are ordered: in the project screen, the Inbox, and the widgets that
- * show them. Chosen for every project in Settings and overridden per project from its screen; a
- * project without its own choice follows its nearest parent that has one, then the global choice.
- * Stored on the device only ([key] is the stored form, never rename one).
+ * show them (docs/cross-app-semantics-v1.md, section 12). Chosen for every project in Settings and
+ * overridden per project from its screen; a project without its own choice follows its nearest
+ * parent that has one, then the global choice. Synced with the other devices and the desktop
+ * ([key] is the synced form, never rename one).
  */
 enum class TaskOrder(val key: String, val label: String) {
     /** Dated tasks first by due date, then the rest in their manual order: the desktop's order. */
@@ -44,6 +49,24 @@ data class TaskOrderSettings(
     val global: TaskOrder = TaskOrder.DEFAULT,
     val projectOverrides: Map<Long, TaskOrder> = emptyMap(),
 ) {
+    companion object {
+        /**
+         * The orders the synced settings hold (section 11.3): `task_order` and the
+         * `task_order.project.<id>` entries. A null entry is no entry; a value this version does
+         * not know (a newer app's order) acts as the default order.
+         */
+        fun fromEntries(entries: Map<String, JsonElement?>): TaskOrderSettings {
+            fun orderOf(value: JsonElement): TaskOrder =
+                (value as? JsonPrimitive)?.takeIf { it.isString }?.content?.let(TaskOrder::fromKey) ?: TaskOrder.DEFAULT
+            val global = entries[SyncedPrefKeys.TASK_ORDER]?.takeUnless { it is JsonNull }?.let(::orderOf) ?: TaskOrder.DEFAULT
+            val overrides = entries.mapNotNull { (key, value) ->
+                val projectId = SyncedPrefKeys.taskOrderProject(key) ?: return@mapNotNull null
+                if (value == null || value is JsonNull) null else projectId to orderOf(value)
+            }.toMap()
+            return TaskOrderSettings(global, overrides)
+        }
+    }
+
     /**
      * The order [projectId] uses: its own, else that of its nearest parent with one, else the
      * global one. [projects] gives the parents; a cycle in old parent data ends the walk.

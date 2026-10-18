@@ -494,3 +494,14 @@ fun sqlLike(pattern: String, text: String): Boolean {
     }
     return Regex(regex.toString(), RegexOption.IGNORE_CASE).matches(text)
 }
+
+/** Synced settings kept in memory, as [SyncedPreferences] would hold them after a sync. */
+class InMemorySyncedEntries(initial: Map<String, kotlinx.serialization.json.JsonElement?> = emptyMap()) : SyncedEntries {
+    private val state = kotlinx.coroutines.flow.MutableStateFlow(initial)
+    override val entries: kotlinx.coroutines.flow.Flow<Map<String, kotlinx.serialization.json.JsonElement?>> = state
+
+    override suspend fun set(key: String, value: kotlinx.serialization.json.JsonElement?) {
+        if (value == null && key !in state.value) return
+        state.value = state.value + (key to value)
+    }
+}

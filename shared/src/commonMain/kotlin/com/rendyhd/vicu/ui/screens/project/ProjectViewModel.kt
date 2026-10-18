@@ -8,7 +8,7 @@ import com.rendyhd.vicu.data.local.ProjectSectionPrefsStore
 import com.rendyhd.vicu.data.local.ReviewPrefs
 import com.rendyhd.vicu.data.local.ReviewPrefsStore
 import com.rendyhd.vicu.data.local.SubprojectDisplayMode
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.model.TaskOrder
@@ -153,7 +153,7 @@ class ProjectViewModel(
     private val refresher: ScreenRefresher,
     private val behaviorPrefsStore: BehaviorPrefsStore,
     private val projectSectionPrefsStore: ProjectSectionPrefsStore,
-    private val taskOrderPrefsStore: TaskOrderPrefsStore,
+    private val taskOrderPreferences: TaskOrderPreferences,
     private val projectActions: ProjectActions,
     reviewPrefsStore: ReviewPrefsStore,
     private val appMessages: AppMessages,
@@ -184,7 +184,7 @@ class ProjectViewModel(
                 behaviorPrefsStore.getPrefs(),
                 combine(
                     projectSectionPrefsStore.collapsedSectionIds(projectId),
-                    taskOrderPrefsStore.settings,
+                    taskOrderPreferences.settings,
                 ) { collapsed, orders -> collapsed to orders },
             ) { project, allProjects, parentTasks, behaviorPrefs, (collapsedSectionIds, taskOrders) ->
                 ProjectInputs(
@@ -216,7 +216,9 @@ class ProjectViewModel(
                 val activeProjects = allProjects
                 // Each project's own order, else its nearest parent's, else the global one: a
                 // section follows the project it shows.
-                val orderFor = { id: Long -> taskOrders.orderFor(id, activeProjects) }
+                // The parents are read once for every section, not once per section.
+                val parentOf = activeProjects.associate { it.id to it.parentProjectId }
+                val orderFor = { id: Long -> taskOrders.orderFor(id, parentOf) }
                 val taskOrder = orderFor(projectId)
                 val unsectioned = sortProjectTasks(parentTasks.filter { !it.done }, taskOrder)
                 if (subprojectDisplayMode == SubprojectDisplayMode.PROJECT_ROWS) {
@@ -434,7 +436,7 @@ class ProjectViewModel(
         projectRepository.getAll(),
         projectActions.inboxProjectId,
         reviewPrefsStore.getPrefs(),
-        combine(behaviorPrefsStore.getPrefs(), taskOrderPrefsStore.settings) { behavior, orders -> behavior to orders },
+        combine(behaviorPrefsStore.getPrefs(), taskOrderPreferences.settings) { behavior, orders -> behavior to orders },
     ) { project, all, inboxId, reviewPrefs, (behaviorPrefs, taskOrders) ->
         projectMenuState(project, all, inboxId, reviewPrefs, behaviorPrefs.confirmBeforeDelete, taskOrders)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProjectMenuState())
@@ -464,7 +466,7 @@ class ProjectViewModel(
 
     /** "Sort tasks": gives this project its own order, or with null makes it follow the default again. */
     fun setTaskOrder(order: TaskOrder?) {
-        viewModelScope.launch { taskOrderPrefsStore.setProjectOrder(projectId, order) }
+        viewModelScope.launch { taskOrderPreferences.setProjectOrder(projectId, order) }
     }
 
     fun editProject(name: String, hexColor: String, parentProjectId: Long) {

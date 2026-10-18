@@ -84,12 +84,12 @@ class SyncedPreferences(
     private val projectDao: ProjectDao? = null,
     private val messages: AppMessages? = null,
     private val time: TimeSource = SystemTimeSource,
-) {
+) : SyncedEntries {
     private val _syncStatus = MutableStateFlow<SyncedDocumentStatus>(SyncedDocumentStatus.Idle)
     val syncStatus: StateFlow<SyncedDocumentStatus> = _syncStatus
 
     /** The value of each key the user (on any device) chose; a key without an entry is at its default. */
-    val entries: Flow<Map<String, JsonElement?>> =
+    override val entries: Flow<Map<String, JsonElement?>> =
         store.state.map { state -> state?.document?.entries?.mapValues { it.value.value }.orEmpty() }.distinctUntilChanged()
 
     /** A choice the carrier may not have yet: counted as unsynced work at sign-out. */
@@ -122,7 +122,7 @@ class SyncedPreferences(
         store.load() ?: SyncedPrefsLocalState(deviceId = randomUuid()).also { store.save(it) }
 
     /** Sets [key] to [value]; null resets it to the default on every device. Nothing when it already is. */
-    suspend fun set(key: String, value: JsonElement?) {
+    override suspend fun set(key: String, value: JsonElement?) {
         val changed = engine.mutate {
             val state = loadState()
             val current = state.document.entries[key]

@@ -62,7 +62,7 @@ val viewModelModule = module {
             platformSettingsHooks = get(),
             syncCursor = get(),
             projectActions = get(),
-            taskOrderPrefsStore = get(),
+            taskOrderPreferences = get(),
         )
     }
     viewModelOf(::SetupViewModel)

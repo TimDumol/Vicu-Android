@@ -3,7 +3,8 @@ package com.rendyhd.vicu.ui.screens.project
 import androidx.lifecycle.SavedStateHandle
 import com.rendyhd.vicu.data.local.BehaviorPrefsStore
 import com.rendyhd.vicu.data.local.ProjectSectionPrefsStore
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.InMemorySyncedEntries
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.domain.model.TaskOrder
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
 import com.rendyhd.vicu.ui.fakeScreenRefresher
@@ -52,7 +53,7 @@ class ProjectViewModelSectionsTest {
     private class Stores {
         val sectionPrefs = ProjectSectionPrefsStore(InMemoryPreferencesDataStore())
         val behaviorPrefs = BehaviorPrefsStore(InMemoryPreferencesDataStore())
-        val taskOrders = TaskOrderPrefsStore(InMemoryPreferencesDataStore())
+        val taskOrders = TaskOrderPreferences(InMemorySyncedEntries())
         val tasks = FakeTaskRepository()
     }
 
@@ -67,7 +68,7 @@ class ProjectViewModelSectionsTest {
             refresher = fakeScreenRefresher(tasks, projects, labels),
             behaviorPrefsStore = behaviorPrefs,
             projectSectionPrefsStore = sectionPrefs,
-            taskOrderPrefsStore = taskOrders,
+            taskOrderPreferences = taskOrders,
             projectActions = testProjectActions(projects),
             reviewPrefsStore = ReviewPrefsStore(InMemoryPreferencesDataStore()),
             appMessages = AppMessages(),

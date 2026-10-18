@@ -4,7 +4,7 @@ import com.rendyhd.vicu.util.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rendyhd.vicu.auth.AuthManager
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.model.TaskOrder
 import com.rendyhd.vicu.domain.repository.LabelRepository
@@ -58,7 +58,7 @@ class InboxViewModel(
     private val labelRepository: LabelRepository,
     private val authManager: AuthManager,
     private val refresher: ScreenRefresher,
-    private val taskOrderPrefsStore: TaskOrderPrefsStore,
+    private val taskOrderPreferences: TaskOrderPreferences,
     navigationTicker: NavigationTicker = NavigationTicker(),
     completionToast: CompletionToast = NoCompletionToast,
 ) : ViewModel() {
@@ -96,26 +96,32 @@ class InboxViewModel(
                 combine(
                     taskRepository.getInboxTasks(inboxId),
                     projectRepository.getAll(),
-                    taskOrderPrefsStore.settings,
+                    taskOrderPreferences.settings,
                     completions.state,
                 ) { tasks, activeProjects, taskOrders, _ ->
                     // The Inbox project's order; by default dated tasks first (by date), then the
                     // rest in the order of the list view: the same order the desktop app shows.
                     // Held rows go back where they were.
-                    val order = taskOrders.orderFor(inboxId, activeProjects)
-                    _uiState.update {
-                        it.copy(
-                            taskOrder = order,
-                            ownTaskOrder = taskOrders.projectOverrides[inboxId],
-                            inheritedTaskOrder = taskOrders.inheritedOrderFor(inboxId, activeProjects),
-                        )
-                    }
-                    completions.merge(sortProjectTasks(tasks, order)) to activeProjects.any { it.id == inboxId }
-                }.collect { (tasks, inboxIsActive) ->
+                    val parentOf = activeProjects.associate { it.id to it.parentProjectId }
+                    val order = taskOrders.orderFor(inboxId, parentOf)
+                    InboxContent(
+                        tasks = completions.merge(sortProjectTasks(tasks, order)),
+                        inboxIsActive = activeProjects.any { it.id == inboxId },
+                        order = order,
+                        ownOrder = taskOrders.projectOverrides[inboxId],
+                        inheritedOrder = taskOrders.inheritedOrderFor(inboxId, parentOf),
+                    )
+                }.collect { content ->
+                    val tasks = content.tasks
+                    val inboxIsActive = content.inboxIsActive
                     Logger.d(TAG, "Flow emission: ${tasks.size} tasks for inboxId=$inboxId, active=$inboxIsActive")
                     askForUnknownPositions(inboxId, tasks)
+                    // The order and the rows it sorted change together, in one update.
                     _uiState.update {
                         it.copy(
+                            taskOrder = content.order,
+                            ownTaskOrder = content.ownOrder,
+                            inheritedTaskOrder = content.inheritedOrder,
                             tasks = if (inboxIsActive) tasks else emptyList(),
                             isLoading = false,
                             // The notice follows the Inbox; a refresh error that is waiting to be
@@ -128,6 +134,15 @@ class InboxViewModel(
         }
         if (refresher.isStale()) refresh()
     }
+
+    /** One emission of the Inbox: its rows and the order that sorted them. */
+    private class InboxContent(
+        val tasks: List<Task>,
+        val inboxIsActive: Boolean,
+        val order: TaskOrder,
+        val ownOrder: TaskOrder?,
+        val inheritedOrder: TaskOrder,
+    )
 
     /** Tasks whose position the server has been asked for (or is being asked for). */
     private val askedForPosition = HashSet<Long>()
@@ -211,7 +226,7 @@ class InboxViewModel(
     /** "Sort tasks": gives the Inbox project its own order, or with null makes it follow the default again. */
     fun setTaskOrder(order: TaskOrder?) {
         val inboxId = _uiState.value.inboxProjectId ?: return
-        viewModelScope.launch { taskOrderPrefsStore.setProjectOrder(inboxId, order) }
+        viewModelScope.launch { taskOrderPreferences.setProjectOrder(inboxId, order) }
     }
 
     fun toggleDone(task: Task) {

@@ -70,11 +70,6 @@ val databaseModule = module {
     single { SnoozeStore(createDataStore(get(), "snooze_prefs"), get()) }
     single { SyncCursorStore(createDataStore(get(), "sync_cursor")) }
     single { SyncedPrefsStore(createDataStore(get(), "synced_prefs")) }
-    single {
-        val scope = this
-        // The widgets that show a project are redrawn in its new order.
-        TaskOrderPrefsStore(createDataStore(get(), "task_order_prefs"), onChange = { scope.get<PlatformRepositoryHooks>().updateWidgets() })
-    }
     single { TempIdGenerator(createDataStore(get(), "temp_ids")) }
     single { ThemePrefsStore(createDataStore(get(), "theme_prefs")) }
     single { WidgetPrefsStore(createDataStore(get(), "widget_prefs")) }
@@ -201,6 +196,8 @@ val repositoryModule = module {
             time = get(),
         )
     }
+    // A change redraws the widgets that show a project in its order (SyncedPreferences.set does).
+    single { TaskOrderPreferences(synced = get<SyncedPreferences>()) }
     single<CollaborationRepository> {
         CollaborationRepositoryImpl(
             collaborationDao = get(),
@@ -251,6 +248,7 @@ val commonModule = module {
                 val collaboration: CollaborationRepository = get()
                 CustomListContext.of(collaboration.state.first(), collaboration.signals.first())
             },
+            taskOrders = get(),
         )
     }
     single {
@@ -296,7 +294,6 @@ val commonModule = module {
             syncStaleness = get(),
             projectSectionPrefs = get(),
             labelOrderPrefs = get(),
-            taskOrderPrefs = get(),
             routinePrefs = get(),
             widgetPrefs = get(),
             syncCursor = get(),

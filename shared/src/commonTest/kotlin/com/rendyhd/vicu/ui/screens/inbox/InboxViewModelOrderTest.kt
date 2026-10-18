@@ -4,7 +4,8 @@ import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.auth.FakeNetworkMonitor
 import com.rendyhd.vicu.auth.InMemoryTokenStorage
 import com.rendyhd.vicu.auth.RecordingAuthHooks
-import com.rendyhd.vicu.data.local.TaskOrderPrefsStore
+import com.rendyhd.vicu.data.repository.InMemorySyncedEntries
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.TaskOrder
@@ -64,7 +65,7 @@ class InboxViewModelOrderTest {
             networkMonitor = FakeNetworkMonitor(),
         )
 
-        val taskOrders = TaskOrderPrefsStore(InMemoryPreferencesDataStore())
+        val taskOrders = TaskOrderPreferences(InMemorySyncedEntries())
         fun viewModel() = InboxViewModel(tasks, this.projects, labels, auth, fakeScreenRefresher(tasks, this.projects, labels), taskOrders)
     }
 

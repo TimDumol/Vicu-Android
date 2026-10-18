@@ -7,13 +7,17 @@ import com.rendyhd.vicu.data.local.WidgetPrefsStore
 import com.rendyhd.vicu.data.local.dao.ProjectDao
 import com.rendyhd.vicu.data.local.dao.TaskDao
 import com.rendyhd.vicu.data.local.entity.TaskEntity
+import com.rendyhd.vicu.data.repository.TaskOrderPreferences
 import com.rendyhd.vicu.domain.model.Task
+import com.rendyhd.vicu.domain.model.TaskOrder
+import com.rendyhd.vicu.domain.model.TaskOrderSettings
 import com.rendyhd.vicu.domain.repository.TaskRepository
 import com.rendyhd.vicu.domain.repository.customListTasks
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.CustomListContext
 import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.TimeSource
+import com.rendyhd.vicu.util.sortProjectTasks
 import kotlinx.coroutines.flow.first
 
 /**
@@ -33,6 +37,8 @@ class TaskWidgetStates(
     private val time: TimeSource,
     /** The members and signals stored on the device, for lists with collaboration conditions. */
     private val collaborationContext: suspend () -> CustomListContext,
+    /** A project or Inbox widget lists in its project's task order (cross-app semantics 12); none: the default. */
+    private val taskOrders: TaskOrderPreferences? = null,
 ) {
     /** Signed in with a token the widget's data can belong to. */
     suspend fun isSignedIn(): Boolean =
@@ -53,6 +59,8 @@ class TaskWidgetStates(
         return Batch(
             day = day,
             projectNames = projects.associate { it.id to it.title },
+            parentOf = projects.associate { it.id to it.parentProjectId },
+            orders = taskOrders?.settings?.first() ?: TaskOrderSettings(),
             smartAdd = widgetPrefsStore.smartAdd.first(),
             contextNav = widgetPrefsStore.contextNav.first(),
             inboxId = tokenStorage.getInboxProjectId() ?: 0L,
@@ -63,11 +71,16 @@ class TaskWidgetStates(
         val day: ClockDay,
         /** The projects that are not archived, by id. */
         val projectNames: Map<Long, String>,
+        private val parentOf: Map<Long, Long>,
+        private val orders: TaskOrderSettings,
         private val smartAdd: Boolean,
         private val contextNav: Boolean,
         private val inboxId: Long,
     ) {
         private val activeProjectIds: Set<Long> get() = projectNames.keys
+
+        /** The order [projectId] uses: its own, a parent's, or the global one. */
+        fun orderOf(projectId: Long): TaskOrder = orders.orderFor(projectId, parentOf)
 
         suspend fun build(config: WidgetConfig): TaskWidgetState {
             val projectUnavailable = config.viewType == WidgetViewType.PROJECT &&
@@ -106,16 +119,15 @@ class TaskWidgetStates(
             val startOfTomorrow = DueDates.startOfTomorrow(day.date, day.zone).toString()
             return when (config.viewType) {
                 WidgetViewType.TODAY -> taskDao.getTodayTasksSync(startOfTomorrow, MAX_WIDGET_TASKS).map { it.toRow() }
-                WidgetViewType.INBOX -> taskDao.getInboxTasksSync(
+                WidgetViewType.INBOX -> inProjectOrder(
+                    taskDao.getInboxTasksSync(inboxId, NO_LIMIT, includeDated = !behaviorPrefsStore.getPrefs().first().inboxExcludeDated),
                     inboxId,
-                    MAX_WIDGET_TASKS,
-                    includeDated = !behaviorPrefsStore.getPrefs().first().inboxExcludeDated,
-                ).map { it.toRow() }
+                )
                 WidgetViewType.UPCOMING -> taskDao.getUpcomingTasksSync(startOfTomorrow, MAX_WIDGET_TASKS).map { it.toRow() }
                 WidgetViewType.ANYTIME -> taskDao.getAnytimeTasksSync(inboxId, MAX_WIDGET_TASKS).map { it.toRow() }
                 WidgetViewType.PROJECT -> {
                     val projectId = config.viewId.toLongOrNull() ?: 0L
-                    taskDao.getByProjectIdSync(projectId, MAX_WIDGET_TASKS).map { it.toRow() }
+                    inProjectOrder(taskDao.getByProjectIdSync(projectId, NO_LIMIT), projectId)
                 }
                 WidgetViewType.CUSTOM_LIST -> {
                     val customList = customListStore.getById(config.viewId).first() ?: return emptyList()
@@ -129,6 +141,13 @@ class TaskWidgetStates(
             }
         }
     }
+
+    /**
+     * Every open task of [projectId] in the order its screen shows them, as rows: the whole list is
+     * read and sorted before the widget takes its first rows.
+     */
+    private fun Batch.inProjectOrder(tasks: List<TaskEntity>, projectId: Long): List<WidgetRow> =
+        sortProjectTasks(tasks.map { it.toSortable() }, orderOf(projectId)).map { it.toRow() }
 
     /** What the widget needs of a task, whichever query it came from. */
     private class WidgetRow(
@@ -144,8 +163,23 @@ class TaskWidgetStates(
 
     private fun Task.toRow() = WidgetRow(id, title, projectId, dueDate, priority, done)
 
+    /** What sorting a project's tasks reads of a stored task. */
+    private fun TaskEntity.toSortable() = Task(
+        id = id,
+        title = title,
+        done = done,
+        dueDate = dueDate,
+        priority = priority,
+        projectId = projectId,
+        position = position,
+        created = created,
+    )
+
     companion object {
         const val MAX_WIDGET_TASKS = 20
+
+        /** SQLite's LIMIT for no limit. */
+        private const val NO_LIMIT = -1
         const val SIGNED_OUT = "Log in to see your tasks"
         const val PROJECT_UNAVAILABLE = "Project archived — reconfigure widget"
     }

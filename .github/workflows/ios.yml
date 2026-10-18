@@ -56,12 +56,15 @@ jobs:
           brew install xcodegen
           iosApp/scripts/generate.sh
 
+      # The shared framework has only the iosSimulatorArm64 target, so the generic simulator
+      # destination (arm64 and x86_64) is limited to arm64.
       - name: Build the app for the simulator
         run: |
           xcodebuild build \
             -project iosApp/Vicu.xcodeproj -scheme Vicu -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath iosApp/build \
+            ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Upload test reports

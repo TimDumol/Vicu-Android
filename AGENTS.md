@@ -227,7 +227,8 @@ Android classes are stubbed in JVM tests with `isReturnDefaultValues = true`. Co
 ## CI / Releases
 
 - `.github/workflows/ci.yml` runs `./gradlew test lint assembleDebug` on every push and pull request (JDK 17, Gradle cache).
-- `.github/workflows/release.yml` builds a **signed release APK** when a GitHub release is published, with the repository secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD` and `STORE_PASSWORD`, and attaches `app-release.apk`.
+- `.github/workflows/release.yml` builds a **signed release APK and AAB** when a GitHub release is published, with the repository secrets `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD` and `STORE_PASSWORD`, attaches both, and uploads the AAB to **Google Play** (`com.rendyhd.vicu`) with the service account in `PLAY_SERVICE_ACCOUNT_JSON` (`github-play-publisher@vicu-play-publishing.iam.gserviceaccount.com`). The repository variable `PLAY_TRACK` picks the track (`alpha`, the closed test) and `PLAY_RELEASE_STATUS` the status (default `draft`; `completed` rolls out without the Play Console). The GitHub APK and Play use the same signing key (Play App Signing was set up with the release key), so installs from either update each other; the package and key are registered for Android developer verification.
+- `adi-registration.yml` (Android developer verification APK) and `play-signing-key.yml` (the release key exported for Play App Signing) are one-off manual workflows; the listing texts, images and app content answers for Play are in `docs/store/google-play/`, the privacy policy in `docs/privacy-policy.md`.
 - **When creating a release**: bump `versionCode` and `versionName` in `app/build.gradle.kts`, write the notes in `docs/releases/vX.Y.Z.md`, then `gh release create <tag> --title "..." --notes-file docs/releases/vX.Y.Z.md` **without attaching a local APK**. CI builds and uploads the signed APK. Never attach a debug APK manually.
 
 ## Platforms

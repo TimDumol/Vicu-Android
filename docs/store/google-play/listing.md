@@ -8,7 +8,7 @@ Texts and answers for the Play Console (app `com.rendyhd.vicu`). Images are next
 
 **Short description** (80):
 
-Things-style task manager for your Vikunja server. Offline, widgets, reminders.
+A focused task manager for your Vikunja server. Offline, widgets, reminders.
 
 **Full description** (4000):
 

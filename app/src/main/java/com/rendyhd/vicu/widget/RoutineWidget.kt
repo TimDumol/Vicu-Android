@@ -11,6 +11,7 @@ import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import android.text.format.DateFormat
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.ActionParameters
@@ -48,6 +49,7 @@ import com.rendyhd.vicu.ui.navigation.ViewTarget
 import com.rendyhd.vicu.R
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.repository.RoutineRepository
+import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DayClock
 import kotlinx.coroutines.flow.first
 import org.koin.core.context.GlobalContext
@@ -83,7 +85,8 @@ class RoutineWidget : GlanceAppWidget() {
         val dayClock = GlobalContext.get().get<DayClock>()
         dayClock.refresh()
         val today = dayClock.day.value.date.toString()
-        val state = RoutineWidgetState.from(repository.observeDay(today).first())
+        val format = DateDisplayFormat.system(DateFormat.is24HourFormat(context))
+        val state = RoutineWidgetState.from(repository.observeDay(today).first(), format)
         val manager = GlanceAppWidgetManager(context)
         manager.getGlanceIds(RoutineWidget::class.java).forEach { glanceId ->
             updateState(context, glanceId, state)

@@ -50,5 +50,5 @@ fun projectMetas(projects: List<Project>): Map<Long, ProjectMeta> =
 fun rowLabels(labels: List<Label>, view: RowView): List<Label> =
     if (view.labelId == null) labels else labels.filter { it.id != view.labelId }
 
-/** The checklist count of the meta line ("1 of 3"). */
-fun checklistLabel(completed: Int, total: Int): String = "$completed of $total"
+/** The subtask count of the meta line ("1 of 3"). */
+fun subtaskProgressLabel(completed: Int, total: Int): String = "$completed of $total"

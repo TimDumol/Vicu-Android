@@ -60,8 +60,8 @@ class RowAnatomyTest {
     }
 
     @Test
-    fun `the checklist reads as one of three`() {
-        assertEquals("1 of 3", checklistLabel(1, 3))
+    fun `the subtask count reads as one of three`() {
+        assertEquals("1 of 3", subtaskProgressLabel(1, 3))
     }
 
     @Test

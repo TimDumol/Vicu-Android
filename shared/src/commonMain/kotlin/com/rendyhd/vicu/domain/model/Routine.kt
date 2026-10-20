@@ -153,7 +153,6 @@ data class RoutineOccurrence(
     val status: OccurrenceStatus,
     val loggedAt: String = "",
     val note: String = "",
-    val overdue: Boolean = false,
 )
 
 data class RoutineDay(
@@ -167,12 +166,9 @@ data class RoutineDay(
     val open: List<RoutineOccurrence> get() = occurrences.filterNot { it.status.isFinished }
 }
 
+/** What the editor sets; the rest of the definition follows from it (docs/cross-app-semantics-v1.md, section 6.7). */
 data class RoutineDraft(
     val name: String,
-    val kind: RoutineKind,
-    val healthSubtype: HealthSubtype? = null,
-    val amount: String = "",
-    val unit: String = "",
     val iconName: String = "",
     val color: String = "",
     val schedule: RoutineSchedule,

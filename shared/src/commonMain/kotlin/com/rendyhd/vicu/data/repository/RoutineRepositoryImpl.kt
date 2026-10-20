@@ -15,6 +15,7 @@ import com.rendyhd.vicu.domain.model.RoutineDraft
 import com.rendyhd.vicu.domain.model.RoutineKind
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePayload
+import com.rendyhd.vicu.domain.model.RoutineSchedule
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.domain.repository.RoutineCsvExport
@@ -25,6 +26,7 @@ import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.RoutineArchive
 import com.rendyhd.vicu.util.RoutineCsv
+import com.rendyhd.vicu.util.RoutineDefinitionRules
 import com.rendyhd.vicu.util.RoutineEnvelope
 import com.rendyhd.vicu.util.RoutineScheduleEngine
 import com.rendyhd.vicu.util.RoutineTime
@@ -150,7 +152,6 @@ class RoutineRepositoryImpl(
             }
             .sortedWith(
                 compareBy<com.rendyhd.vicu.domain.model.RoutineOccurrence> { it.status == OccurrenceStatus.COMPLETED }
-                    .thenByDescending { it.overdue }
                     .thenBy { it.slot.reminderMinutes }
                     .thenBy { it.routine.definition.name.lowercase() },
             )
@@ -204,16 +205,18 @@ class RoutineRepositoryImpl(
         val now = RoutineTime.now(time)
         val deviceId = prefsStore.getOrCreateDeviceId()
         val routineId = randomUuid()
-        val slots = draft.slots.map { slot ->
-            slot.copy(id = slot.id.ifBlank(::randomUuid))
-        }
+        val slots = RoutineDefinitionRules.normalizeSlots(
+            draft.slots.map { slot -> slot.copy(id = slot.id.ifBlank(::randomUuid)) },
+        )
+        // Kind, subtype, amount and unit are no longer chosen; they keep the values older apps
+        // read (docs/cross-app-semantics-v1.md, section 6.7).
         val definition = RoutineDefinition(
             id = routineId,
             name = draft.name.trim(),
-            kind = draft.kind,
-            healthSubtype = if (draft.kind == RoutineKind.HEALTH) draft.healthSubtype else null,
-            amount = draft.amount.trim(),
-            unit = draft.unit.trim(),
+            kind = RoutineDefinitionRules.kindFor(draft.schedule, stored = null),
+            healthSubtype = null,
+            amount = "",
+            unit = "",
             iconName = draft.iconName,
             color = draft.color,
             schedule = draft.schedule,
@@ -269,15 +272,17 @@ class RoutineRepositoryImpl(
         val now = RoutineTime.now(time)
         val deviceId = prefsStore.getOrCreateDeviceId()
         val existingSlots = latest.definition.slots.associateBy { it.id }
-        val slots = draft.slots.map { slot ->
-            if (slot.id.isBlank()) slot.copy(id = randomUuid()) else slot
-        }.ifEmpty { existingSlots.values.toList() }
+        val slots = RoutineDefinitionRules.normalizeSlots(
+            draft.slots.map { slot ->
+                if (slot.id.isBlank()) slot.copy(id = randomUuid()) else slot
+            }.ifEmpty { existingSlots.values.toList() },
+        )
         val updatedDefinition = latest.definition.copy(
             name = draft.name.trim(),
-            kind = draft.kind,
-            healthSubtype = if (draft.kind == RoutineKind.HEALTH) draft.healthSubtype else null,
-            amount = draft.amount.trim(),
-            unit = draft.unit.trim(),
+            kind = RoutineDefinitionRules.kindFor(draft.schedule, stored = latest.definition.kind),
+            healthSubtype = null,
+            amount = "",
+            unit = "",
             iconName = draft.iconName,
             color = draft.color,
             schedule = draft.schedule,
@@ -302,9 +307,11 @@ class RoutineRepositoryImpl(
             ?: return NetworkResult.Error("Invalid occurrence date")
         val now = RoutineTime.now(time)
         val deviceId = prefsStore.getOrCreateDeviceId()
+        // A past day of a schedule is "not logged" once it is no longer done; an after-completion
+        // routine stays due until it is done (docs/cross-app-semantics-v1.md, section 6.7).
         val effectiveStatus = if (
             status == OccurrenceStatus.PENDING &&
-            routine.definition.kind == RoutineKind.HEALTH &&
+            routine.definition.schedule is RoutineSchedule.Calendar &&
             localDate < today()
         ) OccurrenceStatus.NOT_LOGGED else status
         val record = RoutineScheduleEngine.recordFor(
@@ -592,8 +599,13 @@ class RoutineRepositoryImpl(
         }
     }
 
+    /**
+     * Writes "not logged" for the missed days of a HEALTH routine on a schedule, as older app
+     * versions expect. An after-completion routine is never finalized: its due occurrence stays due.
+     */
     private suspend fun finalizePastHealthOccurrences(routine: Routine) {
         if (routine.definition.kind != RoutineKind.HEALTH) return
+        if (routine.definition.schedule !is RoutineSchedule.Calendar) return
         val today = today()
         val zone = time.zone()
         // Nothing before the cut: that history is in the archive, and a "not logged" record made
@@ -639,7 +651,8 @@ class RoutineRepositoryImpl(
 
     private fun validateDraft(draft: RoutineDraft): String? = when {
         draft.name.isBlank() -> "Give the routine a name"
-        draft.slots.isEmpty() -> "Add at least one time or chore slot"
+        draft.slots.isEmpty() -> "Add at least one time"
+        draft.slots.size > RoutineDefinitionRules.MAX_TIMES -> "A routine has at most ${RoutineDefinitionRules.MAX_TIMES} times"
         draft.slots.any { it.reminderMinutes !in 0..1439 } -> "Reminder time is invalid"
         else -> null
     }

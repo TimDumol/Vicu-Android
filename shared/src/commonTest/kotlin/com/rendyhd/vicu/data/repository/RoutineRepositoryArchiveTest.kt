@@ -5,7 +5,6 @@ import com.rendyhd.vicu.data.repository.RoutineRig.Companion.record
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.RoutineArchivePart
 import com.rendyhd.vicu.domain.model.RoutineDraft
-import com.rendyhd.vicu.domain.model.RoutineKind
 import com.rendyhd.vicu.domain.model.RoutinePeriod
 import com.rendyhd.vicu.domain.model.RoutineSchedule
 import com.rendyhd.vicu.domain.model.RoutineSlot
@@ -408,7 +407,6 @@ class RoutineRepositoryArchiveTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         val draft = RoutineDraft(
             name = "Vitamin D",
-            kind = RoutineKind.HEALTH,
             schedule = RoutineSchedule.Calendar(anchorDate = "2026-10-06"),
             slots = listOf(RoutineSlot("", "Morning", RoutinePeriod.MORNING, reminderMinutes = 480)),
         )

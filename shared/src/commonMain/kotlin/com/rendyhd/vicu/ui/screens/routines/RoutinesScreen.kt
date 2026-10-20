@@ -1,6 +1,5 @@
 package com.rendyhd.vicu.ui.screens.routines
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,8 +26,6 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Restore
@@ -65,18 +62,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.rendyhd.vicu.domain.model.HealthSubtype
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.Routine
 import com.rendyhd.vicu.domain.model.RoutineDay
 import com.rendyhd.vicu.domain.model.RoutineDraft
-import com.rendyhd.vicu.domain.model.RoutineKind
 import com.rendyhd.vicu.domain.model.RoutineOccurrence
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePeriod
@@ -94,9 +88,24 @@ import com.rendyhd.vicu.util.DateContext
 import com.rendyhd.vicu.util.DateDisplay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
-
-private val HealthColor = Color(0xFF2E9D78)
-private val ChoreColor = Color(0xFF5576D1)
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import com.rendyhd.vicu.domain.model.RoutineDefinition
+import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
+import com.rendyhd.vicu.ui.components.shared.SmartListIdentity
+import com.rendyhd.vicu.ui.theme.LocalVicuColors
+import com.rendyhd.vicu.util.DateDisplayFormat
+import com.rendyhd.vicu.util.RoutineDefinitionRules
+import kotlinx.datetime.LocalTime
 
 @Composable
 fun RoutinesScreen(
@@ -195,7 +204,7 @@ fun RoutinesScreen(
                 item(key = "empty_today", contentType = "empty") {
                     Text(
                         text = if (state.active.isEmpty()) {
-                            "Add a supplement, medication, or household rhythm."
+                            "Add something you do regularly, like taking vitamins or watering the plants."
                         } else {
                             "Nothing scheduled for today."
                         },
@@ -372,7 +381,7 @@ fun RoutineOccurrenceRow(
                 Icon(
                     if (complete) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                     contentDescription = if (complete) "Undo" else "Complete",
-                    tint = if (complete) MaterialTheme.colorScheme.primary else kindColor(occurrence.routine.definition.kind),
+                    tint = if (complete) MaterialTheme.colorScheme.primary else SmartListIdentity.ROUTINES.color(LocalVicuColors.current.identity),
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -383,12 +392,9 @@ fun RoutineOccurrenceRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 val detail = buildList {
-                    if (occurrence.routine.definition.amount.isNotBlank()) {
-                        add(listOf(occurrence.routine.definition.amount, occurrence.routine.definition.unit).filter { it.isNotBlank() }.joinToString(" "))
-                    }
-                    add(occurrence.slot.label.ifBlank { periodLabel(occurrence.slot.period) })
-                    if (occurrence.overdue) add("overdue")
-                    if (skipped) add("skipped")
+                    add(timeText(occurrence.slot.reminderMinutes, LocalDateFormat.current))
+                    if (occurrence.status == OccurrenceStatus.NOT_LOGGED) add("Not logged")
+                    if (skipped) add("Skipped")
                 }.joinToString(" · ")
                 Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -416,16 +422,16 @@ private fun RoutineDefinitionCard(
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                if (routine.definition.kind == RoutineKind.HEALTH) Icons.Outlined.FavoriteBorder else Icons.Outlined.Home,
+                SmartListIdentity.ROUTINES.icon,
                 contentDescription = null,
-                tint = kindColor(routine.definition.kind),
+                tint = SmartListIdentity.ROUTINES.color(LocalVicuColors.current.identity),
                 modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(routine.definition.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(
-                    routineSummary(routine),
+                    routineSummary(routine.definition, LocalDateFormat.current),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -494,7 +500,7 @@ private fun RoutineHistoryDialog(
                                 Icon(
                                     if (record.status == OccurrenceStatus.COMPLETED) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                                     contentDescription = null,
-                                    tint = if (record.status == OccurrenceStatus.COMPLETED) HealthColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (record.status == OccurrenceStatus.COMPLETED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -509,7 +515,7 @@ private fun RoutineHistoryDialog(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
-                                Text(minutesText(record.scheduledMinutes), style = MaterialTheme.typography.labelMedium)
+                                Text(timeText(record.scheduledMinutes, dateFormat), style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -520,6 +526,24 @@ private fun RoutineHistoryDialog(
     }
 }
 
+/** One time of a routine in the editor; [slot] is the stored slot it edits (null for a new time). */
+private data class EditorTime(
+    val key: Int,
+    val minutes: Int,
+    val remind: Boolean,
+    val followUpMinutes: Int,
+    val slot: RoutineSlot?,
+)
+
+private val FollowUpOptions = listOf(0 to "Off", 15 to "15 min", 30 to "30 min", 60 to "1 hour")
+
+private fun followUpText(minutes: Int): String =
+    FollowUpOptions.firstOrNull { it.first == minutes }?.second ?: "$minutes min"
+
+/**
+ * The routine editor: a name, one to five times (each with its reminder and follow-up) and how it
+ * repeats. Nothing else is chosen; the repository writes what older app versions still read.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RoutineEditorDialog(
@@ -529,34 +553,31 @@ private fun RoutineEditorDialog(
     onSave: (RoutineDraft) -> Unit,
 ) {
     val definition = routine?.definition
+    val dateFormat = LocalDateFormat.current
     var name by remember(routine) { mutableStateOf(definition?.name.orEmpty()) }
-    var kind by remember(routine) { mutableStateOf(definition?.kind ?: RoutineKind.HEALTH) }
-    var subtype by remember(routine) { mutableStateOf(definition?.healthSubtype ?: HealthSubtype.SUPPLEMENT) }
-    var amount by remember(routine) { mutableStateOf(definition?.amount.orEmpty()) }
-    var unit by remember(routine) { mutableStateOf(definition?.unit.orEmpty()) }
-    val initialPeriods = definition?.slots?.map { it.period }?.toSet().orEmpty()
-    var periods by remember(routine) { mutableStateOf(initialPeriods.ifEmpty { setOf(RoutinePeriod.MORNING) }) }
-    var reminders by remember(routine) { mutableStateOf(definition?.slots?.any { it.reminderEnabled } ?: true) }
-    var timeTexts by remember(routine) {
+    var times by remember(routine) {
         mutableStateOf(
-            definition?.slots.orEmpty().associate { it.period to minutesText(it.reminderMinutes) },
+            definition?.slots.orEmpty().sortedBy { it.reminderMinutes }.mapIndexed { index, slot ->
+                EditorTime(index, slot.reminderMinutes, slot.reminderEnabled, slot.followUpMinutes, slot)
+            }.ifEmpty { listOf(EditorTime(0, NEW_ROUTINE_MINUTES, remind = true, followUpMinutes = 0, slot = null)) },
         )
     }
+    var nextKey by remember(routine) { mutableStateOf(times.size) }
+    var pickingTime by remember(routine) { mutableStateOf<Int?>(null) }
     var afterCompletion by remember(routine) { mutableStateOf(definition?.schedule is RoutineSchedule.AfterCompletion) }
     var interval by remember(routine) {
         mutableStateOf((definition?.schedule as? RoutineSchedule.AfterCompletion)?.intervalDays?.toString() ?: "14")
     }
-    val todayDate = LocalToday.current
-    val today = todayDate.toString()
+    val today = LocalToday.current.toString()
     val existingCalendar = definition?.schedule as? RoutineSchedule.Calendar
     var weekInterval by remember(routine) { mutableStateOf(existingCalendar?.weekInterval?.coerceAtLeast(1) ?: 1) }
+    // Empty means every day, as stored.
     var weekdays by remember(routine) {
-        mutableStateOf(existingCalendar?.weekdays?.ifEmpty { (1..7).toSet() } ?: (1..7).toSet())
+        mutableStateOf(existingCalendar?.weekdays?.takeIf { it.size < 7 } ?: emptySet())
     }
-    val valid = name.isNotBlank() && periods.isNotEmpty() &&
-        (afterCompletion || weekdays.isNotEmpty()) &&
-        (!afterCompletion || interval.toIntOrNull()?.let { it > 0 } == true) &&
-        (!reminders || periods.all { parseMinutes(timeTexts[it] ?: minutesText(defaultMinutes(it))) != null })
+    val intervalDays = interval.toIntOrNull()
+    val valid = name.isNotBlank() && times.isNotEmpty() &&
+        (!afterCompletion || (intervalDays != null && intervalDays in 1..365))
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -567,130 +588,139 @@ private fun RoutineEditorDialog(
                 Text(if (routine == null) "New routine" else "Edit routine", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(12.dp))
                 Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-                    Text("TYPE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = kind == RoutineKind.HEALTH, onClick = {
-                            if (kind != RoutineKind.HEALTH) {
-                                periods = setOf(RoutinePeriod.MORNING)
-                                weekdays = (1..7).toSet()
-                                reminders = true
-                            }
-                            kind = RoutineKind.HEALTH
-                            afterCompletion = false
-                        }, label = { Text("Health") })
-                        FilterChip(selected = kind == RoutineKind.CHORE, onClick = {
-                            if (kind != RoutineKind.CHORE) {
-                                periods = setOf(RoutinePeriod.HOME)
-                                weekdays = setOf(todayDate.dayOfWeek.ordinal + 1)
-                                reminders = false
-                            }
-                            kind = RoutineKind.CHORE
-                        }, label = { Text("Chore") })
-                    }
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text(if (kind == RoutineKind.HEALTH) "Name, e.g. Creatine" else "Name, e.g. Take out trash") },
+                        label = { Text("Name") },
+                        placeholder = { Text("e.g. Take vitamins") },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    AnimatedVisibility(kind == RoutineKind.HEALTH) {
-                        Column {
-                            Spacer(Modifier.height(10.dp))
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(selected = subtype == HealthSubtype.SUPPLEMENT, onClick = { subtype = HealthSubtype.SUPPLEMENT }, label = { Text("Supplement") })
-                                FilterChip(selected = subtype == HealthSubtype.MEDICATION, onClick = { subtype = HealthSubtype.MEDICATION }, label = { Text("Medication") })
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, singleLine = true, modifier = Modifier.weight(1f))
-                                OutlinedTextField(value = unit, onValueChange = { unit = it }, label = { Text("Unit") }, singleLine = true, modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-
                     Spacer(Modifier.height(18.dp))
-                    Text(if (kind == RoutineKind.HEALTH) "TIMES" else "WHEN", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val options = if (kind == RoutineKind.HEALTH) {
-                            listOf(RoutinePeriod.MORNING, RoutinePeriod.AFTERNOON, RoutinePeriod.EVENING)
-                        } else {
-                            listOf(RoutinePeriod.ANYTIME, RoutinePeriod.HOME, RoutinePeriod.MORNING, RoutinePeriod.EVENING)
-                        }
-                        options.forEach { period ->
-                            FilterChip(
-                                selected = period in periods,
-                                onClick = {
-                                    periods = if (period in periods) periods - period else {
-                                        if (kind == RoutineKind.CHORE) setOf(period) else periods + period
-                                    }
-                                },
-                                label = { Text(periodLabel(period)) },
-                            )
-                        }
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Reminders", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                if (kind == RoutineKind.HEALTH) "At the start of each selected time" else "Optional for chores",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(checked = reminders, onCheckedChange = { reminders = it })
-                    }
-                    AnimatedVisibility(reminders) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            periods.sortedBy { it.ordinal }.forEach { period ->
-                                OutlinedTextField(
-                                    value = timeTexts[period] ?: minutesText(defaultMinutes(period)),
-                                    onValueChange = { value -> timeTexts = timeTexts + (period to value.take(5)) },
-                                    label = { Text("${periodLabel(period)} reminder (HH:MM)") },
-                                    supportingText = {
-                                        if (parseMinutes(timeTexts[period] ?: minutesText(defaultMinutes(period))) == null) {
-                                            Text("Use 24-hour time, e.g. 14:00")
-                                        }
-                                    },
-                                    isError = parseMinutes(timeTexts[period] ?: minutesText(defaultMinutes(period))) == null,
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
+                    EditorLabel("TIMES")
+                    times.forEach { time ->
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { pickingTime = time.key }) {
+                                Text(timeText(time.minutes, dateFormat), style = MaterialTheme.typography.titleMedium)
+                            }
+                            IconButton(onClick = {
+                                times = times.map { if (it.key == time.key) it.copy(remind = !it.remind) else it }
+                            }) {
+                                Icon(
+                                    if (time.remind) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
+                                    contentDescription = if (time.remind) "Reminder on" else "Reminder off",
+                                    tint = if (time.remind) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            Box(modifier = Modifier.weight(1f)) {
+                                var followUpMenu by remember { mutableStateOf(false) }
+                                TextButton(onClick = { followUpMenu = true }, enabled = time.remind) {
+                                    Text(
+                                        "Follow up: ${followUpText(time.followUpMinutes)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                DropdownMenu(expanded = followUpMenu, onDismissRequest = { followUpMenu = false }) {
+                                    FollowUpOptions.forEach { (minutes, label) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                followUpMenu = false
+                                                times = times.map { if (it.key == time.key) it.copy(followUpMinutes = minutes) else it }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            if (times.size > 1) {
+                                IconButton(onClick = { times = times.filterNot { it.key == time.key } }) {
+                                    Icon(Icons.Outlined.Close, contentDescription = "Remove ${timeText(time.minutes, dateFormat)}")
+                                }
+                            }
+                        }
+                    }
+                    if (times.size < RoutineDefinitionRules.MAX_TIMES) {
+                        TextButton(onClick = {
+                            val last = times.maxOfOrNull { it.minutes }
+                            val minutes = last?.let { (it + 60).coerceAtMost(23 * 60 + 59) } ?: NEW_ROUTINE_MINUTES
+                            times = times + EditorTime(nextKey, minutes, remind = true, followUpMinutes = 0, slot = null)
+                            pickingTime = nextKey
+                            nextKey++
+                        }) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add time")
                         }
                     }
 
                     Spacer(Modifier.height(14.dp))
-                    Text("REPEAT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (kind == RoutineKind.CHORE) {
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = !afterCompletion, onClick = { afterCompletion = false }, label = { Text("On a schedule") })
-                            FilterChip(selected = afterCompletion, onClick = { afterCompletion = true }, label = { Text("After completion") })
-                        }
+                    EditorLabel("REPEAT")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = !afterCompletion, onClick = { afterCompletion = false }, label = { Text("On a schedule") })
+                        FilterChip(selected = afterCompletion, onClick = { afterCompletion = true }, label = { Text("After completion") })
                     }
+                    Text(
+                        if (afterCompletion) {
+                            "Comes back a set number of days after you complete it."
+                        } else {
+                            "Repeats on the days you pick, whether or not you did it last time."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
                     if (afterCompletion) {
-                        OutlinedTextField(
-                            value = interval,
-                            onValueChange = { interval = it.filter(Char::isDigit) },
-                            label = { Text("Days after completion") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Show again", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = interval,
+                                onValueChange = { interval = it.filter(Char::isDigit).take(3) },
+                                singleLine = true,
+                                isError = intervalDays == null || intervalDays !in 1..365,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.width(80.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (intervalDays == 1) "day after I complete it" else "days after I complete it",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     } else {
-                        if (kind == RoutineKind.CHORE) {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(selected = weekInterval == 1, onClick = { weekInterval = 1 }, label = { Text("Weekly") })
-                                FilterChip(selected = weekInterval == 2, onClick = { weekInterval = 2 }, label = { Text("Every 2 weeks") })
+                        val daily = weekdays.isEmpty()
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            FilterChip(selected = daily, onClick = { weekdays = emptySet() }, label = { Text("Daily") })
+                            WeekdayLetters.forEachIndexed { index, letter ->
+                                val day = index + 1
+                                val selected = daily || day in weekdays
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        val current = if (daily) (1..7).toSet() else weekdays
+                                        val next = if (selected) current - day else current + day
+                                        // At least one day; all seven is every day.
+                                        if (next.isNotEmpty()) weekdays = if (next.size == 7) emptySet() else next
+                                    },
+                                    label = { Text(letter) },
+                                    modifier = Modifier.semantics { contentDescription = WeekdayNames[index] },
+                                )
                             }
                         }
-                        Text("Days of week", style = MaterialTheme.typography.bodySmall)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, label ->
-                                val day = index + 1
+                        Spacer(Modifier.height(4.dp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            (1..4).forEach { weeks ->
                                 FilterChip(
-                                    selected = day in weekdays,
-                                    onClick = { weekdays = if (day in weekdays) weekdays - day else weekdays + day },
-                                    label = { Text(label) },
+                                    selected = weekInterval == weeks,
+                                    onClick = { weekInterval = weeks },
+                                    label = { Text(if (weeks == 1) "Every week" else "Every $weeks weeks") },
                                 )
                             }
                         }
@@ -703,28 +733,28 @@ private fun RoutineEditorDialog(
                     Button(
                         enabled = valid && !saving,
                         onClick = {
-                            val existingSlots = definition?.slots.orEmpty().associateBy { it.period }
-                            val slots = periods.sortedBy { it.ordinal }.map { period ->
-                                val old = existingSlots[period]
-                                RoutineSlot(
-                                    id = old?.id.orEmpty(),
-                                    label = periodLabel(period),
-                                    period = period,
-                                    reminderMinutes = parseMinutes(timeTexts[period] ?: "")
-                                        ?: old?.reminderMinutes
-                                        ?: defaultMinutes(period),
-                                    reminderEnabled = reminders,
-                                    followUpMinutes = if (kind == RoutineKind.HEALTH && reminders) 30 else 0,
+                            val slots = times.map { time ->
+                                time.slot?.copy(
+                                    reminderMinutes = time.minutes,
+                                    reminderEnabled = time.remind,
+                                    followUpMinutes = time.followUpMinutes,
+                                ) ?: RoutineSlot(
+                                    id = "",
+                                    label = "",
+                                    period = RoutinePeriod.MORNING,
+                                    reminderMinutes = time.minutes,
+                                    reminderEnabled = time.remind,
+                                    followUpMinutes = time.followUpMinutes,
                                 )
                             }
                             val schedule = if (afterCompletion) {
                                 RoutineSchedule.AfterCompletion(
-                                    intervalDays = interval.toIntOrNull() ?: 14,
+                                    intervalDays = intervalDays ?: 14,
                                     firstDueDate = (definition?.schedule as? RoutineSchedule.AfterCompletion)?.firstDueDate ?: today,
                                 )
                             } else {
                                 RoutineSchedule.Calendar(
-                                    weekdays = if (weekdays.size == 7) emptySet() else weekdays,
+                                    weekdays = weekdays,
                                     weekInterval = weekInterval,
                                     anchorDate = existingCalendar?.anchorDate ?: today,
                                 )
@@ -732,12 +762,8 @@ private fun RoutineEditorDialog(
                             onSave(
                                 RoutineDraft(
                                     name = name,
-                                    kind = kind,
-                                    healthSubtype = if (kind == RoutineKind.HEALTH) subtype else null,
-                                    amount = if (kind == RoutineKind.HEALTH) amount else "",
-                                    unit = if (kind == RoutineKind.HEALTH) unit else "",
-                                    iconName = if (kind == RoutineKind.HEALTH) "favorite" else "home",
-                                    color = if (kind == RoutineKind.HEALTH) "#2E9D78" else "#5576D1",
+                                    iconName = definition?.iconName.orEmpty(),
+                                    color = definition?.color.orEmpty(),
                                     schedule = schedule,
                                     slots = slots,
                                 ),
@@ -748,6 +774,37 @@ private fun RoutineEditorDialog(
             }
         }
     }
+
+    pickingTime?.let { key ->
+        val time = times.firstOrNull { it.key == key }
+        if (time == null) {
+            pickingTime = null
+        } else {
+            val pickerState = rememberTimePickerState(
+                initialHour = time.minutes / 60,
+                initialMinute = time.minutes % 60,
+                is24Hour = LocalIs24Hour.current,
+            )
+            AlertDialog(
+                onDismissRequest = { pickingTime = null },
+                title = { Text("Time") },
+                text = { TimePicker(state = pickerState) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val minutes = pickerState.hour * 60 + pickerState.minute
+                        times = times.map { if (it.key == key) it.copy(minutes = minutes) else it }.sortedBy { it.minutes }
+                        pickingTime = null
+                    }) { Text("Set") }
+                },
+                dismissButton = { TextButton(onClick = { pickingTime = null }) { Text("Cancel") } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -761,40 +818,31 @@ private fun SectionLabel(text: String) {
     )
 }
 
-private fun kindColor(kind: RoutineKind): Color = if (kind == RoutineKind.HEALTH) HealthColor else ChoreColor
+/** A new routine starts at 09:00, every day. */
+private const val NEW_ROUTINE_MINUTES = 9 * 60
 
-private fun periodLabel(period: RoutinePeriod): String = period.name.lowercase().replaceFirstChar { it.uppercase() }
+private val WeekdayLetters = listOf("M", "T", "W", "T", "F", "S", "S")
+private val WeekdayNames = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+private val WeekdayShortNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
-private fun defaultMinutes(period: RoutinePeriod): Int = when (period) {
-    RoutinePeriod.MORNING -> 8 * 60
-    RoutinePeriod.AFTERNOON -> 14 * 60
-    RoutinePeriod.EVENING -> 20 * 60
-    RoutinePeriod.ANYTIME -> 9 * 60
-    RoutinePeriod.HOME -> 18 * 60
-}
+private fun timeText(minutes: Int, format: DateDisplayFormat): String =
+    DateDisplay.formatTime(LocalTime(minutes / 60, minutes % 60), format)
 
-private fun minutesText(minutes: Int): String =
-    "${(minutes / 60).toString().padStart(2, '0')}:${(minutes % 60).toString().padStart(2, '0')}"
-
-private fun parseMinutes(value: String): Int? {
-    val parts = value.split(':')
-    if (parts.size != 2) return null
-    val hour = parts[0].toIntOrNull() ?: return null
-    val minute = parts[1].toIntOrNull() ?: return null
-    if (hour !in 0..23 || minute !in 0..59) return null
-    return hour * 60 + minute
-}
-
-private fun routineSummary(routine: Routine): String {
-    val definition = routine.definition
+/** "Every day · 08:00, 20:00", "Mon, Thu, every 2 weeks · 09:00", "14 days after completion · 18:00". */
+internal fun routineSummary(definition: RoutineDefinition, format: DateDisplayFormat): String {
     val schedule = when (val value = definition.schedule) {
         is RoutineSchedule.Calendar -> {
-            val days = if (value.weekdays.isEmpty()) "Daily" else "${value.weekdays.size} days a week"
-            if (value.weekInterval > 1) "Every ${value.weekInterval} weeks · $days" else days
+            val days = if (value.weekdays.isEmpty() || value.weekdays.size == 7) {
+                "Every day"
+            } else {
+                value.weekdays.sorted().mapNotNull { WeekdayShortNames.getOrNull(it - 1) }.joinToString(", ")
+            }
+            if (value.weekInterval > 1) "$days, every ${value.weekInterval} weeks" else days
         }
-        is RoutineSchedule.AfterCompletion -> "Every ${value.intervalDays} days after completion"
+        is RoutineSchedule.AfterCompletion ->
+            if (value.intervalDays == 1) "1 day after completion" else "${value.intervalDays} days after completion"
     }
-    val times = definition.slots.joinToString(" + ") { periodLabel(it.period) }
+    val times = definition.slots.sortedBy { it.reminderMinutes }.joinToString(", ") { timeText(it.reminderMinutes, format) }
     return listOf(schedule, times).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
@@ -811,9 +859,9 @@ private fun RoutinesTurnedOff(onOpenDrawer: () -> Unit, onNavigateToSearch: () -
         },
     ) { padding ->
         EmptyState(
-            icon = Icons.Outlined.FavoriteBorder,
+            icon = SmartListIdentity.ROUTINES.icon,
             title = "Routines are turned off",
-            subtitle = "Turn them on in Settings to track health and home routines",
+            subtitle = "Turn them on in Settings to keep track of what you do regularly",
             modifier = Modifier.padding(padding),
         )
     }

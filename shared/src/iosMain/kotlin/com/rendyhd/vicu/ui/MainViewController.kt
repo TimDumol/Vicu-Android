@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.uikit.LocalUIViewController
+import androidx.compose.ui.uikit.OnFocusBehavior
 import androidx.compose.ui.window.ComposeUIViewController
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.ThemeMode
@@ -17,8 +18,13 @@ import platform.UIKit.UIViewController
 /**
  * The Compose UI of the app, shown by the Swift app's window. [restoredUiState] is what the scene
  * kept from [com.rendyhd.vicu.ios.IosApp.saveUiState] the last time (empty for a fresh start).
+ *
+ * The screens make room for the keyboard themselves (`imePadding`), so the view is not also panned
+ * up to show the focused field: that pan pushed the editor's top bar (Back, Done) off the screen.
  */
-fun MainViewController(restoredUiState: String): UIViewController = ComposeUIViewController {
+fun MainViewController(restoredUiState: String): UIViewController = ComposeUIViewController(
+    configure = { onFocusBehavior = OnFocusBehavior.DoNothing },
+) {
     val koin = remember { KoinPlatform.getKoin() }
     val authManager = remember { koin.get<AuthManager>() }
     val themePrefs = remember { koin.get<ThemePrefsStore>() }

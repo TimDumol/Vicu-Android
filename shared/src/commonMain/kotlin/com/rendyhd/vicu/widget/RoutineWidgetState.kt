@@ -2,6 +2,9 @@ package com.rendyhd.vicu.widget
 
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.RoutineDay
+import com.rendyhd.vicu.util.DateDisplay
+import com.rendyhd.vicu.util.DateDisplayFormat
+import kotlinx.datetime.LocalTime
 import kotlinx.serialization.Serializable
 
 /**
@@ -15,6 +18,7 @@ data class RoutineWidgetItem(
     val routineName: String,
     val scheduledDate: String,
     val slotId: String,
+    /** The time of the occurrence as the widget shows it (the name is kept for the iOS widget's JSON). */
     val slotLabel: String,
     val status: OccurrenceStatus,
 )
@@ -50,7 +54,7 @@ data class RoutineWidgetState(
     )
 
     companion object {
-        fun from(day: RoutineDay): RoutineWidgetState = RoutineWidgetState(
+        fun from(day: RoutineDay, format: DateDisplayFormat): RoutineWidgetState = RoutineWidgetState(
             date = day.date,
             occurrences = day.occurrences.map { occurrence ->
                 RoutineWidgetItem(
@@ -59,7 +63,10 @@ data class RoutineWidgetState(
                     routineName = occurrence.routine.definition.name,
                     scheduledDate = occurrence.scheduledDate,
                     slotId = occurrence.slot.id,
-                    slotLabel = occurrence.slot.label,
+                    slotLabel = DateDisplay.formatTime(
+                        LocalTime(occurrence.slot.reminderMinutes / 60, occurrence.slot.reminderMinutes % 60),
+                        format,
+                    ),
                     status = occurrence.status,
                 )
             },

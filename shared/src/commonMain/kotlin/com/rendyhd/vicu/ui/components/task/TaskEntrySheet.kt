@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -93,15 +92,13 @@ import com.rendyhd.vicu.util.RecurrenceValue
 import com.rendyhd.vicu.util.parser.TokenType
 import com.rendyhd.vicu.util.parser.getPrefixes
 
-/** From this font scale on the chips wrap onto more rows instead of scrolling sideways, so none is out of sight. */
-private const val ENTRY_CHIPS_WRAP_FONT_SCALE = 1.25f
-
 /**
  * The new-task sheet (design review 3.6): a compact sheet on the keyboard with the title (its
- * parsed words highlighted), one row of chips (When, Project, Tags, Priority) that say the value in
- * words, and "+ Notes", which grows the sheet with the description, Repeat and Reminder. A chip shows
- * what the parser read from the title unless the user set that chip with its picker, in which case
- * the chip wins and its token loses the highlight ([resolveEntryFields]); the date shows once.
+ * parsed words highlighted), chips (When, Project, Tags, Priority) that say the value in words, and
+ * "Details", which saves the task and opens it in the editor ([onOpenDetails]) for notes, subtasks
+ * and the rest. A chip shows what the parser read from the title unless the user set that chip with
+ * its picker, in which case the chip wins and its token loses the highlight ([resolveEntryFields]);
+ * the date shows once.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -110,6 +107,7 @@ fun TaskEntrySheet(
     defaultDueDate: String? = null,
     onDismiss: () -> Unit,
     onTaskCreated: (Long) -> Unit,
+    onOpenDetails: (Long) -> Unit = {},
     sharedContent: SharedContent? = null,
     viewModel: TaskEntryViewModel = koinViewModel(),
 ) {
@@ -127,10 +125,15 @@ fun TaskEntrySheet(
     var showPriorityPicker by remember { mutableStateOf(false) }
     var showRecurrencePicker by remember { mutableStateOf(false) }
 
-    // "+ Notes" grows the sheet. A draft that already has notes or files keeps it grown.
-    var notesOpen by rememberSaveable { mutableStateOf(false) }
-    val showNotes = notesOpen || state.description.isNotBlank() ||
-        state.pendingAttachmentUris.isNotEmpty() || state.pendingImages.isNotEmpty()
+    // Notes are written in the editor ("Details"). Shared text arrives as notes, so the sheet shows
+    // them then, and keeps showing them while the user edits them down to nothing.
+    var notesShown by rememberSaveable { mutableStateOf(false) }
+    val showNotes = notesShown || state.description.isNotBlank() || state.pendingImages.isNotEmpty()
+    LaunchedEffect(showNotes) { if (showNotes) notesShown = true }
+
+    // "Details" saves like Send and then opens the new task in the editor.
+    var openDetailsAfterSave by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.error) { if (state.error != null) openDetailsAfterSave = false }
 
     // TextFieldValue for cursor position tracking (needed for autocomplete)
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
@@ -171,11 +174,16 @@ fun TaskEntrySheet(
     LaunchedEffect(state.savedTaskId) {
         state.savedTaskId?.let { id ->
             onTaskCreated(id)
-            val keepOpen = state.keepEntryOpen
+            val openDetails = openDetailsAfterSave
+            val keepOpen = state.keepEntryOpen && !openDetails
             viewModel.reset()
             textFieldValue = TextFieldValue("")
-            notesOpen = false
-            if (keepOpen) {
+            notesShown = false
+            openDetailsAfterSave = false
+            if (openDetails) {
+                onDismiss()
+                onOpenDetails(id)
+            } else if (keepOpen) {
                 // Mass-add: stay open and re-focus for the next task.
                 focusRequester.requestFocus()
             } else {
@@ -295,16 +303,17 @@ fun TaskEntrySheet(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // The chips: one row at rest. A chip says its value in words; the colour of a value read
-            // from the title is the colour of its highlight.
+            // The chips. A chip says its value in words; the colour of a value read from the title is
+            // the colour of its highlight. They wrap onto more rows when they do not fit side by side,
+            // so every chip stays in view (a sideways scroll cut the last one off on a narrow phone).
             fun tint(source: FieldSource?, type: TokenType): Color? =
                 if (source == FieldSource.TEXT) tokenChipColor(type, isDarkTheme) else null
 
-            // One row: the chips scroll sideways when they say values, "+ Notes" stays at its end. With a
-            // large font the chips no longer fit side by side and the later ones would sit out of sight
-            // behind a scroll nobody can see, so they wrap onto more rows and every chip stays in view.
-            val wrapChips = LocalDensity.current.fontScale >= ENTRY_CHIPS_WRAP_FONT_SCALE
-            val entryChips: @Composable () -> Unit = {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 // When: the one place the date is shown.
                 val hasDate = fields.dueDate.isNotBlank()
                 TaskEntryChip(
@@ -350,40 +359,24 @@ fun TaskEntrySheet(
                     tokenRect = { tokenRectOf(TokenType.PRIORITY) },
                 )
 
-                if (!showNotes) {
-                    // A repeat or a reminder that is already set stays in view while the sheet is small.
-                    if (fields.recurrenceSource != null) {
-                        RecurrenceChip(fields.recurrence, fields.recurrenceSource, isDarkTheme, viewModel, { tokenRectOf(TokenType.RECURRENCE) }) {
-                            showRecurrencePicker = true
-                        }
-                    }
-                    if (state.reminders.isNotEmpty()) {
-                        ReminderChip(state.reminders.size) { showReminderPicker = true }
+                // A repeat or a reminder read from the title stays in view; setting one is the editor's.
+                if (fields.recurrenceSource != null) {
+                    RecurrenceChip(fields.recurrence, fields.recurrenceSource, isDarkTheme, viewModel, { tokenRectOf(TokenType.RECURRENCE) }) {
+                        showRecurrencePicker = true
                     }
                 }
-            }
-            if (wrapChips) {
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    entryChips()
-                    if (!showNotes) TaskEntryChip(label = "+ Notes", onClick = { notesOpen = true })
+                if (state.reminders.isNotEmpty()) {
+                    ReminderChip(state.reminders.size) { showReminderPicker = true }
                 }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Row(
-                        modifier = Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        entryChips()
-                    }
-                    if (!showNotes) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        TaskEntryChip(label = "+ Notes", onClick = { notesOpen = true })
-                    }
-                }
+
+                TaskEntryChip(
+                    label = "Details",
+                    onClick = {
+                        openDetailsAfterSave = true
+                        save()
+                    },
+                    enabled = canSave,
+                )
             }
 
             if (showNotes) {
@@ -403,19 +396,6 @@ fun TaskEntrySheet(
                     onRemovePending = viewModel::removePendingImage,
                     editorController = descriptionEditorController,
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // What only a task with notes has room for.
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    RecurrenceChip(fields.recurrence, fields.recurrenceSource, isDarkTheme, viewModel, { tokenRectOf(TokenType.RECURRENCE) }) {
-                        showRecurrencePicker = true
-                    }
-                    ReminderChip(state.reminders.size) { showReminderPicker = true }
-                }
             }
 
             // Pending attachment previews

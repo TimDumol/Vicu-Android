@@ -28,7 +28,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.rendyhd.vicu.ui.components.task.LabelChip
-import com.rendyhd.vicu.ui.components.task.checklistLabel
+import com.rendyhd.vicu.ui.components.task.subtaskProgressLabel
 import com.rendyhd.vicu.util.subtaskProgress
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
@@ -300,13 +300,20 @@ fun TaskDetailScreen(
                 it.id !in imageTokenIds && it.id !in state.deletingAttachmentIds
             }
 
-            LazyColumn(
-                state = listState,
+            // The notes' toolbar (Hide keyboard among it) sits under the list, on top of the keyboard,
+            // while the notes are being edited: under a tall note it would be behind the keyboard.
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
                     .imePadding(),
+            ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
             // The headline: the title reads as the task, not as a form field.
@@ -417,6 +424,7 @@ fun TaskDetailScreen(
                     onImagePasted = viewModel::addImageAttachment,
                     editorController = descriptionEditorController,
                     plain = true,
+                    hostedToolbar = true,
                 )
                 if (state.descriptionConflict != null) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -507,7 +515,7 @@ fun TaskDetailScreen(
                     }
                     PropertyChip(
                         set = totalSubtasks > 0,
-                        text = if (totalSubtasks > 0) checklistLabel(doneSubtasks, totalSubtasks) else "Checklist",
+                        text = if (totalSubtasks > 0) subtaskProgressLabel(doneSubtasks, totalSubtasks) else "Subtasks",
                         description = if (totalSubtasks > 0) {
                             "Subtasks: $doneSubtasks of $totalSubtasks completed"
                         } else {
@@ -623,7 +631,7 @@ fun TaskDetailScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Subtasks: listed when there are some, or once "+ Checklist" asked for the input
+            // Subtasks: listed when there are some, or once "+ Subtasks" asked for the input
             if (state.subtasks.isNotEmpty() || showSubtaskInput) {
                 item(key = "divider_subtasks") {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -836,6 +844,12 @@ fun TaskDetailScreen(
                 }
             }
         }
+            if (descriptionEditorController.isEditorFocused) {
+                descriptionEditorController.hostedToolbar?.invoke(
+                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+            }
         }
     }
 

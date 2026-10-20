@@ -37,7 +37,7 @@ class NotificationChannelManager(
             "Routine Reminders",
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            description = "Medication, supplement, and chore routine reminders"
+            description = "Reminders for your routines"
         }
 
         manager.createNotificationChannels(listOf(taskReminders, dailySummary, routines))

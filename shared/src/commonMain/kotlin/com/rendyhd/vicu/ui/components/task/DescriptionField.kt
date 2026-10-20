@@ -99,6 +99,8 @@ internal fun DescriptionField(
     onRemovePending: (uuid: String) -> Unit = {},
     /** The editor's own screen: notes read as plain text, with no label and no outline. */
     plain: Boolean = false,
+    /** The toolbar is drawn by the host ([DescriptionEditorController.hostedToolbar]), not under the field. */
+    hostedToolbar: Boolean = false,
 ) {
     val (externalHtml, allImageRefs) = remember(value) { ImageTokens.parseValue(value) }
     val latestOnValueChange = rememberUpdatedState(onValueChange)
@@ -178,13 +180,30 @@ internal fun DescriptionField(
             !session.isImportBlocked && session.stateHolder.state.focusedBlockId != null
         }
     }
+    val toolbar: @Composable (Modifier) -> Unit = remember(session, toolbarController, callbacks, clearEditorFocus) {
+        { toolbarModifier ->
+            DescriptionEditorToolbar(
+                controller = toolbarController,
+                editorState = session.stateHolder,
+                callbacks = callbacks,
+                onHideKeyboard = clearEditorFocus,
+                modifier = toolbarModifier.onGloballyPositioned {
+                    editorController.updateToolbarBounds(it.boundsInRoot())
+                },
+            )
+        }
+    }
+    // Read here, not only inside the effect: a change of focus must recompose this field so the
+    // effect tells the host (which draws the toolbar when it is hosted).
+    val focused = editorFocused
     SideEffect {
         editorController.bind(
             owner = session,
             flushAction = { session.flush(publishHtml.value) },
             clearFocusAction = clearEditorFocus,
-            isFocused = editorFocused,
+            isFocused = focused,
         )
+        if (hostedToolbar) editorController.hostToolbar(session, toolbar)
         if (session.isImportBlocked) editorController.updateEditorBounds(null)
     }
     DisposableEffect(session, editorController) {
@@ -304,20 +323,14 @@ internal fun DescriptionField(
             }
         }
 
-        AnimatedVisibility(
-            visible = editorFocused,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            DescriptionEditorToolbar(
-                controller = toolbarController,
-                editorState = session.stateHolder,
-                callbacks = callbacks,
-                onHideKeyboard = clearEditorFocus,
-                modifier = Modifier.onGloballyPositioned {
-                    editorController.updateToolbarBounds(it.boundsInRoot())
-                },
-            )
+        if (!hostedToolbar) {
+            AnimatedVisibility(
+                visible = editorFocused,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                toolbar(Modifier)
+            }
         }
 
         if (allImageRefs.isNotEmpty()) {

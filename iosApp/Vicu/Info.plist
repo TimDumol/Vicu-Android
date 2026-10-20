@@ -49,6 +49,10 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Vicu connects to your Vikunja server, which may be on your local network.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Vicu uses your location to remind you when you arrive at or leave a place you chose, also when the app is closed. It stays on this device.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Vicu uses your location to remind you when you arrive at or leave a place you chose. It stays on this device.</string>
 	<key>UIApplicationShortcutItems</key>
 	<array>
 		<dict>

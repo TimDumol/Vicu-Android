@@ -24,7 +24,10 @@ import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import com.rendyhd.vicu.ui.components.settings.ExactAlarmBanner
 import com.rendyhd.vicu.ui.components.settings.NotificationsDisabledBanner
+import com.rendyhd.vicu.ui.components.location.PlacesSettingsSection
+import com.rendyhd.vicu.ui.components.location.PlacesViewModel
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 internal val REMINDER_OFFSET_OPTIONS = listOf(
     "None" to 0,
@@ -52,6 +55,7 @@ internal fun NotificationsTab(
     listState: LazyListState,
 ) {
     val permission: NotificationPermissionCoordinator = koinInject()
+    val placesViewModel: PlacesViewModel = koinViewModel()
     // Turning one of these on is the moment to ask for the notification permission, if it is missing.
     fun enabling(set: (Boolean) -> Unit): (Boolean) -> Unit = { on ->
         set(on)
@@ -158,6 +162,14 @@ internal fun NotificationsTab(
                 checked = state.notificationPrefs.soundEnabled,
                 onCheckedChange = viewModel::setSoundEnabled,
             )
+        }
+
+        item(key = "notif_places") {
+            PlacesSettingsSection(placesViewModel)
+        }
+
+        item(key = "notif_divider_places") {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
 
         item(key = "notif_divider_1") {

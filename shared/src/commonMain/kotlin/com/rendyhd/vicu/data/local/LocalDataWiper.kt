@@ -5,6 +5,7 @@ import com.rendyhd.vicu.data.repository.ListPositioner
 import com.rendyhd.vicu.data.repository.SyncedPreferences
 import com.rendyhd.vicu.data.sync.SyncStaleness
 import com.rendyhd.vicu.domain.repository.CustomListRepository
+import com.rendyhd.vicu.location.LocationReminderStore
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.worker.SyncEngine
 import kotlinx.coroutines.flow.Flow
@@ -23,8 +24,8 @@ import kotlinx.coroutines.flow.flowOf
  *  - [discardUnsyncedAndClearCaches]: the same, after the user chose to drop the offline queue.
  *  - [wipeEverything]: sign-out, or a different account signed in. Also forgets the preferences
  *    that are keyed by the old account's ids (collapsed sections, label order, routine and
- *    widget settings) and the synced settings' local copy, stops the account's background work
- *    and drops shares not added yet.
+ *    widget settings), the synced settings' local copy and the location reminders, stops the
+ *    account's background work and drops shares not added yet.
  *
  * Every operation waits for a running sync to finish and blocks new ones while it works, so a
  * sync cannot write the old account's data back right after the wipe.
@@ -47,6 +48,8 @@ class LocalDataWiper(
     private val listPositions: ListPositioner,
     /** The account's synced settings; their unsynced changes count like custom lists'. */
     private val syncedPreferences: SyncedPreferences? = null,
+    /** The account's location reminders (device-only; the saved places are a device setting and stay). */
+    private val locationReminders: LocationReminderStore? = null,
 ) {
     /**
      * Entries of routine history that have not been uploaded to the server yet (the phone-only
@@ -107,6 +110,8 @@ class LocalDataWiper(
             listPositions.clear()
             syncCursor.clear()
             syncStaleness.reset()
+            // Clearing them stops the watched regions too (LocationReminderCoordinator).
+            locationReminders?.clear()
         }
         // The old account's reminders must not keep firing for a signed-out (or switched) account.
         platformHooks.cancelAllAlarms()

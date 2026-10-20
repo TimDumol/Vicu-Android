@@ -135,6 +135,9 @@ dependencies {
     // Reorderable (drag-and-drop)
     implementation(libs.reorderable)
 
+    // Location reminders: geofencing (with a fallback to Android's proximity alerts without it)
+    implementation(libs.play.services.location)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.koin.test)

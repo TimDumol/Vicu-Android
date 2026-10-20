@@ -133,6 +133,10 @@ import com.rendyhd.vicu.ui.components.task.NlpVisualTransformation
 import com.rendyhd.vicu.ui.components.task.ParseChipRow
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
+import com.rendyhd.vicu.location.label
+import com.rendyhd.vicu.ui.components.location.LocationReminderDialog
+import com.rendyhd.vicu.ui.components.location.PlacesViewModel
 import com.rendyhd.vicu.util.Constants
 import com.rendyhd.vicu.util.DateContext
 import com.rendyhd.vicu.util.DateDisplay
@@ -164,6 +168,12 @@ fun TaskDetailScreen(
     var showLabelPicker by remember { mutableStateOf(false) }
     var showReminderPicker by remember { mutableStateOf(false) }
     val notificationPermission: NotificationPermissionCoordinator = koinInject()
+    // The location reminder lives on this device only, apart from the task (PlacesViewModel).
+    val placesViewModel: PlacesViewModel = koinViewModel()
+    val editorTaskId = state.task?.id ?: taskId
+    val locationReminder by remember(editorTaskId) { placesViewModel.reminderFor(editorTaskId) }
+        .collectAsStateWithLifecycle(initialValue = null)
+    var showLocationDialog by remember { mutableStateOf(false) }
     var showPriorityPicker by remember { mutableStateOf(false) }
     var showRecurrencePicker by remember { mutableStateOf(false) }
     var subtaskInput by remember { mutableStateOf("") }
@@ -477,7 +487,9 @@ fun TaskDetailScreen(
                 val overdue = hasDueDate && DateUtils.isOverdue(task.dueDate, clockDay.date, clockDay.zone)
                 val priorityLabel = priorityName(task.priority)
                 val recurrenceLabel = DateUtils.formatRecurrence(task.repeatAfter, task.repeatMode)
-                val reminderText = if (task.reminders.isEmpty()) "" else ReminderFormat.summary(task.reminders, dateFormat)
+                val locationLabel = locationReminder?.label()
+                val hasReminder = task.reminders.isNotEmpty() || locationLabel != null
+                val reminderText = if (!hasReminder) "" else ReminderFormat.summary(task.reminders, dateFormat, locationLabel)
                 val projectName = state.allProjects.find { it.id == task.projectId }?.title ?: "No project"
                 val (doneSubtasks, totalSubtasks) = remember(task.relatedTasks) { task.subtaskProgress() }
                 var showMore by remember { mutableStateOf(false) }
@@ -527,9 +539,9 @@ fun TaskDetailScreen(
                         },
                     )
                     PropertyChip(
-                        set = task.reminders.isNotEmpty(),
-                        text = if (task.reminders.isEmpty()) "Reminder" else reminderText,
-                        description = if (task.reminders.isEmpty()) "Add reminder" else "Reminders: $reminderText",
+                        set = hasReminder,
+                        text = if (!hasReminder) "Reminder" else reminderText,
+                        description = if (!hasReminder) "Add reminder" else "Reminders: $reminderText",
                         onClick = { showReminderPicker = true },
                     )
                     PropertyChip(
@@ -1002,6 +1014,26 @@ fun TaskDetailScreen(
             onDismiss = { showReminderPicker = false },
             onEditReminder = viewModel::editReminder,
             dueDate = state.task?.dueDate ?: "",
+            locationReminder = locationReminder,
+            onLocationClick = {
+                showReminderPicker = false
+                showLocationDialog = true
+            },
+            onRemoveLocation = { placesViewModel.removeReminder(editorTaskId) },
+        )
+    }
+
+    if (showLocationDialog) {
+        LocationReminderDialog(
+            taskId = editorTaskId,
+            existing = locationReminder,
+            viewModel = placesViewModel,
+            onSaved = {
+                showLocationDialog = false
+                // A location reminder is a notification too.
+                notificationPermission.onFeatureEnabled()
+            },
+            onDismiss = { showLocationDialog = false },
         )
     }
 

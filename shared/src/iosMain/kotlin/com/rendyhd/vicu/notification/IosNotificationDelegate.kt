@@ -2,6 +2,7 @@ package com.rendyhd.vicu.notification
 
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.ios.launchInBackgroundTask
+import com.rendyhd.vicu.location.IosLocationNotifier
 import com.rendyhd.vicu.ui.AppInputs
 import com.rendyhd.vicu.ui.navigation.AppLink
 import com.rendyhd.vicu.ui.navigation.ViewTarget
@@ -96,7 +97,7 @@ class IosNotificationDelegate(
         when (didReceiveNotificationResponse.actionIdentifier) {
             UNNotificationDefaultActionIdentifier -> {
                 when (text(LocalNotification.KEY_KIND)) {
-                    LocalNotification.Kind.REMINDER.name, LocalNotification.Kind.SNOOZE.name ->
+                    LocalNotification.Kind.REMINDER.name, LocalNotification.Kind.SNOOZE.name, IosLocationNotifier.KIND ->
                         taskId?.let { inputs.open(AppLink.OpenTask(it)) }
                     LocalNotification.Kind.ROUTINE.name -> inputs.open(AppLink.OpenView(ViewTarget.Routines))
                 }

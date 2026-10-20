@@ -16,6 +16,17 @@ import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.ios.BackgroundActivityLog
 import com.rendyhd.vicu.ios.IosAppLifecycle
 import com.rendyhd.vicu.ios.IosBackgroundTasks
+import com.rendyhd.vicu.location.DeviceLocation
+import com.rendyhd.vicu.location.IosDeviceLocation
+import com.rendyhd.vicu.location.IosGeofencer
+import com.rendyhd.vicu.location.IosLocationBridgeHolder
+import com.rendyhd.vicu.location.IosLocationNotifier
+import com.rendyhd.vicu.location.IosLocationPermissionPlatform
+import com.rendyhd.vicu.location.IosPlaceSearch
+import com.rendyhd.vicu.location.LocationNotifier
+import com.rendyhd.vicu.location.LocationPermissionPlatform
+import com.rendyhd.vicu.location.PlaceSearch
+import com.rendyhd.vicu.location.PlatformGeofencer
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
 import com.rendyhd.vicu.permission.NotificationPermissionPlatform
@@ -143,9 +154,17 @@ val iosModule = module {
             activityLog = get(),
             time = get(),
             appScope = get(),
+            locations = get(),
         )
     }
     single { IosNotificationPermissionPlatform() }
+    single { IosLocationBridgeHolder() }
+    single { IosLocationPermissionPlatform(get()) }
+    single<LocationPermissionPlatform> { get<IosLocationPermissionPlatform>() }
+    single<PlatformGeofencer> { IosGeofencer(get()) }
+    single<DeviceLocation> { IosDeviceLocation(get()) }
+    single<PlaceSearch> { IosPlaceSearch() }
+    single<LocationNotifier> { IosLocationNotifier() }
     single<NotificationPermissionPlatform> { get<IosNotificationPermissionPlatform>() }
     single {
         IosAppLifecycle(
@@ -161,6 +180,8 @@ val iosModule = module {
             widgets = get(),
             shareInbox = get(),
             appScope = get(),
+            locations = get(),
+            locationPermission = get(),
         )
     }
     single {

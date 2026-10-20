@@ -106,6 +106,7 @@ cloud backup and device transfer (section 8). The desktop column names the deskt
 | `BottomBarPrefsStore` (`bottom_bar_prefs`) | The three bottom bar slots (smart list, project or custom list, with icon and colour), smart list colours. General, Bottom bar. Holds project and list ids | Cleared | Included | None |
 | `LabelOrderPrefsStore` (`label_order_prefs`) | The drawer's label order (label ids). Dragging labels in the drawer. Vikunja has no label position | Cleared | Included | None |
 | `ProjectSectionPrefsStore` (`project_section_prefs`) | Collapsed sections, per project. Collapsing a section in a project | Cleared | Included | `sidebar_collapsed_projects` (the sidebar, not sections) |
+| `SavedPlacesStore` (`saved_places`) | The places saved for location reminders (name, position, address). Notifications, Places, and "Save as place" in the location reminder. Never synced | Kept | Excluded (privacy: positions stay on the device) | None |
 | `CustomListStore` (`custom_lists`) | The local copy of the synced custom lists and their sync state (`custom_lists_sync_v1`: device id, document, dirty, carrier id, last sync), plus the older plain list kept for widgets and downgrades | Cleared (`clearLocal`) | Excluded | `custom_lists`, `custom_lists_sync` |
 
 Stores that hold app state, not settings:
@@ -117,6 +118,7 @@ Stores that hold app state, not settings:
 | `TempIdGenerator` (`temp_ids`) | The negative id counter for offline creates, the temporary-to-real id map, and the creates that may have reached the server (`creates_maybe_sent`) | Never cleared | Excluded |
 | `SnoozeStore` (`snooze_prefs`) | Snoozed reminders | Emptied with the alarms | Excluded |
 | `ReminderAlarmRegistry` (`reminder_alarm_registry`) | Android's scheduled reminder alarms | Emptied with the alarms | Excluded |
+| `LocationReminderStore` (`location_reminders`) | The location reminders, one per task (place, position, radius, arrive or leave). Device-only: not on the Vikunja server, so another device does not have them | Cleared | Excluded |
 | `NotificationPermissionStore` (`notification_permission`) | How often the app asked for the notification permission, and whether the after-setup prompt ran | Kept | Included |
 
 ---
@@ -195,8 +197,8 @@ Every wipe waits for a running sync and blocks new ones (`SyncEngine.exclusive`)
 not reached the server is never lost without the user confirming: sign-out and an account
 switch count the queued changes and unsynced custom-list changes and ask first.
 
-`wipeEverything` also cancels the account's reminders, snoozes, routine alarms and (on iOS)
-pending notifications, stops its background work, retires its widget configurations, drops the
+`wipeEverything` also cancels the account's reminders, snoozes, routine alarms, location
+reminders (and with them the watched regions) and (on iOS) pending notifications, stops its background work, retires its widget configurations, drops the
 shares not added yet (iOS keeps them in `share-inbox/`), and redraws the widgets.
 
 ---
@@ -228,8 +230,9 @@ merged in the main process.
 `data_extraction_rules.xml`:
 
 - Excluded: `auth_prefs`, `widget_configs`, `snooze_prefs`, `reminder_alarm_registry`,
-  `temp_ids`, `sync_cursor`, `carrier_ids`, `custom_lists`, `routine_prefs`, `auth_debug.log`,
-  the `vicu_database` files, `vicu_keyset_prefs.xml` and `routine_alarm_ids.xml`. The Glance
+  `temp_ids`, `sync_cursor`, `carrier_ids`, `custom_lists`, `routine_prefs`, `saved_places`,
+  `location_reminders`, `auth_debug.log`, the `vicu_database` files, `vicu_keyset_prefs.xml`,
+  `routine_alarm_ids.xml` and `location_regions.xml`. The Glance
   widget state is in the no-backup folder.
 - Included: `theme_prefs`, `behavior_prefs`, `nlp_prefs`, `notification_prefs`, `review_prefs`,
   `logbook_prefs`, `notification_permission`, `widget_prefs`, `bottom_bar_prefs`,

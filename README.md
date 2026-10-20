@@ -68,6 +68,7 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 - **Subtasks** — Parent-child task relationships via task relations
 - **Due dates and times** — A date without a time stays a date; a date with a time keeps it; the year shows when it is not this one
 - **Reminders** — Per-task reminders (absolute time or relative to due date) + configurable daily summary notifications at your local time
+- **Location reminders** — "Remind me when I arrive at (or leave) Home": saved places or a searched address, also while the app is closed. Places stay on your phone
 - **Attachments** — Upload, open, and share any file type on any task, up to the server's size limit
 - **Recurring tasks** — Daily, weekly, monthly, or custom intervals
 - **Home screen widgets** — Widgets showing Today, Inbox, Upcoming, any project or custom list, or your routines, with tap-to-complete checkboxes (Glance on Android, WidgetKit on iPhone and iPad)

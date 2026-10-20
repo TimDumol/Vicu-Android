@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.NotificationPrefsStore
+import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.widget.WidgetUpdateScheduler
 import com.rendyhd.vicu.widget.RoutineWidget
 import com.rendyhd.vicu.worker.PeriodicSyncScheduler
@@ -29,6 +30,7 @@ class BootReceiver : BroadcastReceiver(), KoinComponent {
     private val routineAlarmScheduler: RoutineAlarmScheduler by inject()
     private val prefsStore: NotificationPrefsStore by inject()
     private val authManager: AuthManager by inject()
+    private val locationReminders: LocationReminderCoordinator by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
@@ -40,6 +42,8 @@ class BootReceiver : BroadcastReceiver(), KoinComponent {
                 alarmScheduler.rescheduleAll()
                 alarmScheduler.rescheduleSnoozes()
                 routineAlarmScheduler.rescheduleAll()
+                // Play services drops its geofences on a reboot.
+                locationReminders.replan(force = true)
                 RoutineWidget().updateAllWidgets(context)
                 WidgetUpdateScheduler.enqueueImmediateUpdateAll(context)
                 // The rest is the account's background work, which sign-out cancelled; signing in

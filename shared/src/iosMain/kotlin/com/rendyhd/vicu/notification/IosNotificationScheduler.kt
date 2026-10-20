@@ -10,6 +10,7 @@ import com.rendyhd.vicu.data.local.dao.TaskDao
 import com.rendyhd.vicu.data.mapper.TaskMapper
 import com.rendyhd.vicu.domain.model.isFinished
 import com.rendyhd.vicu.domain.repository.RoutineRepository
+import com.rendyhd.vicu.location.IosLocationNotifier
 import com.rendyhd.vicu.util.LocalNotification
 import com.rendyhd.vicu.util.LocalNotificationPlanner
 import com.rendyhd.vicu.util.Logger
@@ -114,7 +115,9 @@ class IosNotificationScheduler(
     override suspend fun cancelForTask(taskId: Long) {
         snoozeStore.remove(taskId)
         val prefixes = listOf("reminder:$taskId:", LocalNotificationPlanner.snoozeId(taskId))
-        val delivered = deliveredNotifications().map { it.request.identifier }.filter { id -> prefixes.any { id.startsWith(it) } }
+        val delivered = deliveredNotifications().map { it.request.identifier }.filter { id ->
+            prefixes.any { id.startsWith(it) } || id == IosLocationNotifier.idFor(taskId)
+        }
         if (delivered.isNotEmpty()) center.removeDeliveredNotificationsWithIdentifiers(delivered)
         replan()
     }
@@ -196,7 +199,7 @@ class IosNotificationScheduler(
         val stale = deliveredNotifications().filter { delivered ->
             val info = delivered.request.content.userInfo
             when (info[LocalNotification.KEY_KIND] as? String) {
-                LocalNotification.Kind.REMINDER.name, LocalNotification.Kind.SNOOZE.name -> {
+                LocalNotification.Kind.REMINDER.name, LocalNotification.Kind.SNOOZE.name, IosLocationNotifier.KIND -> {
                     val taskId = (info[LocalNotification.KEY_TASK_ID] as? String)?.toLongOrNull() ?: return@filter false
                     taskDao.getByIdSync(taskId)?.done ?: true
                 }

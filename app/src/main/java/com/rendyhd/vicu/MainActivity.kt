@@ -20,6 +20,7 @@ import com.rendyhd.vicu.data.local.ThemePrefsStore
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
 import com.rendyhd.vicu.domain.model.SharedContent
 import com.rendyhd.vicu.notification.DailySummaryScheduler
+import com.rendyhd.vicu.location.AndroidLocationPermissionPlatform
 import com.rendyhd.vicu.permission.AndroidNotificationPermissionPlatform
 import com.rendyhd.vicu.ui.VicuApp
 import com.rendyhd.vicu.ui.navigation.ViewTarget
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private val notificationPrefsStore: NotificationPrefsStore by inject()
     private val dailySummaryScheduler: DailySummaryScheduler by inject()
     private val notificationPermissionPlatform: AndroidNotificationPermissionPlatform by inject()
+    private val locationPermissionPlatform: AndroidLocationPermissionPlatform by inject()
 
     private val _initialTaskId = MutableStateFlow<Long?>(null)
     private val _showTaskEntry = MutableStateFlow(false)
@@ -62,6 +64,14 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* no-op: alarms are scheduled regardless; Settings re-checks the state on resume */ }
 
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result -> locationPermissionPlatform.onResult(result.keys) }
+
+    private val launchLocationPermissionRequest: (Array<String>) -> Unit = { permissions ->
+        locationPermissionLauncher.launch(permissions)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -76,6 +86,7 @@ class MainActivity : ComponentActivity() {
         // The notification permission is not asked for here: the shared coordinator asks after setup
         // or when a reminder or summary is turned on (see NotificationPermissionCoordinator).
         notificationPermissionPlatform.attach(launchNotificationPermissionRequest)
+        locationPermissionPlatform.attach(launchLocationPermissionRequest)
 
         lifecycleScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
@@ -170,6 +181,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         AuthDebugLog.lifecycle("onDestroy (isFinishing=$isFinishing)")
         notificationPermissionPlatform.detach(launchNotificationPermissionRequest)
+        locationPermissionPlatform.detach(launchLocationPermissionRequest)
         super.onDestroy()
     }
 

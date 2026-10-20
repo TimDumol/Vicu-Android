@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
+import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.notification.AlarmScheduler
 import java.util.concurrent.TimeUnit
@@ -30,6 +31,7 @@ class PeriodicSyncWorker(
     private val hooks: PlatformRepositoryHooks,
     private val authManager: AuthManager,
     private val baseUrlHolder: BaseUrlHolder,
+    private val locationReminders: LocationReminderCoordinator,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -41,6 +43,7 @@ class PeriodicSyncWorker(
             sync = syncEngine::performSync,
             rescheduleAlarms = alarmScheduler::rescheduleAll,
             updateWidgets = hooks::updateWidgets,
+            replanLocations = { synced -> locationReminders.replan(force = true, pruneMissing = synced) },
         )
         val outcome = runner.run()
         Log.d(TAG, "Periodic sync finished: $outcome")

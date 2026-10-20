@@ -5,11 +5,17 @@ import shared
 /// Starts the shared code before the first scene: iOS also launches the app without a scene
 /// (a notification action, a background task), and those need it running too.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    /// Kept for the app's lifetime: the shared code holds the bridge, and CLMonitor reports to it.
+    private var locationMonitor: LocationMonitor?
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        IosApp.shared.start(widgetBridge: WidgetBridge())
+        // Before start: iOS may have launched the app for a region event, which the monitor delivers.
+        let monitor = LocationMonitor()
+        locationMonitor = monitor
+        IosApp.shared.start(widgetBridge: WidgetBridge(), locationBridge: monitor)
         return true
     }
 

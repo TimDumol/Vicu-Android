@@ -61,6 +61,11 @@ class FakeTaskRepository : TaskRepository {
         write(task.id, task)
     }
 
+    /** Drops the row, as the sync does with a temporary id once the server's task replaced it. */
+    fun remove(id: Long) {
+        write(id, null)
+    }
+
     fun current(id: Long): Task? = rowFor(id).value
 
     val updates = mutableListOf<Task>()

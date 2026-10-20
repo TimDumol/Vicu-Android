@@ -3,7 +3,6 @@ package com.rendyhd.vicu.util
 import com.rendyhd.vicu.domain.model.NO_UNKNOWN_FIELDS
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.Routine
-import com.rendyhd.vicu.domain.model.RoutineKind
 import com.rendyhd.vicu.domain.model.RoutineOccurrence
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePayload
@@ -147,9 +146,11 @@ object RoutineScheduleEngine {
                 key = key,
                 slot = slot,
                 scheduledDate = effectiveDate.toString(),
+                // A missed day of a schedule is "not logged"; an after-completion routine stays due
+                // until it is done (docs/cross-app-semantics-v1.md, section 6.7).
                 status = if (
                     status == OccurrenceStatus.PENDING &&
-                    definition.kind == RoutineKind.HEALTH &&
+                    definition.schedule is RoutineSchedule.Calendar &&
                     effectiveDate < today
                 ) {
                     OccurrenceStatus.NOT_LOGGED
@@ -158,8 +159,6 @@ object RoutineScheduleEngine {
                 },
                 loggedAt = record?.loggedAt.orEmpty(),
                 note = record?.note.orEmpty(),
-                overdue = definition.kind == RoutineKind.CHORE &&
-                    status == OccurrenceStatus.PENDING && effectiveDate < today,
             )
         }
     }

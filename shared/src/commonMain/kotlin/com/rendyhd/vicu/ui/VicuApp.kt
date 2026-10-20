@@ -358,7 +358,8 @@ fun VicuApp(
             showTaskDetailSheet &&
             taskDetailTaskId != 0L &&
             authState == AuthState.Authenticated &&
-            taskDetailViewModel.uiState.value.requestedTaskId != taskDetailTaskId
+            taskDetailViewModel.uiState.value.requestedTaskId != taskDetailTaskId &&
+            taskDetailViewModel.uiState.value.followedFromTaskId != taskDetailTaskId
         ) {
             taskDetailViewModel.loadTask(taskDetailTaskId)
         }
@@ -699,14 +700,19 @@ fun VicuApp(
                 onTaskCreated = {
                     pendingSharedContent = null
                 },
+                onOpenDetails = onTaskClick,
                 sharedContent = pendingSharedContent,
             )
         }
 
-        // Task Detail (full-screen edit)
+        // Task Detail (full-screen edit). A task made offline keeps its editor (and the temporary id
+        // it was opened with, so the editor is not rebuilt) when its create goes through.
         val taskDetailVisible = showTaskDetailSheet &&
             !taskDetailUiState.isLoading &&
-            taskDetailUiState.task?.id == taskDetailTaskId
+            (
+                taskDetailUiState.task?.id == taskDetailTaskId ||
+                    (taskDetailUiState.followedFromTaskId == taskDetailTaskId && taskDetailUiState.task != null)
+                )
         val editorBackState = remember { EditorBackState() }
         EditorOverlay(
             taskId = if (taskDetailVisible) taskDetailTaskId else null,

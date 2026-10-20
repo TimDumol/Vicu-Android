@@ -299,7 +299,7 @@ fun TaskItem(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = checklistLabel(completedSubtasks, subtaskCount),
+                                    text = subtaskProgressLabel(completedSubtasks, subtaskCount),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,

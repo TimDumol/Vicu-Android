@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rendyhd.vicu.data.local.BehaviorPrefsStore
 import com.rendyhd.vicu.data.local.NlpPrefsStore
+import com.rendyhd.vicu.data.local.TempIdGenerator
 import com.rendyhd.vicu.domain.model.Attachment
 import com.rendyhd.vicu.domain.model.Label
 import com.rendyhd.vicu.domain.model.Project
@@ -51,6 +52,8 @@ import kotlinx.coroutines.sync.withLock
 
 data class TaskDetailUiState(
     val requestedTaskId: Long = 0L,
+    /** The temporary id the editor was opened with, after it moved to the server's id ([requestedTaskId]). */
+    val followedFromTaskId: Long = 0L,
     val task: Task? = null,
     val originalTask: Task? = null,
     val isLoading: Boolean = true,
@@ -91,6 +94,7 @@ class TaskDetailViewModel(
     private val platformFiles: PlatformFiles,
     private val appMessages: AppMessages,
     private val dayClock: DayClock,
+    private val tempIds: TempIdGenerator? = null,
 ) : ViewModel() {
 
     companion object {
@@ -193,6 +197,7 @@ class TaskDetailViewModel(
         _uiState.update {
             it.copy(
                 requestedTaskId = taskId,
+                followedFromTaskId = 0L,
                 task = null,
                 originalTask = null,
                 isLoading = true,
@@ -207,6 +212,31 @@ class TaskDetailViewModel(
             )
         }
 
+        collectTask(taskId)
+
+        loadJobs += viewModelScope.launch {
+            projectRepository.getAll().collect { projects ->
+                _uiState.update { it.copy(allProjects = projects) }
+            }
+        }
+
+        loadJobs += viewModelScope.launch {
+            authManager.inboxProjectId.collect { inboxId ->
+                _uiState.update { it.copy(inboxProjectId = inboxId ?: 0L) }
+            }
+        }
+
+        loadJobs += viewModelScope.launch {
+            labelRepository.getAll().collect { labels ->
+                _uiState.update { it.copy(allLabels = labels) }
+            }
+        }
+
+        collectAttachments(taskId)
+    }
+
+    /** Follows the stored task [taskId]: its edits from elsewhere, and the server's id once an offline create goes through. */
+    private fun collectTask(taskId: Long) {
         loadJobs += viewModelScope.launch {
             taskRepository.getById(taskId).collect { task ->
                 if (task != null) {
@@ -258,30 +288,14 @@ class TaskDetailViewModel(
                             },
                         )
                     }
-                } else {
+                } else if (!followRealId(taskId)) {
                     _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
+    }
 
-        loadJobs += viewModelScope.launch {
-            projectRepository.getAll().collect { projects ->
-                _uiState.update { it.copy(allProjects = projects) }
-            }
-        }
-
-        loadJobs += viewModelScope.launch {
-            authManager.inboxProjectId.collect { inboxId ->
-                _uiState.update { it.copy(inboxProjectId = inboxId ?: 0L) }
-            }
-        }
-
-        loadJobs += viewModelScope.launch {
-            labelRepository.getAll().collect { labels ->
-                _uiState.update { it.copy(allLabels = labels) }
-            }
-        }
-
+    private fun collectAttachments(taskId: Long) {
         loadJobs += viewModelScope.launch {
             attachmentRepository.getByTaskId(taskId).collect { attachments ->
                 _uiState.update { it.copy(attachments = attachments) }
@@ -291,6 +305,26 @@ class TaskDetailViewModel(
         loadJobs += viewModelScope.launch {
             attachmentRepository.refreshForTask(taskId)
         }
+    }
+
+    /**
+     * When the temporary id [tempId] this editor shows has become a server id (its offline create
+     * went through: the row was replaced), the editor moves to that id instead of losing the task.
+     */
+    private suspend fun followRealId(tempId: Long): Boolean {
+        if (tempId >= 0 || _uiState.value.requestedTaskId != tempId) return false
+        val realId = tempIds?.realIdFor(tempId) ?: return false
+        _uiState.update { state ->
+            state.copy(
+                requestedTaskId = realId,
+                followedFromTaskId = tempId,
+                task = state.task?.copy(id = realId),
+                originalTask = state.originalTask?.copy(id = realId),
+            )
+        }
+        collectTask(realId)
+        collectAttachments(realId)
+        return true
     }
 
     fun updateTitle(rawTitle: String) {

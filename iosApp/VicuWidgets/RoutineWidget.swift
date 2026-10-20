@@ -14,8 +14,8 @@ struct RoutineEntry: TimelineEntry {
         date: .now,
         openURL: nil,
         state: RoutineWidgetState(date: "", occurrences: [
-            RoutineWidgetItem(key: "1", routineId: "1", routineName: "Stretch", scheduledDate: "", slotId: "", slotLabel: "Morning", status: "PENDING"),
-            RoutineWidgetItem(key: "2", routineId: "2", routineName: "Read", scheduledDate: "", slotId: "", slotLabel: "Evening", status: "PENDING"),
+            RoutineWidgetItem(key: "1", routineId: "1", routineName: "Stretch", scheduledDate: "", slotId: "", slotLabel: "8:00 AM", status: "PENDING"),
+            RoutineWidgetItem(key: "2", routineId: "2", routineName: "Read", scheduledDate: "", slotId: "", slotLabel: "8:00 PM", status: "PENDING"),
         ]),
         message: nil,
         palettes: WidgetPalettes(nil)

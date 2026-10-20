@@ -43,6 +43,18 @@ internal class DescriptionEditorController {
     var isEditorFocused by mutableStateOf(false)
         private set
 
+    /**
+     * The editor's toolbar, for a host that draws it itself (on top of the keyboard) instead of
+     * under the editor; null while no field hands it over.
+     */
+    var hostedToolbar by mutableStateOf<(@Composable (Modifier) -> Unit)?>(null)
+        private set
+
+    fun hostToolbar(owner: Any, toolbar: (@Composable (Modifier) -> Unit)?) {
+        if (this.owner !== owner) return
+        hostedToolbar = toolbar
+    }
+
     fun bind(
         owner: Any,
         flushAction: () -> Unit,
@@ -68,6 +80,7 @@ internal class DescriptionEditorController {
         editorBounds = null
         toolbarBounds = null
         isEditorFocused = false
+        hostedToolbar = null
     }
 
     fun updateEditorBounds(bounds: Rect?) {

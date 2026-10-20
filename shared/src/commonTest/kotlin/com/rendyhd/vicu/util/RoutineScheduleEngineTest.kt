@@ -43,7 +43,7 @@ class RoutineScheduleEngineTest {
     }
 
     @Test
-    fun completionBasedChoreStaysVisibleAsOneOverdueOccurrence() {
+    fun completionBasedRoutineStaysDueOnTodayUntilDone() {
         val routine = chore(
             schedule = RoutineSchedule.AfterCompletion(intervalDays = 14, firstDueDate = "2026-08-01"),
         )
@@ -56,7 +56,26 @@ class RoutineScheduleEngineTest {
 
         assertEquals(1, occurrences.size)
         assertEquals("2026-08-01", occurrences.single().scheduledDate)
-        assertTrue(occurrences.single().overdue)
+        assertEquals(OccurrenceStatus.PENDING, occurrences.single().status, "never not logged")
+    }
+
+    @Test
+    fun aMissedScheduledDayIsNotLoggedWhateverTheKind() {
+        val routine = chore(schedule = RoutineSchedule.Calendar(anchorDate = "2026-08-03"))
+
+        val past = RoutineScheduleEngine.occurrencesForDate(
+            routine,
+            date = LocalDate(2026, 8, 10),
+            today = LocalDate(2026, 8, 11),
+        )
+        val today = RoutineScheduleEngine.occurrencesForDate(
+            routine,
+            date = LocalDate(2026, 8, 11),
+            today = LocalDate(2026, 8, 11),
+        )
+
+        assertEquals(OccurrenceStatus.NOT_LOGGED, past.single().status)
+        assertEquals(OccurrenceStatus.PENDING, today.single().status)
     }
 
     @Test

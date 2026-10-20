@@ -37,6 +37,7 @@ internal fun TaskEntryChip(
     onClear: (() -> Unit)? = null,
     /** The rectangle of the word in the title this chip's value was read from, in root coordinates; the chip travels out of it. */
     tokenRect: (() -> Rect?)? = null,
+    enabled: Boolean = true,
 ) {
     val canClear = onClear != null && clearDescription != null
     // A tint means the value was read from the title: then the chip travels out of that word.
@@ -46,7 +47,7 @@ internal fun TaskEntryChip(
         modifier
     }
     if (!canClear) {
-        EntryChip(label, onClick, travelling, tint)
+        EntryChip(label, onClick, travelling, tint, enabled)
         return
     }
     // The clear button sits beside the chip, not inside it: a button of 48 dp (its touch target)
@@ -64,6 +65,7 @@ internal fun TaskEntryChip(
                 )
             },
             tint = tint,
+            enabled = enabled,
         )
         IconButton(onClick = onClear!!, modifier = Modifier.size(MIN_CLEAR_TARGET)) {
             Icon(
@@ -84,10 +86,12 @@ private fun EntryChip(
     onClick: () -> Unit,
     modifier: Modifier,
     tint: Color?,
+    enabled: Boolean,
 ) {
     AssistChip(
         onClick = onClick,
         modifier = modifier,
+        enabled = enabled,
         label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         colors = if (tint != null) {
             AssistChipDefaults.assistChipColors(labelColor = tint, trailingIconContentColor = tint)
@@ -95,7 +99,7 @@ private fun EntryChip(
             AssistChipDefaults.assistChipColors()
         },
         border = AssistChipDefaults.assistChipBorder(
-            enabled = true,
+            enabled = enabled,
             borderColor = tint?.copy(alpha = 0.5f) ?: MaterialTheme.colorScheme.outlineVariant,
         ),
     )

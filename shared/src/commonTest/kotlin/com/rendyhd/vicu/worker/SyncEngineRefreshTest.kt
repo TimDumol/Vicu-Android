@@ -3,6 +3,7 @@ package com.rendyhd.vicu.worker
 import com.rendyhd.vicu.data.local.dao.MAX_SQL_ID_PARAMS
 import com.rendyhd.vicu.data.local.entity.TaskEntity
 import com.rendyhd.vicu.data.repository.FakeTaskDao
+import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.worker.SyncEngineHarness.Companion.emptyPage
 import com.rendyhd.vicu.auth.authTestJsonHeaders
 import io.ktor.client.engine.mock.respond
@@ -37,9 +38,11 @@ class SyncEngineRefreshTest {
             TaskEntity(id = 11, title = "Gone on server", projectId = 7),
         )
         val h = SyncEngineHarness(taskDao = FakeTaskDao(local)) { emptyPage() }
-        // A failed action keeps its task out of the sweep (it is not retried by this run).
+        // A failed action keeps its task out of the sweep (it is not retried by this run). It failed
+        // a day ago: the retention cutoff reads the real clock, so a fixed date would expire.
         h.pendingActionDao.insert(
-            queuedCreate(tempId = -3, title = "Offline create").copy(status = "failed"),
+            queuedCreate(tempId = -3, title = "Offline create")
+                .copy(status = "failed", updatedAt = DateUtils.isoDaysAgo(1)),
         )
 
         h.engine.performSync()

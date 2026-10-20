@@ -5,6 +5,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import com.rendyhd.vicu.auth.AuthState
+import kotlinx.coroutines.flow.first
 
 /** How a move to a top-level destination treats the back stack. */
 internal data class TopLevelNavOptions(
@@ -45,6 +46,18 @@ internal fun topLevelNavOptions(route: Any, leavingKeepsState: Boolean): TopLeve
 internal fun isParameterizedEntry(entry: NavBackStackEntry): Boolean {
     val dest = entry.destination
     return dest.hasRoute(ProjectRoute::class) || dest.hasRoute(TagRoute::class) || dest.hasRoute(CustomListRoute::class)
+}
+
+/**
+ * Suspends until the NavHost has given this controller its graph (the start destination is on the
+ * back stack). An effect that navigates must wait for it: the NavHost is composed inside the
+ * Scaffold's content, during layout, and Compose on iOS runs effects at the start of a frame,
+ * before layout. A new scene (iOS rebuilds it after a long time in the background) that composes
+ * the app with a widget tap waiting therefore navigated before the graph was set, and
+ * `NavController.navigate` threw "You must call setGraph() before calling getGraph()".
+ */
+internal suspend fun NavController.awaitGraph() {
+    currentBackStackEntryFlow.first()
 }
 
 internal fun NavController.navigateTopLevel(route: Any) {

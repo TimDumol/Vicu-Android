@@ -111,6 +111,7 @@ import com.rendyhd.vicu.ui.navigation.SharedContentSaver
 import com.rendyhd.vicu.ui.navigation.TodayRoute
 import com.rendyhd.vicu.ui.navigation.UpcomingRoute
 import com.rendyhd.vicu.ui.navigation.ViewTarget
+import com.rendyhd.vicu.ui.navigation.awaitGraph
 import com.rendyhd.vicu.ui.navigation.currentRouteKey
 import com.rendyhd.vicu.ui.navigation.navigateTopLevel
 import com.rendyhd.vicu.ui.navigation.routeKey
@@ -405,6 +406,7 @@ fun VicuApp(
             return@LaunchedEffect
         }
         val route = target.toRoute()
+        navController.awaitGraph()
         // Already there: re-navigating would re-create a project, tag or list and reset its scroll.
         if (routeKey(route) != currentRouteKey(navController.currentBackStackEntry)) {
             navController.navigateTopLevel(route)
@@ -441,9 +443,10 @@ fun VicuApp(
         AuthDebugLog.log("NAVIGATION", "authState=$authState currentDest=${currentDestination?.route}")
         when (authState) {
             AuthState.Unauthenticated, AuthState.NeedsReAuth -> {
+                navController.awaitGraph()
                 // A cold start that is not signed in already begins on Setup; navigating to it
                 // again would replace its entry (and its view model) for nothing.
-                if (currentDestination?.hasRoute(SetupRoute::class) != true) {
+                if (navController.currentDestination?.hasRoute(SetupRoute::class) != true) {
                     Logger.d("VicuApp", "Navigating to SetupRoute")
                     AuthDebugLog.log("NAVIGATION", "→ SetupRoute (reason: $authState)")
                     navController.navigate(SetupRoute) {
@@ -452,7 +455,8 @@ fun VicuApp(
                 }
             }
             AuthState.Authenticated -> {
-                val isOnSetup = currentDestination?.hasRoute(SetupRoute::class) == true
+                navController.awaitGraph()
+                val isOnSetup = navController.currentDestination?.hasRoute(SetupRoute::class) == true
                 Logger.d("VicuApp", "Authenticated — isOnSetup=$isOnSetup")
                 if (isOnSetup) {
                     val inboxId = authManager.getInboxProjectId()

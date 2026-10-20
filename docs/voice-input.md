@@ -14,6 +14,17 @@ date, the project the text names or else the Inbox. The task is stored on the de
 (`TaskRepository.createQueued`), so the answer comes at once and nothing is lost offline; the sync
 sends it. It answers with a confirmation such as `Added “Call mom”, tomorrow, 15:00`.
 
+A place phrase for a saved place sets the task's location reminder (`PlacePhrases`, English): "when
+I get home", "when I'm at work", "when I arrive at Mom's" (arrive) or "when I leave work", "when I'm
+leaving home" (leave), at the end of the sentence or at its start ("When I get home, call mom").
+"the" or "my" before the place is fine. The phrase is taken out of the title, and the reply says it:
+`Added “Call mom”, when you arrive at Home`, plus a note when location access is not set to Always.
+A place that is not saved ("when I get to the supermarket") stays in the title and sets nothing.
+
+Siri itself sends "remind me ..." without an app name to Apple Reminders; iOS has no default app
+setting for reminders, so the user names Vicu ("Remind me in Vicu", then "call mom when I get
+home").
+
 ## iOS
 
 - **Siri**: "Add a task in Vicu" (also "New Vicu task", "Add to Vicu", "Remind me in Vicu").

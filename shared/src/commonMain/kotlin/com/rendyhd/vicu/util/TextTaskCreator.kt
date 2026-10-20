@@ -8,6 +8,14 @@ import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.LabelRepository
 import com.rendyhd.vicu.domain.repository.ProjectRepository
 import com.rendyhd.vicu.domain.repository.TaskRepository
+import com.rendyhd.vicu.location.LocationAccess
+import com.rendyhd.vicu.location.LocationPermissionPlatform
+import com.rendyhd.vicu.location.LocationReminder
+import com.rendyhd.vicu.location.LocationReminderStore
+import com.rendyhd.vicu.location.LocationTrigger
+import com.rendyhd.vicu.location.PlacePhrase
+import com.rendyhd.vicu.location.PlacePhrases
+import com.rendyhd.vicu.location.SavedPlacesStore
 import com.rendyhd.vicu.ui.screens.taskdetail.withoutLineBreaks
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryUiState
 import com.rendyhd.vicu.ui.screens.taskentry.resolveEntryFields
@@ -24,6 +32,9 @@ import kotlinx.datetime.toLocalDateTime
  * without a screen: for a voice command (Siri, the Android voice add). The task goes to the
  * project the text names, otherwise the Inbox, and is stored on the device first and queued, so
  * it is never lost and the caller gets an answer at once; the sync sends it.
+ *
+ * "When I get home" or "when I leave work" for a saved place also sets the task's location
+ * reminder ([PlacePhrases]).
  */
 class TextTaskCreator(
     private val taskRepository: TaskRepository,
@@ -34,6 +45,9 @@ class TextTaskCreator(
     private val notificationPrefsStore: NotificationPrefsStore,
     private val dayClock: DayClock,
     private val time: TimeSource = SystemTimeSource,
+    private val savedPlaces: SavedPlacesStore? = null,
+    private val locationReminders: LocationReminderStore? = null,
+    private val locationPermission: LocationPermissionPlatform? = null,
 ) {
     sealed interface Result {
         /** [confirmation] says what was added, for the voice reply or a toast. */
@@ -53,6 +67,8 @@ class TextTaskCreator(
         if (auth == null || auth == AuthState.Unauthenticated) return Result.Failed("Sign in to Vicu first.")
         val inboxId = authManager.getInboxProjectId()?.takeIf { it > 0 }
             ?: return Result.Failed("Choose an Inbox in Vicu first.")
+        val placePhrase = if (locationReminders != null) PlacePhrases.find(input, savedPlaces?.all().orEmpty()) else null
+        val sentence = placePhrase?.title ?: input
 
         dayClock.refresh()
         val day = dayClock.day.value
@@ -60,12 +76,12 @@ class TextTaskCreator(
         val projects = projectRepository.getAll().first()
         val labels = labelRepository.getAll().first()
         val now = time.now().toLocalDateTime(day.zone)
-        val parsed = if (config.enabled) TaskParser.parse(input, config, reference = now, zone = day.zone) else null
+        val parsed = if (config.enabled) TaskParser.parse(sentence, config, reference = now, zone = day.zone) else null
 
         // The same rules as the quick add sheet with nothing picked by hand (TaskEntryFields.kt).
         val fields = resolveEntryFields(
             TaskEntryUiState(
-                title = input,
+                title = sentence,
                 projectId = inboxId,
                 allProjects = projects,
                 parseResult = parsed,
@@ -73,7 +89,7 @@ class TextTaskCreator(
             ),
             day.zone,
         )
-        var title = parsed?.title ?: input
+        var title = parsed?.title ?: sentence
         var dueDate = fields.dueDate
         if (config.bangToday && TokenType.DATE !in config.suppressTypes && fields.dueSource == null) {
             val bang = extractBangToday(title, now)
@@ -107,25 +123,47 @@ class TextTaskCreator(
             is NetworkResult.Success -> {
                 val created = result.data
                 for (labelId in labelIds) labelRepository.addToTask(created.id, labelId)
+                placePhrase?.let { phrase ->
+                    locationReminders?.put(
+                        LocationReminder(
+                            taskId = created.id,
+                            placeId = phrase.place.id,
+                            placeName = phrase.place.name,
+                            latitude = phrase.place.latitude,
+                            longitude = phrase.place.longitude,
+                            trigger = phrase.trigger,
+                        ),
+                    )
+                }
                 val projectName = projects.find { it.id == created.projectId }
                     ?.takeIf { it.id != inboxId }?.title
-                Result.Created(created, confirmation(created.title, dueDate, projectName, day, format))
+                var reply = confirmation(created.title, dueDate, projectName, day, format, placePhrase)
+                if (placePhrase != null && !hasAlwaysLocation()) reply += ". $NEEDS_ALWAYS"
+                Result.Created(created, reply)
             }
             is NetworkResult.Error -> Result.Failed(result.message)
             NetworkResult.Loading -> Result.Failed("Could not add the task.")
         }
     }
 
+    private fun hasAlwaysLocation(): Boolean {
+        val permission = locationPermission ?: return true
+        permission.refresh()
+        return permission.access.value == LocationAccess.ALWAYS
+    }
+
     companion object {
         private const val AUTH_WAIT_MS = 5_000L
+        internal const val NEEDS_ALWAYS = "Set Vicu's location access to Always so it can remind you there"
 
-        /** `Added "Call mom", tomorrow 15:00` or `Added "Report" to Work`. */
+        /** `Added "Call mom", tomorrow 15:00`, `Added "Report" to Work` or `Added "Call mom", when you arrive at Home`. */
         internal fun confirmation(
             title: String,
             dueDate: String,
             projectName: String?,
             day: ClockDay,
             format: DateDisplayFormat,
+            place: PlacePhrase? = null,
         ): String = buildString {
             append("Added “").append(title).append("”")
             if (projectName != null) append(" to ").append(projectName)
@@ -134,6 +172,11 @@ class TextTaskCreator(
             if (due.isNotBlank()) {
                 append(", ")
                 append(if (due.startsWith("Today") || due.startsWith("Tomorrow")) due.replaceFirstChar { it.lowercase() } else due)
+            }
+            if (place != null) {
+                append(", when you ")
+                append(if (place.trigger == LocationTrigger.ARRIVE) "arrive at " else "leave ")
+                append(place.place.name)
             }
         }
     }

@@ -93,8 +93,6 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 
 The Play version and the GitHub APK are the same build signed with the same key, so you can switch between them without reinstalling or losing local data.
 
-Vicu needs a Vikunja server running version 2.4.0 or newer. To look around first, use the public demo server `https://try.vikunja.io` (user `demo`, password `demo`; it is reset now and then, so don't keep real tasks there).
-
 ### First launch
 
 1. Enter your Vikunja server URL

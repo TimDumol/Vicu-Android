@@ -197,8 +197,15 @@ background are budgeted).
   after the update (`untaggedAccount`).
 - **Routines** widget (small, medium, large): today's routines; the circle logs one.
 - **Add task** control (iOS 18): Control Center, the Lock Screen and the Action Button.
-- **Shortcuts**: "Add a task in Vicu" for Siri, Spotlight and the Shortcuts app
-  (`VicuShortcuts`, `OpenQuickAddIntent` in `iosApp/Shared/`).
+- **Shortcuts** (`VicuShortcuts`):
+  - "Add a task in Vicu" (`AddTaskIntent` in `iosApp/Vicu/`): Siri asks "What's the task?" and
+    adds the answer without opening the app, read like quick add ("Call mom tomorrow 3pm
+    #Family"), also on a locked phone. It runs `IosApp.addTaskFromText` (`TextTaskCreator`): the
+    task is stored on the device and queued, and Siri says what was added. In the Shortcuts app
+    its Task parameter can come from "Dictate Text", for an Action Button that adds in one step.
+    See `docs/voice-input.md`.
+  - "Open Vicu quick add" (`OpenQuickAddIntent` in `iosApp/Shared/`): opens the task entry; the
+    Add task control runs it too.
 - **Home-screen quick action**: Add task (`SceneDelegate` in `AppDelegate.swift`).
 
 ### Share extension (iosApp/VicuShare)
@@ -294,8 +301,8 @@ The simulator cannot check these; do them with a TestFlight build on an iPhone:
 - Reminders, snooze and routine reminders with the app closed from the app switcher, and the
   lock-screen actions.
 - Background refresh: after a few hours, Settings > General > Background activity lists runs.
-- The widgets and their buttons, the Add task control, Siri ("Add a task in Vicu") and the
-  home-screen quick action.
+- The widgets and their buttons, the Add task control, Siri ("Add a task in Vicu", also on a
+  locked phone and in CarPlay) and the home-screen quick action.
 - The share extension from Safari, Photos and Files.
 - The Local Network prompt with a server on the home network.
 - VoiceOver on the lists, the editor and quick add (rows read their title, date and state, and

@@ -34,6 +34,7 @@ import com.rendyhd.vicu.data.sync.ScreenRefresher
 import com.rendyhd.vicu.data.sync.SyncStaleness
 import com.rendyhd.vicu.data.sync.TaskRefresher
 import com.rendyhd.vicu.util.SystemTimeSource
+import com.rendyhd.vicu.util.TextTaskCreator
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.widget.TaskWidgetStates
 import kotlinx.coroutines.flow.first
@@ -232,6 +233,18 @@ val repositoryModule = module {
 
 val commonModule = module {
     single { DailySummaryReader(get()) }
+    single {
+        TextTaskCreator(
+            taskRepository = get(),
+            projectRepository = get(),
+            labelRepository = get(),
+            authManager = get(),
+            nlpPrefsStore = get(),
+            notificationPrefsStore = get(),
+            dayClock = get(),
+            time = get(),
+        )
+    }
     single { NotificationActions(taskRepository = get(), routineRepository = get(), reminders = get(), hooks = get()) }
     single { TokenRefreshRun(authManager = get(), tokenStorage = get(), baseUrlHolder = get()) }
     single {

@@ -9,7 +9,12 @@ import com.rendyhd.vicu.ui.AppInputs
 import com.rendyhd.vicu.notification.IosNotificationDelegate
 import com.rendyhd.vicu.ui.UiStateStore
 import com.rendyhd.vicu.ui.navigation.AppLink
+import com.rendyhd.vicu.ui.components.shared.deviceUses24Hour
 import com.rendyhd.vicu.util.BuildInfo
+import com.rendyhd.vicu.util.DateDisplayFormat
+import com.rendyhd.vicu.util.Logger
+import com.rendyhd.vicu.util.TextTaskCreator
+import kotlinx.coroutines.CancellationException
 import com.rendyhd.vicu.widget.AppleWidgetBridge
 import com.rendyhd.vicu.widget.IosWidgetSnapshots
 import org.koin.core.context.startKoin
@@ -65,9 +70,28 @@ object IosApp {
         return true
     }
 
-    /** Opens the task entry (the Control Center control, the Add task shortcut, the quick action). */
+    /** Opens the task entry (the Control Center control, the quick add shortcut, the quick action). */
     fun openQuickAdd() {
         KoinPlatform.getKoin().get<AppInputs>().open(AppLink.AddTask())
+    }
+
+    /**
+     * Adds a task from one sentence, read like quick add, and returns what Siri says back (the Add
+     * a task intent: "Hey Siri, add a task in Vicu", then the task). Runs without the app's screen,
+     * also on a locked phone; the task is stored on the device and the sync sends it. Never throws:
+     * a failure is the reply.
+     */
+    suspend fun addTaskFromText(text: String): String = try {
+        val creator = KoinPlatform.getKoin().get<TextTaskCreator>()
+        when (val result = creator.create(text, DateDisplayFormat.system(deviceUses24Hour()))) {
+            is TextTaskCreator.Result.Created -> result.confirmation
+            is TextTaskCreator.Result.Failed -> result.message
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Logger.w("IosApp", "Voice add failed: ${e.message}")
+        "Vicu could not add the task. Try again in the app."
     }
 
     private fun lifecycle(): IosAppLifecycle = KoinPlatform.getKoin().get()

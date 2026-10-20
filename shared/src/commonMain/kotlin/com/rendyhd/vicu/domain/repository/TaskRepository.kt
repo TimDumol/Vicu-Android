@@ -33,6 +33,13 @@ interface TaskRepository {
     fun getAllTasksFlat(): Flow<List<Task>>
 
     suspend fun create(task: Task): NetworkResult<Task>
+
+    /**
+     * Creates the task on this device at once (a temporary id) and queues it for the server, without
+     * waiting for the network first: for callers that must answer quickly, like a voice command.
+     */
+    suspend fun createQueued(task: Task): NetworkResult<Task> = create(task)
+
     suspend fun update(task: Task): NetworkResult<Task>
     /**
      * Applies the user's configured "schedule" action (set due today / set urgent) to a task.

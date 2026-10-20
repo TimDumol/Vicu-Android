@@ -407,28 +407,36 @@ class TaskRepositoryImpl(
             NetworkResult.Success(created)
         } catch (e: Exception) {
             if (isRetriableNetworkError(e)) {
-                val tempId = tempIds.next()
                 // A timeout or a 5xx may have created the task after all: the sync looks for it
                 // before creating it again.
-                if (mayHaveReachedServer(e)) tempIds.markCreateMaybeSent(tempId)
-                val localTask = task.copy(
-                    id = tempId,
-                    created = DateUtils.nowIso(),
-                    updated = DateUtils.nowIso(),
-                )
-                val dto = with(taskMapper) { localTask.toDto() }
-                val entity = with(taskMapper) { dto.toEntity() }
-                taskDao.upsert(entity)
-                queueTaskAction(tempId, "create", json.encodeToString(Task.serializer(), localTask))
-                // The reminders must fire without waiting for the sync. The alarm is keyed by the
-                // temporary id; the sync cancels it and schedules the real one when the create replays.
-                platformHooks.scheduleAlarm(localTask)
-                platformHooks.updateWidgets()
-                NetworkResult.Success(localTask)
+                NetworkResult.Success(createLocally(task, maybeSent = mayHaveReachedServer(e)))
             } else {
                 NetworkResult.Error(e.message ?: "Failed to create task")
             }
         }
+    }
+
+    override suspend fun createQueued(task: Task): NetworkResult<Task> =
+        NetworkResult.Success(createLocally(task, maybeSent = false))
+
+    /** Stores [task] under a temporary id and queues its create; the sync sends it. */
+    private suspend fun createLocally(task: Task, maybeSent: Boolean): Task {
+        val tempId = tempIds.next()
+        if (maybeSent) tempIds.markCreateMaybeSent(tempId)
+        val localTask = task.copy(
+            id = tempId,
+            created = DateUtils.nowIso(),
+            updated = DateUtils.nowIso(),
+        )
+        val dto = with(taskMapper) { localTask.toDto() }
+        val entity = with(taskMapper) { dto.toEntity() }
+        taskDao.upsert(entity)
+        queueTaskAction(tempId, "create", json.encodeToString(Task.serializer(), localTask))
+        // The reminders must fire without waiting for the sync. The alarm is keyed by the
+        // temporary id; the sync cancels it and schedules the real one when the create replays.
+        platformHooks.scheduleAlarm(localTask)
+        platformHooks.updateWidgets()
+        return localTask
     }
 
     override suspend fun update(task: Task): NetworkResult<Task> {

@@ -50,6 +50,7 @@ import androidx.glance.text.TextStyle
 import com.rendyhd.vicu.MainActivity
 import com.rendyhd.vicu.putViewTarget
 import com.rendyhd.vicu.ui.navigation.ViewTarget
+import com.rendyhd.vicu.voice.VoiceAddActivity
 import com.rendyhd.vicu.ui.theme.VicuDarkColorScheme
 import com.rendyhd.vicu.ui.theme.VicuDarkColors
 import com.rendyhd.vicu.ui.theme.VicuLightColorScheme
@@ -298,7 +299,30 @@ private fun WidgetHeader(state: TaskWidgetState) {
                 .defaultWeight()
                 .clickable(titleClickAction(state)),
         )
+        VoiceButton()
+        Spacer(GlanceModifier.width(8.dp))
         AddButton(state)
+    }
+}
+
+/** Adds a task by voice without opening the app ([VoiceAddActivity]). */
+@Composable
+private fun VoiceButton() {
+    Box(
+        modifier = GlanceModifier
+            .height(36.dp)
+            .width(46.dp)
+            .cornerRadius(18.dp)
+            .background(GlanceTheme.colors.secondaryContainer)
+            .clickable(actionStartActivity<VoiceAddActivity>()),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            provider = ImageProvider(R.drawable.ic_widget_mic),
+            contentDescription = "Add a task by voice",
+            modifier = GlanceModifier.size(36.dp),
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.onSecondaryContainer),
+        )
     }
 }
 

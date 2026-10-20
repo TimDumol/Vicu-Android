@@ -442,18 +442,7 @@ class TaskEntryViewModel(
                 // create is logged and dropped so the task itself still saves.
                 val resolvedLabelIds = manualLabelIds
                 if (config.enabled && parseResult != null) {
-                    for (labelName in parseResult.labels) {
-                        val matched = state.allLabels.find { it.title.equals(labelName, ignoreCase = true) }
-                        if (matched != null) {
-                            resolvedLabelIds.add(matched.id)
-                        } else {
-                            when (val res = labelRepository.create(Label(id = 0L, title = labelName, hexColor = ""))) {
-                                is NetworkResult.Success -> resolvedLabelIds.add(res.data.id)
-                                is NetworkResult.Error -> Logger.w("TaskEntryVM", "Auto-create label '$labelName' failed: ${res.message}")
-                                is NetworkResult.Loading -> {}
-                            }
-                        }
-                    }
+                    resolvedLabelIds += resolveParsedLabels(parseResult.labels, state.allLabels, labelRepository)
                 }
 
                 val task = Task(

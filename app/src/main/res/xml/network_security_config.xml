@@ -7,5 +7,10 @@
     -->
     <base-config
         cleartextTrafficPermitted="true"
-        tools:ignore="InsecureBaseConfiguration" />
+        tools:ignore="InsecureBaseConfiguration,AcceptsUserCertificates">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>

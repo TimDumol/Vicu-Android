@@ -71,7 +71,8 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 - **Attachments** — Upload, open, and share any file type on any task, up to the server's size limit
 - **Recurring tasks** — Daily, weekly, monthly, or custom intervals
 - **Home screen widgets** — Widgets showing Today, Inbox, Upcoming, any project or custom list, or your routines, with tap-to-complete checkboxes (Glance on Android, WidgetKit on iPhone and iPad)
-- **Quick add from anywhere** — The Quick Settings tile on Android; on iPhone and iPad a Control Center, Lock Screen and Action Button control, "Add a task in Vicu" with Siri, and a home-screen quick action
+- **Quick add from anywhere** — The Quick Settings tile, a Quick add widget and app-icon shortcuts on Android; on iPhone and iPad a Control Center, Lock Screen and Action Button control and a home-screen quick action
+- **Add by voice** — "Hey Siri, add a task in Vicu" adds the task without opening the app; on Android the mic on the Quick add widget, the Tasks widget or the app icon does the same. Dates, projects and labels are read like quick add
 - **Offline-first** — Room DB as source of truth; changes you make offline are queued, sent in order when the connection is back, and kept across sign-out and cache clears until you choose to discard them. Failed changes are shown with retry and discard, and a sync runs in the background every 30 minutes
 - **Dark / light / system themes** — Material 3, with your wallpaper colours on Android 12 and later
 - **Swipe gestures** — Swipe right to complete, swipe left to schedule

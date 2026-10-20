@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp"
+    android:height="36dp"
+    android:viewportWidth="36"
+    android:viewportHeight="36">
+
+    <!-- Microphone capsule -->
+    <path
+        android:pathData="M18,9C16.34,9 15,10.34 15,12L15,18C15,19.66 16.34,21 18,21C19.66,21 21,19.66 21,18L21,12C21,10.34 19.66,9 18,9Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Stand -->
+    <path
+        android:pathData="M12.5,17.5C12.5,20.54 14.96,23 18,23C21.04,23 23.5,20.54 23.5,17.5M18,23L18,27"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+</vector>

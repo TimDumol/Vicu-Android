@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Launcher shortcut icon: the Vicu blue disc with a white microphone -->
+    <path
+        android:pathData="M24,0A24,24 0,1 1,24 48A24,24 0,1 1,24 0Z"
+        android:fillColor="#0A66D1" />
+    <path
+        android:pathData="M24,13C22.34,13 21,14.34 21,16L21,24C21,25.66 22.34,27 24,27C25.66,27 27,25.66 27,24L27,16C27,14.34 25.66,13 24,13Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M17.5,23.5C17.5,27.09 20.41,30 24,30C27.59,30 30.5,27.09 30.5,23.5M24,30L24,35"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+</vector>

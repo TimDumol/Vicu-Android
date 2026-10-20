@@ -15,6 +15,7 @@ import com.rendyhd.vicu.widget.WidgetUpdateScheduler
 import com.rendyhd.vicu.worker.RoutineMaintenanceScheduler
 import com.rendyhd.vicu.worker.SyncScheduler
 import com.rendyhd.vicu.util.reconnections
+import com.rendyhd.vicu.voice.LauncherShortcuts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
@@ -46,6 +47,7 @@ class VicuApplication : Application(), SingletonImageLoader.Factory, KoinCompone
             modules(sharedModules + androidAppModules)
         }
         notificationChannelManager.createChannels()
+        LauncherShortcuts.publish(this)
         DayChangeReceiver.register(this, dayClock)
         appScope.launch {
             // Only for an account: sign-out cancels the account's background work, and scheduling

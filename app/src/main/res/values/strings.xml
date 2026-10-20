@@ -7,4 +7,8 @@
     <string name="routine_widget_description">Complete today’s routines with one tap</string>
     <string name="quick_add_tile_label">Add task</string>
     <string name="quick_add_tile_description">Quickly add a task in Vicu</string>
+    <string name="quick_add_widget_name">Vicu Quick add</string>
+    <string name="quick_add_widget_description">Add a task by voice or open quick add</string>
+    <string name="shortcut_add_task">Add task</string>
+    <string name="shortcut_add_by_voice">Add by voice</string>
 </resources>

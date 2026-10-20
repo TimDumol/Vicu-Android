@@ -2,6 +2,8 @@
 
 A task manager for Android, iPhone and iPad, powered by [Vikunja](https://vikunja.io/).
 
+**Get it:** [iPhone and iPad (TestFlight)](https://testflight.apple.com/join/c6wuvXrH) · [Android (Google Play beta)](#download) · [Android APK](https://github.com/rendyhd/Vicu-Mobile/releases/latest) · Desktop: [Vicu](https://github.com/rendyhd/Vicu)
+
 ![slide1 001](https://github.com/user-attachments/assets/83925b87-cfbb-4fc8-b796-f69b9dc303aa)
 
 
@@ -81,15 +83,17 @@ Two syntax modes are available in Settings: **Todoist** (default — `@` for lab
 
 ### Download
 
-**Android** (8.0 or newer):
+**iPhone and iPad** (iOS 17 or newer): [join the public beta on TestFlight](https://testflight.apple.com/join/c6wuvXrH). Install Apple's TestFlight app, open the link on your device, and new versions arrive automatically.
 
-[Add to Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rendyhd/Vicu-Mobile)
+**Android** (8.0 or newer), any of:
 
-Or grab the latest APK from [GitHub Releases](https://github.com/rendyhd/Vicu-Mobile/releases).
+- **Google Play beta**: join the [vicu-beta Google Group](https://groups.google.com/g/vicu-beta) with the Google account on your phone, then [become a tester](https://play.google.com/apps/testing/com.rendyhd.vicu) and install Vicu from [Google Play](https://play.google.com/store/apps/details?id=com.rendyhd.vicu). Updates come through Play.
+- [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rendyhd/Vicu-Mobile) to follow the GitHub releases.
+- Or grab the latest APK from [GitHub Releases](https://github.com/rendyhd/Vicu-Mobile/releases).
 
-**iPhone and iPad** (iOS 17 or newer): through TestFlight and the App Store, from the first iOS release.
+The Play version and the GitHub APK are the same build signed with the same key, so you can switch between them without reinstalling or losing local data.
 
-Vicu needs a Vikunja server running version 2.4.0 or newer.
+Vicu needs a Vikunja server running version 2.4.0 or newer. To look around first, use the public demo server `https://try.vikunja.io` (user `demo`, password `demo`; it is reset now and then, so don't keep real tasks there).
 
 ### First launch
 
@@ -102,6 +106,7 @@ Vicu needs a Vikunja server running version 2.4.0 or newer.
 
 - **[Vicu](https://github.com/rendyhd/Vicu)** — desktop app (Windows/macOS) with Quick Entry, Quick View, Obsidian integration, and browser linking
 - **[Vikunja](https://vikunja.io/)** — the open-source backend that powers Vicu
+- **[Privacy policy](docs/privacy-policy.md)** — Vicu collects nothing; your data goes only to your own Vikunja server
 - **[docs/ios.md](docs/ios.md)** — building and testing the iOS app, and where it behaves differently from Android
 
 ## License

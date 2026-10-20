@@ -68,7 +68,7 @@ class RoutineDefinitionWriteTest {
     }
 
     @Test
-    fun `an edit keeps slot ids, follow-ups and unknown fields, and clears amount and unit`() = runTest {
+    fun `an edit keeps slot ids - follow-ups and unknown fields - and clears amount and unit`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         val extra = buildJsonObject { put("sound", JsonPrimitive("chime")) }
         val stored = definition().let {
@@ -102,7 +102,7 @@ class RoutineDefinitionWriteTest {
     }
 
     @Test
-    fun `an edit keeps a stored chore on a schedule a chore, and switching to after completion makes a chore`() = runTest {
+    fun `an edit keeps a stored chore on a schedule a chore - and switching to after completion makes a chore`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         val stored = definition(kind = RoutineKind.HEALTH)
         rig.seedCarrier(100, payload(definition = stored))
@@ -141,7 +141,7 @@ class RoutineDefinitionWriteTest {
     }
 
     @Test
-    fun `undoing a carried-over after-completion occurrence leaves it due, not unlogged`() = runTest {
+    fun `undoing a carried-over after-completion occurrence leaves it due - not unlogged`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         // Due on 2026-10-01, shown on today (2026-10-06) until it is done.
         val stored = definition(

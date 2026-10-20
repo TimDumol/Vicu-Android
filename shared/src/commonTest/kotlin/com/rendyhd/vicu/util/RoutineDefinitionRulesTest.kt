@@ -15,7 +15,7 @@ class RoutineDefinitionRulesTest {
     private val afterCompletion = RoutineSchedule.AfterCompletion(intervalDays = 14, firstDueDate = "2026-10-06")
 
     @Test
-    fun `an after-completion routine is a chore, otherwise the stored kind or health`() {
+    fun `an after-completion routine is a chore - otherwise the stored kind or health`() {
         assertEquals(RoutineKind.CHORE, RoutineDefinitionRules.kindFor(afterCompletion, stored = null))
         assertEquals(RoutineKind.CHORE, RoutineDefinitionRules.kindFor(afterCompletion, stored = RoutineKind.HEALTH))
         assertEquals(RoutineKind.HEALTH, RoutineDefinitionRules.kindFor(calendar, stored = null))

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.domain.model.TaskReminder
+import com.rendyhd.vicu.location.LocationReminder
+import com.rendyhd.vicu.location.label
 import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
 import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
 import com.rendyhd.vicu.util.DateDisplay
@@ -74,6 +78,11 @@ fun ReminderPickerDialog(
     onDismiss: () -> Unit,
     onEditReminder: ((Int, TaskReminder) -> Unit)? = null,
     dueDate: String = "",
+    /** The task's location reminder; shown in the list when set. */
+    locationReminder: LocationReminder? = null,
+    /** Opens the location reminder dialog; null where a task cannot have one yet (quick add). */
+    onLocationClick: (() -> Unit)? = null,
+    onRemoveLocation: () -> Unit = {},
 ) {
     // Relative reminders ("15 min before" etc.) anchor to the due date; without one they'd
     // never fire, so disable them and tell the user why.
@@ -111,7 +120,36 @@ fun ReminderPickerDialog(
         title = { Text("Reminders") },
         text = {
             Column {
-                if (reminders.isEmpty()) {
+                if (locationReminder != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = onLocationClick != null) { onLocationClick?.invoke() }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Outlined.Place,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = locationReminder.label(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = onRemoveLocation) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Remove location reminder",
+                                modifier = Modifier.padding(4.dp),
+                            )
+                        }
+                    }
+                }
+                if (reminders.isEmpty() && locationReminder == null) {
                     Text(
                         "No reminders set",
                         style = MaterialTheme.typography.bodyMedium,
@@ -192,6 +230,18 @@ fun ReminderPickerDialog(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("Pick date & time...")
+                        }
+
+                        if (onLocationClick != null) {
+                            FilledTonalButton(
+                                onClick = {
+                                    showAddOptions = false
+                                    onLocationClick()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (locationReminder == null) "At a location..." else "Change location...")
+                            }
                         }
                     }
                 }

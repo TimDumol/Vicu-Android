@@ -6,6 +6,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.rendyhd.vicu.auth.AuthDebugLog
 import com.rendyhd.vicu.auth.AuthManager
+import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.notification.NotificationChannelManager
 import com.rendyhd.vicu.util.BuildInfo
 import com.rendyhd.vicu.util.DayChangeReceiver
@@ -34,6 +35,7 @@ class VicuApplication : Application(), SingletonImageLoader.Factory, KoinCompone
     private val networkMonitor: NetworkMonitor by inject()
     private val authManager: AuthManager by inject()
     private val appScope: CoroutineScope by inject()
+    private val locationReminders: LocationReminderCoordinator by inject()
 
     override fun onCreate() {
         super.onCreate()
@@ -49,6 +51,10 @@ class VicuApplication : Application(), SingletonImageLoader.Factory, KoinCompone
         notificationChannelManager.createChannels()
         LauncherShortcuts.publish(this)
         DayChangeReceiver.register(this, dayClock)
+        // Location reminders: follow changes from now on, and hand the regions over again (Play
+        // services forgets them after a reboot and when location was off).
+        locationReminders.start()
+        appScope.launch { locationReminders.replan(force = true) }
         appScope.launch {
             // Only for an account: sign-out cancels the account's background work, and scheduling
             // it again at every start would undo that. Signing in schedules it (MainActivity).

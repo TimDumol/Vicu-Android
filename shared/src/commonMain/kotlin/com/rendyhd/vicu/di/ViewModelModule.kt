@@ -16,6 +16,7 @@ import com.rendyhd.vicu.ui.screens.search.SearchViewModel
 import com.rendyhd.vicu.ui.screens.settings.SettingsViewModel
 import com.rendyhd.vicu.ui.screens.setup.SetupViewModel
 import com.rendyhd.vicu.ui.screens.tag.TagViewModel
+import com.rendyhd.vicu.ui.components.location.PlacesViewModel
 import com.rendyhd.vicu.ui.screens.taskdetail.TaskDetailViewModel
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryViewModel
 import com.rendyhd.vicu.ui.screens.today.TodayViewModel
@@ -73,4 +74,5 @@ val viewModelModule = module {
     viewModelOf(::UpcomingViewModel)
     viewModelOf(::CollabViewModel)
     viewModelOf(::TaskCommentsViewModel)
+    viewModelOf(::PlacesViewModel)
 }

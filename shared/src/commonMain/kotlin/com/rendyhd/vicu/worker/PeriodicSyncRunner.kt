@@ -5,7 +5,7 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * One run of the periodic background sync: bring the local data up to date with the server, then
- * make the reminder alarms and the widgets show it.
+ * make the reminder alarms, the location reminders and the widgets show it.
  *
  * The alarm and widget steps work from local data, so they run even when the server could not be
  * reached (an alarm lost to a reboot or a changed time zone is still repaired), and a failure in
@@ -18,6 +18,12 @@ class PeriodicSyncRunner(
     private val sync: suspend () -> Boolean,
     private val rescheduleAlarms: suspend () -> Unit,
     private val updateWidgets: suspend () -> Unit,
+    /**
+     * Hands the location reminders' regions to the platform again (it may have dropped them, for
+     * example when location was off); after a full sync ([synced]) it also drops reminders whose
+     * task is gone.
+     */
+    private val replanLocations: suspend (synced: Boolean) -> Unit = {},
 ) {
     enum class Outcome { SYNCED, SYNC_INCOMPLETE, SKIPPED }
 
@@ -38,6 +44,13 @@ class PeriodicSyncRunner(
             throw e
         } catch (e: Exception) {
             Logger.w(TAG, "Rescheduling alarms after the periodic sync failed: ${e.message}")
+        }
+        try {
+            replanLocations(synced)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(TAG, "Planning location reminders after the periodic sync failed: ${e.message}")
         }
         try {
             updateWidgets()

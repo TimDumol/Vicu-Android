@@ -2,6 +2,7 @@ package com.rendyhd.vicu.ios
 
 import com.rendyhd.vicu.auth.AuthDebugLog
 import com.rendyhd.vicu.auth.AuthManager
+import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.auth.TokenRefreshRun
 import com.rendyhd.vicu.data.local.dao.PendingActionDao
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
@@ -55,6 +56,7 @@ class IosBackgroundTasks(
     private val activityLog: BackgroundActivityLog,
     private val time: TimeSource,
     private val appScope: CoroutineScope,
+    private val locations: LocationReminderCoordinator,
 ) {
     fun register() {
         val scheduler = BGTaskScheduler.sharedScheduler
@@ -100,6 +102,7 @@ class IosBackgroundTasks(
                 sync = syncEngine::performSync,
                 rescheduleAlarms = notifications::replan,
                 updateWidgets = widgets::write,
+                replanLocations = { synced -> locations.replan(force = true, pruneMissing = synced) },
             ).run()
             "session ${token.name.lowercase()}, ${outcome.name.lowercase()}"
         }

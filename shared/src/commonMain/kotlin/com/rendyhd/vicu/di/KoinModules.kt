@@ -1,5 +1,9 @@
 package com.rendyhd.vicu.di
 
+import com.rendyhd.vicu.location.DeviceLocation
+import com.rendyhd.vicu.location.LocationReminderCoordinator
+import com.rendyhd.vicu.location.LocationReminderStore
+import com.rendyhd.vicu.location.SavedPlacesStore
 import org.koin.dsl.module
 import org.koin.core.context.startKoin
 import org.koin.core.KoinApplication
@@ -73,6 +77,8 @@ val databaseModule = module {
     single { SyncedPrefsStore(createDataStore(get(), "synced_prefs")) }
     single { TempIdGenerator(createDataStore(get(), "temp_ids")) }
     single { ThemePrefsStore(createDataStore(get(), "theme_prefs")) }
+    single { SavedPlacesStore(createDataStore(get(), "saved_places"), get()) }
+    single { LocationReminderStore(createDataStore(get(), "location_reminders"), get()) }
     single { WidgetPrefsStore(createDataStore(get(), "widget_prefs")) }
 }
 
@@ -313,6 +319,19 @@ val commonModule = module {
             carrierIds = get(),
             listPositions = get(),
             syncedPreferences = get(),
+            locationReminders = get(),
+        )
+    }
+    single {
+        LocationReminderCoordinator(
+            store = get(),
+            taskRepository = get(),
+            tempIds = get(),
+            geofencer = get(),
+            notifier = get(),
+            notificationPrefs = get(),
+            scope = get(),
+            near = { get<DeviceLocation>().current() },
         )
     }
     single { CoroutineScope(SupervisorJob() + Dispatchers.Main) }

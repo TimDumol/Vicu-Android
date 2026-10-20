@@ -5,6 +5,12 @@ import coil3.SingletonImageLoader
 import com.rendyhd.vicu.auth.AuthDebugLog
 import com.rendyhd.vicu.di.iosModule
 import com.rendyhd.vicu.di.sharedModules
+import com.rendyhd.vicu.location.AppleLocationBridge
+import com.rendyhd.vicu.location.IosLocationBridgeHolder
+import com.rendyhd.vicu.location.IosLocationPermissionPlatform
+import com.rendyhd.vicu.location.LocationReminderCoordinator
+import kotlinx.coroutines.CoroutineScope
+import kotlin.time.Duration.Companion.seconds
 import com.rendyhd.vicu.ui.AppInputs
 import com.rendyhd.vicu.notification.IosNotificationDelegate
 import com.rendyhd.vicu.ui.UiStateStore
@@ -32,9 +38,12 @@ object IosApp {
     // declare a subclass of an Objective-C class.
     private var notificationDelegate: IosNotificationDelegate? = null
 
-    /** [widgetBridge] reloads the widgets through WidgetKit, which only Swift can call. */
+    /**
+     * [widgetBridge] reloads the widgets through WidgetKit, which only Swift can call;
+     * [locationBridge] watches the location reminders' regions with CLMonitor.
+     */
     @OptIn(ExperimentalNativeApi::class)
-    fun start(widgetBridge: AppleWidgetBridge?) {
+    fun start(widgetBridge: AppleWidgetBridge?, locationBridge: AppleLocationBridge?) {
         if (started) return
         started = true
         // Before anything logs or builds the HTTP client: release builds log no requests.
@@ -53,6 +62,7 @@ object IosApp {
         ).also { it.install() }
         koin.get<IosBackgroundTasks>().register()
         koin.get<IosWidgetSnapshots>().bridge = widgetBridge
+        koin.get<IosLocationBridgeHolder>().bridge = locationBridge
         lifecycle().start()
     }
 
@@ -92,6 +102,24 @@ object IosApp {
     } catch (e: Exception) {
         Logger.w("IosApp", "Voice add failed: ${e.message}")
         "Vicu could not add the task. Try again in the app."
+    }
+
+    /**
+     * CLMonitor saw the device enter ([entered]) or leave a watched region. iOS starts the app in
+     * the background for it when it is not running; the reminders are shown while it lets the app run.
+     */
+    fun onRegionEvent(regionId: String, entered: Boolean) {
+        val koin = KoinPlatform.getKoin()
+        koin.get<CoroutineScope>().launchInBackgroundTask("Vicu location reminder", 25.seconds) {
+            koin.get<LocationReminderCoordinator>().onRegionEvent(regionId, entered)
+        }
+    }
+
+    /** The location permission changed (answered a prompt, or changed in Settings). */
+    fun onLocationAuthorizationChanged() {
+        val koin = KoinPlatform.getKoin()
+        koin.get<IosLocationPermissionPlatform>().refresh()
+        koin.get<LocationReminderCoordinator>().requestReplan()
     }
 
     private fun lifecycle(): IosAppLifecycle = KoinPlatform.getKoin().get()

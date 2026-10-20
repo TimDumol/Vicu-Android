@@ -5,6 +5,8 @@ import com.rendyhd.vicu.auth.AuthState
 import com.rendyhd.vicu.auth.AuthTransitionAction
 import com.rendyhd.vicu.auth.AuthTransitions
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
+import com.rendyhd.vicu.location.IosLocationPermissionPlatform
+import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.notification.IosNotificationScheduler
 import com.rendyhd.vicu.permission.IosNotificationPermissionPlatform
 import com.rendyhd.vicu.share.IosShareInbox
@@ -38,6 +40,8 @@ class IosAppLifecycle(
     private val widgets: IosWidgetSnapshots,
     private val shareInbox: IosShareInbox,
     private val appScope: CoroutineScope,
+    private val locations: LocationReminderCoordinator,
+    private val locationPermission: IosLocationPermissionPlatform,
 ) {
     private val signedIn: Boolean get() = authManager.authState.value == AuthState.Authenticated
 
@@ -45,6 +49,10 @@ class IosAppLifecycle(
         notificationPermission.refresh()
         notifications.start()
         widgets.start()
+        locationPermission.refresh()
+        // Location reminders: follow changes from now on, and hand the regions to CLMonitor again.
+        locations.start()
+        appScope.launch { locations.replan(force = true) }
         appScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
             if (!storedUrl.isNullOrBlank()) baseUrlHolder.baseUrl = storedUrl
@@ -101,6 +109,7 @@ class IosAppLifecycle(
     fun onActive() {
         dayClock.refresh()
         notificationPermission.refresh()
+        locationPermission.refresh()
         if (signedIn) {
             syncRequester.request()
             // Something shared to Vicu from another app while it was away.

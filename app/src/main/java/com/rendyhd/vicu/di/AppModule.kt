@@ -29,6 +29,17 @@ import com.rendyhd.vicu.util.AndroidNetworkMonitor
 import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.util.PlatformFiles
 import com.rendyhd.vicu.util.AndroidPlatformFiles
+import com.rendyhd.vicu.BuildConfig
+import com.rendyhd.vicu.location.AndroidDeviceLocation
+import com.rendyhd.vicu.location.AndroidGeofencer
+import com.rendyhd.vicu.location.AndroidLocationNotifier
+import com.rendyhd.vicu.location.AndroidLocationPermissionPlatform
+import com.rendyhd.vicu.location.DeviceLocation
+import com.rendyhd.vicu.location.LocationNotifier
+import com.rendyhd.vicu.location.LocationPermissionPlatform
+import com.rendyhd.vicu.location.PhotonPlaceSearch
+import com.rendyhd.vicu.location.PlaceSearch
+import com.rendyhd.vicu.location.PlatformGeofencer
 import com.rendyhd.vicu.permission.AndroidNotificationPermissionPlatform
 import com.rendyhd.vicu.permission.NotificationPermissionPlatform
 import com.rendyhd.vicu.ui.screens.settings.PlatformSettingsHooks
@@ -68,6 +79,17 @@ val appModule = module {
     single<PlatformSettingsHooks> { AndroidSettingsHooks(androidContext(), get()) }
     single { AndroidNotificationPermissionPlatform(androidContext()) }
     single<NotificationPermissionPlatform> { get<AndroidNotificationPermissionPlatform>() }
+    single { AndroidLocationPermissionPlatform(androidContext()) }
+    single<LocationPermissionPlatform> { get<AndroidLocationPermissionPlatform>() }
+    single<PlatformGeofencer> { AndroidGeofencer(androidContext()) }
+    single<DeviceLocation> { AndroidDeviceLocation(androidContext()) }
+    single<LocationNotifier> { AndroidLocationNotifier(androidContext()) }
+    single<PlaceSearch> {
+        PhotonPlaceSearch(
+            engine = get(),
+            userAgent = "Vicu/${BuildConfig.VERSION_NAME} (Android; https://github.com/rendyhd/Vicu-Mobile)",
+        )
+    }
 
     single { AlarmScheduler(androidContext(), get(), get(), get(), get(), get()) }
     single<TaskReminderNotifications> { get<AlarmScheduler>() }

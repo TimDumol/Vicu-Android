@@ -166,6 +166,17 @@ are planned ahead instead of being scheduled one by one:
   reminders. They run in the app (`NotificationActions`, shared with Android) inside a
   background task, then sync.
 
+### Location reminders
+
+`iosApp/Vicu/LocationMonitor.swift` watches the regions the shared `LocationReminderCoordinator`
+plans, with a `CLMonitor` named `vicu-location-reminders` (at most 20 regions). It is created in
+the app delegate before `IosApp.start(widgetBridge:locationBridge:)`, so a relaunch in the
+background for a region event delivers the event to `IosApp.onRegionEvent`, which posts the
+notification (`location:<taskId>`, kind `LOCATION`) inside a background task. It also asks for the
+permission (While Using, then Always) and reads the current position; place search is
+`MKLocalSearch` in Kotlin (`IosPlaceSearch`). No `location` background mode is needed. See
+`docs/location-reminders.md`.
+
 ### Background work
 
 - **Refresh** (`com.rendyhd.vicu.refresh`, BGAppRefreshTask, asked for every 30 minutes; iOS
@@ -304,6 +315,8 @@ The simulator cannot check these; do them with a TestFlight build on an iPhone:
 - The widgets and their buttons, the Add task control, Siri ("Add a task in Vicu", also on a
   locked phone and in CarPlay) and the home-screen quick action.
 - The share extension from Safari, Photos and Files.
+- Location reminders with the app closed: arrive and leave, set while already at the place
+  (fires on the next arrival), after a restart, and the Always prompt.
 - The Local Network prompt with a server on the home network.
 - VoiceOver on the lists, the editor and quick add (rows read their title, date and state, and
   the row actions are offered).

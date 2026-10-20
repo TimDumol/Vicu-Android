@@ -50,10 +50,14 @@ object ReminderFormat {
 
     private fun plural(count: Long, unit: String): String = if (count == 1L) "1 $unit" else "$count ${unit}s"
 
-    /** Summary for a row: the single reminder's label, or "N reminders" when there are several. */
-    fun summary(reminders: List<TaskReminder>, fmt: DateDisplayFormat): String = when (reminders.size) {
-        0 -> ""
-        1 -> format(reminders.first(), fmt)
-        else -> "${reminders.size} reminders"
-    }
+    /**
+     * Summary for a row: the single reminder's label, or "N reminders" when there are several.
+     * [location] is the label of the task's location reminder ("Arrive: Home"), counted as one more.
+     */
+    fun summary(reminders: List<TaskReminder>, fmt: DateDisplayFormat, location: String? = null): String =
+        when (reminders.size + (if (location != null) 1 else 0)) {
+            0 -> ""
+            1 -> location ?: format(reminders.first(), fmt)
+            else -> "${reminders.size + (if (location != null) 1 else 0)} reminders"
+        }
 }

@@ -22,7 +22,9 @@ data class PlaceMatch(
  * [com.rendyhd.vicu.util.parser.TokenType.PLACE]). English only, like the rest of voice add. A
  * phrase that starts with "when" or "once" is read anywhere in the text; the bare "leaving work"
  * and "arriving at work" only at the start or the end, where they cannot be part of the sentence.
- * A phrase that names no saved place is left alone, so the words stay in the task's title.
+ * A phrase that names no saved place is left alone, so the words stay in the task's title. The
+ * rules are section 5.3 of docs/cross-app-semantics-v1.md, the same as the desktop's
+ * `task-parser/place-phrases.ts`; the place cases of nlp-corpus-v1.json are the test.
  */
 object PlacePhrases {
     private val ARRIVE = listOf(
@@ -52,8 +54,9 @@ object PlacePhrases {
         // Dictation writes curly apostrophes ("I’m"); the phrases use straight ones. One character
         // for one, so a position in the lowercased copy is the same position in the text.
         val lower = lowercase(text)
+        // By id, so of two places with the same name the first id wins (the candidates keep this order).
         val candidates = buildList {
-            for (place in places) {
+            for (place in places.sortedBy { it.id }) {
                 val name = lowercase(place.name).trim()
                 if (name.isEmpty()) continue
                 for (article in ARTICLES) {
@@ -61,8 +64,11 @@ object PlacePhrases {
                     LEAVE.forEach { add(Candidate("$it $article$name", place, LocationTrigger.LEAVE)) }
                 }
             }
-        }.sortedByDescending { it.words.length }
+        }
 
+        // The longest phrase wins, and between equally long ones the earliest (contract 5.3); of two
+        // places with the same name, the one whose id sorts first.
+        var best: PlaceMatch? = null
         for (candidate in candidates) {
             var from = 0
             while (true) {
@@ -70,6 +76,7 @@ object PlacePhrases {
                 if (start < 0) break
                 from = start + 1
                 val end = start + candidate.words.length
+                if (best != null && (end - start < best.end - best.start || (end - start == best.end - best.start && start >= best.start))) continue
                 if (start > 0 && lower[start - 1].isWordPart()) continue
                 if (end < lower.length && lower[end].isWordPart()) continue
                 val atStart = text.substring(0, start).isBlank()
@@ -77,10 +84,10 @@ object PlacePhrases {
                 if (!candidate.anywhere && !atStart && !atEnd) continue
                 val consumed = consumedRange(text, start, end, atStart, atEnd)
                 if (titleWithout(text, consumed).isBlank()) continue
-                return PlaceMatch(candidate.place, candidate.trigger, start, end, consumed)
+                best = PlaceMatch(candidate.place, candidate.trigger, start, end, consumed)
             }
         }
-        return null
+        return best
     }
 
     /**

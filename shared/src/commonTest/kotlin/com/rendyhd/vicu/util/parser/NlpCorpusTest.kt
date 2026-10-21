@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.util.readRepoFile
 import com.rendyhd.vicu.util.CrossAppFixture
 import com.rendyhd.vicu.util.DueDates
@@ -15,12 +16,19 @@ import kotlin.test.assertTrue
  * The shared quick-add corpus (`test-fixtures/nlp-corpus-v1.json`, identical in the desktop repo;
  * docs/cross-app-semantics-v1.md section 5). Reference time is Tue 2026-10-06 10:00 local, in
  * every zone the contract vectors run in, and a case passes only when all of title, due date,
- * priority, labels, project and recurrence match.
+ * priority, labels, project, recurrence and place match. Every case is parsed with the corpus's
+ * saved places (section 5.3).
  */
 object NlpCorpusFixture {
 
     @Serializable
     data class Recurrence(val interval: Int, val unit: String)
+
+    @Serializable
+    data class Place(val id: String, val name: String)
+
+    @Serializable
+    data class PlaceRead(val id: String, val trigger: String)
 
     @Serializable
     data class Case(
@@ -34,10 +42,11 @@ object NlpCorpusFixture {
         val labels: List<String> = emptyList(),
         val project: String? = null,
         val recurrence: Recurrence? = null,
+        val place: PlaceRead? = null,
     )
 
     @Serializable
-    data class Corpus(val contractVersion: Int, val reference: String, val cases: List<Case>)
+    data class Corpus(val contractVersion: Int, val reference: String, val places: List<Place>, val cases: List<Case>)
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -55,6 +64,7 @@ internal fun wallOf(value: LocalDateTime): String {
 class NlpCorpusTest {
 
     private val reference = LocalDateTime.parse(NlpCorpusFixture.corpus.reference)
+    private val places = NlpCorpusFixture.corpus.places.map { SavedPlace(it.id, it.name) }
 
     private fun problemsFor(case: NlpCorpusFixture.Case, zone: TimeZone): List<String> {
         val config = ParserConfig(
@@ -62,7 +72,7 @@ class NlpCorpusTest {
             syntaxMode = if (case.mode == "vikunja") SyntaxMode.VIKUNJA else SyntaxMode.TODOIST,
             locale = case.locale,
         )
-        val result = TaskParser.parse(case.input, config, reference, zone)
+        val result = TaskParser.parse(case.input, config, reference, zone, places)
         val problems = mutableListOf<String>()
 
         if (result.title != case.title) problems += "title '${result.title}', expected '${case.title}'"
@@ -80,6 +90,8 @@ class NlpCorpusTest {
         if (result.project != case.project) problems += "project ${result.project}, expected ${case.project}"
         val recurrence = result.recurrence?.let { NlpCorpusFixture.Recurrence(it.interval, it.unit.name.lowercase()) }
         if (recurrence != case.recurrence) problems += "recurrence $recurrence, expected ${case.recurrence}"
+        val place = result.place?.let { NlpCorpusFixture.PlaceRead(it.place.id, it.trigger.name.lowercase()) }
+        if (place != case.place) problems += "place $place, expected ${case.place}"
         return problems
     }
 
@@ -94,7 +106,7 @@ class NlpCorpusTest {
     @Test
     fun `the corpus is the contract version this parser implements`() {
         assertEquals(1, NlpCorpusFixture.corpus.contractVersion)
-        assertTrue(NlpCorpusFixture.corpus.cases.size >= 91, "the corpus was cut down")
+        assertTrue(NlpCorpusFixture.corpus.cases.size >= 113, "the corpus was cut down")
     }
 
     @Test

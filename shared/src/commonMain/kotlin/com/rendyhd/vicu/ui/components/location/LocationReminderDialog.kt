@@ -52,17 +52,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rendyhd.vicu.location.LocationAccess
 import com.rendyhd.vicu.location.LocationReminder
 import com.rendyhd.vicu.location.LocationTrigger
+import com.rendyhd.vicu.location.PlaceReminder
 import com.rendyhd.vicu.location.PlaceSuggestion
+import com.rendyhd.vicu.location.SavedPlace
 
 /**
  * Sets the one location reminder of [taskId]: arrive at or leave a saved place, a searched place
- * or the current position, within 100, 200 or 500 m. [existing] is the reminder it has now.
+ * or the current position, within 100, 200 or 500 m. [existing] is the reminder it has now. A
+ * saved place can be picked even when this phone does not know where it is (saved on another
+ * phone): the reminder syncs, and this phone reminds there once the place is set here.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LocationReminderDialog(
     taskId: Long,
-    existing: LocationReminder?,
+    existing: PlaceReminder?,
     viewModel: PlacesViewModel,
     onSaved: () -> Unit,
     onDismiss: () -> Unit,
@@ -78,9 +82,10 @@ fun LocationReminderDialog(
     // The chosen spot: a saved place (its id) or a searched one (no id).
     var chosenName by rememberSaveable { mutableStateOf(existing?.placeName.orEmpty()) }
     var chosenAddress by rememberSaveable { mutableStateOf("") }
-    var chosenLat by rememberSaveable { mutableStateOf(existing?.latitude ?: 0.0) }
-    var chosenLon by rememberSaveable { mutableStateOf(existing?.longitude ?: 0.0) }
+    var chosenLat by rememberSaveable { mutableStateOf(existing?.position?.latitude ?: 0.0) }
+    var chosenLon by rememberSaveable { mutableStateOf(existing?.position?.longitude ?: 0.0) }
     var chosenPlaceId by rememberSaveable { mutableStateOf(existing?.placeId) }
+    var chosenLocated by rememberSaveable { mutableStateOf(existing == null || existing.position != null) }
     var naming by remember { mutableStateOf<PlaceSuggestion?>(null) }
     val hasChoice = chosenName.isNotBlank()
 
@@ -90,7 +95,18 @@ fun LocationReminderDialog(
         chosenLat = suggestion.latitude
         chosenLon = suggestion.longitude
         chosenPlaceId = placeId
+        chosenLocated = true
         viewModel.clearSearch()
+    }
+
+    fun choose(place: SavedPlace) {
+        val position = place.position
+        if (position != null) {
+            choose(PlaceSuggestion(place.name, place.address, position.latitude, position.longitude), place.id)
+        } else {
+            choose(PlaceSuggestion(place.name, "", 0.0, 0.0), place.id)
+            chosenLocated = false
+        }
     }
 
     // Before anything is chosen: the permission is what makes the reminder work at all.
@@ -158,6 +174,13 @@ fun LocationReminderDialog(
                             }
                         }
                     }
+                    if (!chosenLocated) {
+                        Text(
+                            LocationCopy.notOnThisPhone(chosenName),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     if (chosenPlaceId == null) {
                         TextButton(onClick = {
                             naming = PlaceSuggestion(chosenName, chosenAddress, chosenLat, chosenLon)
@@ -177,7 +200,7 @@ fun LocationReminderDialog(
                         places.forEach { place ->
                             FilterChip(
                                 selected = chosenPlaceId == place.id,
-                                onClick = { choose(PlaceSuggestion(place.name, place.address, place.latitude, place.longitude), place.id) },
+                                onClick = { choose(place) },
                                 label = { Text(place.name) },
                             )
                         }
@@ -262,9 +285,7 @@ fun LocationReminderDialog(
             title = "Save place",
             initial = suggestion.name.takeUnless { it == "Current location" }.orEmpty(),
             onSave = { name ->
-                viewModel.addPlace(name, suggestion) { place ->
-                    choose(PlaceSuggestion(place.name, place.address, place.latitude, place.longitude), place.id)
-                }
+                viewModel.addPlace(name, suggestion) { place -> choose(place) }
                 naming = null
             },
             onDismiss = { naming = null },

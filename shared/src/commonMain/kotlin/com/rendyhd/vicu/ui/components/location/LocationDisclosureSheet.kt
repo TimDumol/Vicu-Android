@@ -26,9 +26,15 @@ internal object LocationCopy {
     const val DISCLOSURE =
         "Vicu uses your location to remind you when you arrive at or leave a place you chose, " +
             "even when the app is closed or not in use."
-    const val PRIVACY = "Your location and your places stay on this device. They are never sent to your Vikunja server."
+    const val PRIVACY =
+        "Your location, and where your places are, stay on this device. Only the names of your places " +
+            "and your location reminders sync through your Vikunja server, so your other devices can use them."
     const val ALWAYS = "On the next screen, allow location access all the time (Always)."
     const val ACCESS_NEEDED = "Location reminders need location access set to Always, so they work while Vicu is closed."
+    const val NOT_SET = "Not set on this phone"
+
+    fun notOnThisPhone(name: String) =
+        "This phone does not know where $name is yet, so it will not remind you there. Set it in Settings > Notifications > Places."
 }
 
 /** Explains the location permission before the system asks; shown while the view model says so. */

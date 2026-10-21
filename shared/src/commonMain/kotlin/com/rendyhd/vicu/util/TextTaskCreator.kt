@@ -10,12 +10,10 @@ import com.rendyhd.vicu.domain.repository.ProjectRepository
 import com.rendyhd.vicu.domain.repository.TaskRepository
 import com.rendyhd.vicu.location.LocationAccess
 import com.rendyhd.vicu.location.LocationPermissionPlatform
-import com.rendyhd.vicu.location.LocationReminder
-import com.rendyhd.vicu.location.LocationReminderStore
+import com.rendyhd.vicu.location.LocationRepository
 import com.rendyhd.vicu.location.LocationTrigger
 import com.rendyhd.vicu.location.PlacePhrase
 import com.rendyhd.vicu.location.PlacePhrases
-import com.rendyhd.vicu.location.SavedPlacesStore
 import com.rendyhd.vicu.ui.screens.taskdetail.withoutLineBreaks
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryUiState
 import com.rendyhd.vicu.ui.screens.taskentry.resolveEntryFields
@@ -45,8 +43,7 @@ class TextTaskCreator(
     private val notificationPrefsStore: NotificationPrefsStore,
     private val dayClock: DayClock,
     private val time: TimeSource = SystemTimeSource,
-    private val savedPlaces: SavedPlacesStore? = null,
-    private val locationReminders: LocationReminderStore? = null,
+    private val locations: LocationRepository? = null,
     private val locationPermission: LocationPermissionPlatform? = null,
 ) {
     sealed interface Result {
@@ -67,7 +64,7 @@ class TextTaskCreator(
         if (auth == null || auth == AuthState.Unauthenticated) return Result.Failed("Sign in to Vicu first.")
         val inboxId = authManager.getInboxProjectId()?.takeIf { it > 0 }
             ?: return Result.Failed("Choose an Inbox in Vicu first.")
-        val placePhrase = if (locationReminders != null) PlacePhrases.find(input, savedPlaces?.all().orEmpty()) else null
+        val placePhrase = locations?.let { PlacePhrases.find(input, it.allPlaces()) }
         val sentence = placePhrase?.title ?: input
 
         dayClock.refresh()
@@ -124,21 +121,16 @@ class TextTaskCreator(
                 val created = result.data
                 for (labelId in labelIds) labelRepository.addToTask(created.id, labelId)
                 placePhrase?.let { phrase ->
-                    locationReminders?.put(
-                        LocationReminder(
-                            taskId = created.id,
-                            placeId = phrase.place.id,
-                            placeName = phrase.place.name,
-                            latitude = phrase.place.latitude,
-                            longitude = phrase.place.longitude,
-                            trigger = phrase.trigger,
-                        ),
-                    )
+                    locations?.setReminder(locations.reminderAt(created.id, phrase.place, phrase.trigger))
                 }
                 val projectName = projects.find { it.id == created.projectId }
                     ?.takeIf { it.id != inboxId }?.title
                 var reply = confirmation(created.title, dueDate, projectName, day, format, placePhrase)
-                if (placePhrase != null && !hasAlwaysLocation()) reply += ". $NEEDS_ALWAYS"
+                if (placePhrase != null && placePhrase.place.position == null) {
+                    reply += ". ${notLocated(placePhrase.place.name)}"
+                } else if (placePhrase != null && !hasAlwaysLocation()) {
+                    reply += ". $NEEDS_ALWAYS"
+                }
                 Result.Created(created, reply)
             }
             is NetworkResult.Error -> Result.Failed(result.message)
@@ -155,6 +147,9 @@ class TextTaskCreator(
     companion object {
         private const val AUTH_WAIT_MS = 5_000L
         internal const val NEEDS_ALWAYS = "Set Vicu's location access to Always so it can remind you there"
+
+        /** The place was saved on another device: this phone reminds there once it knows where it is. */
+        internal fun notLocated(name: String) = "Set where $name is in Vicu's settings so this phone can remind you there"
 
         /** `Added "Call mom", tomorrow 15:00`, `Added "Report" to Work` or `Added "Call mom", when you arrive at Home`. */
         internal fun confirmation(

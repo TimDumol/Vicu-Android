@@ -1,5 +1,8 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.location.PlaceMatch
+import com.rendyhd.vicu.location.PlacePhrases
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.util.deviceLocaleTag
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -10,7 +13,7 @@ object TaskParser {
      * Parse free-form task input into structured fields. Implements shared-parser-spec.md and
      * section 5 of docs/cross-app-semantics-v1.md; `test-fixtures/nlp-corpus-v1.json` is the test.
      *
-     * Extraction order: Labels -> Projects -> Priority -> Recurrence -> Dates -> Title -> `!`
+     * Extraction order: Place -> Labels -> Projects -> Priority -> Recurrence -> Dates -> Title -> `!`
      *
      * The `!` -> today shortcut (a standalone, leading or trailing `!`) is controlled by
      * `config.bangToday` and has one rule, [extractBangToday]: this function applies it whether the
@@ -19,12 +22,15 @@ object TaskParser {
      *
      * @param reference "Now" in [zone] for relative phrases; the device clock unless a test passes one.
      * @param zone The zone [reference] is in; "in 2 hours" counts real time in it.
+     * @param places The saved places "when I get home" may name ([TokenType.PLACE]); none outside
+     *   the phone's quick add, so the shared contract is unchanged.
      */
     fun parse(
         rawInput: String,
         config: ParserConfig = ParserConfig(),
         reference: LocalDateTime? = null,
         zone: TimeZone = TimeZone.currentSystemDefault(),
+        places: List<SavedPlace> = emptyList(),
     ): ParseResult {
         val now = reference ?: systemNow(zone)
         val result = MutableParseResult(title = rawInput)
@@ -48,6 +54,24 @@ object TaskParser {
 
         val prefixes = getPrefixes(config.syntaxMode)
         val consumed = mutableListOf<IntRange>()
+
+        // 0. A saved place ("when I get home"), first, so no word of the phrase is read as a date.
+        if (TokenType.PLACE !in suppress) {
+            val match = PlacePhrases.match(rawInput, places)
+            if (match != null) {
+                consumed.add(match.consumed)
+                result.place = match
+                result.tokens.add(
+                    ParsedToken(
+                        type = TokenType.PLACE,
+                        start = match.start,
+                        end = match.end,
+                        value = match,
+                        raw = rawInput.substring(match.start, match.end),
+                    ),
+                )
+            }
+        }
 
         // 1. Labels
         if (TokenType.LABEL !in suppress) {
@@ -170,6 +194,7 @@ private class MutableParseResult(
     var labels: List<String> = emptyList(),
     var project: String? = null,
     var recurrence: ParsedRecurrence? = null,
+    var place: PlaceMatch? = null,
     val tokens: MutableList<ParsedToken> = mutableListOf(),
 ) {
     /**
@@ -191,6 +216,7 @@ private class MutableParseResult(
         labels = labels,
         project = project,
         recurrence = recurrence,
+        place = place,
         tokens = tokens.toList(),
     )
 }

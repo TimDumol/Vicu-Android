@@ -16,8 +16,11 @@ sends it. It answers with a confirmation such as `Added “Call mom”, tomorrow
 
 A place phrase for a saved place sets the task's location reminder (`PlacePhrases`, English): "when
 I get home", "when I'm at work", "when I arrive at Mom's" (arrive) or "when I leave work", "when I'm
-leaving home" (leave), at the end of the sentence or at its start ("When I get home, call mom").
-"the" or "my" before the place is fine. The phrase is taken out of the title, and the reply says it:
+leaving home" (leave), anywhere in the sentence ("When I get home, call mom", "Call mom when I get
+home tomorrow"); the bare "leaving home" and "arriving at work" only at its start or end, where they
+cannot be part of the task. "the" or "my" before the place is fine. The quick add reads the same
+phrases as you type (the parser's `TokenType.PLACE`, given the saved places; not part of the shared
+NLP contract, since the desktop saves no places). The phrase is taken out of the title, and the reply says it:
 `Added “Call mom”, when you arrive at Home`, plus a note when location access is not set to Always.
 A place that is not saved ("when I get to the supermarket") stays in the title and sets nothing.
 

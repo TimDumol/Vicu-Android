@@ -4,6 +4,8 @@ import com.rendyhd.vicu.data.local.NotificationPrefsStore
 import com.rendyhd.vicu.data.local.TempIdGenerator
 import com.rendyhd.vicu.data.remote.createApiJson
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
+import com.rendyhd.vicu.data.repository.InMemorySyncedEntries
+import kotlinx.coroutines.flow.first
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.ui.FakeTaskRepository
 import kotlinx.coroutines.CoroutineScope
@@ -18,7 +20,10 @@ import kotlin.test.assertTrue
 class LocationReminderCoordinatorTest {
 
     private val home = GeoPoint(52.37022, 4.89517)
+    private val synced = InMemorySyncedEntries()
     private val store = LocationReminderStore(InMemoryPreferencesDataStore(), createApiJson())
+    private val positions = SavedPlacesStore(InMemoryPreferencesDataStore(), createApiJson())
+    private val locations = LocationRepository(synced, positions, store)
     private val tasks = FakeTaskRepository()
     private val tempIds = TempIdGenerator(InMemoryPreferencesDataStore())
     private val prefs = NotificationPrefsStore(InMemoryPreferencesDataStore())
@@ -26,7 +31,7 @@ class LocationReminderCoordinatorTest {
     private val notifier = RecordingNotifier()
 
     private val coordinator = LocationReminderCoordinator(
-        store = store,
+        locations = locations,
         taskRepository = tasks,
         tempIds = tempIds,
         geofencer = geofencer,
@@ -38,7 +43,7 @@ class LocationReminderCoordinatorTest {
 
     private fun reminder(taskId: Long, trigger: LocationTrigger = LocationTrigger.ARRIVE) = LocationReminder(
         taskId = taskId,
-        placeId = "home",
+        placeId = null,
         placeName = "Home",
         latitude = home.latitude,
         longitude = home.longitude,
@@ -142,6 +147,38 @@ class LocationReminderCoordinatorTest {
 
         coordinator.replan(force = true)
         assertEquals(2, geofencer.applied.size)
+    }
+
+    @Test
+    fun `a synced reminder is watched where this phone knows the place and cleared everywhere once it fires`() = runTest {
+        tasks.put(Task(id = 1, title = "Water the plants"))
+        synced.set(SyncedLocation.placeKey("home"), SyncedLocation.placeValue("Home"))
+        synced.set(SyncedLocation.reminderKey(1), SyncedLocation.reminderValue("home", LocationTrigger.ARRIVE, 200))
+
+        coordinator.replan()
+        assertTrue(geofencer.applied.isEmpty() || geofencer.applied.last().isEmpty(), "no position here yet")
+
+        positions.put(Place("home", "Home", home.latitude, home.longitude))
+        coordinator.replan()
+        val region = geofencer.applied.last().single()
+        assertEquals(listOf(1L), region.taskIds)
+
+        coordinator.onRegionEvent(region.id, entered = true)
+
+        assertEquals(listOf(Shown(1, "Water the plants", "Arriving at Home")), notifier.shown)
+        assertTrue(SyncedLocation.reminderKey(1) in synced.entries.first())
+        assertNull(synced.entries.first()[SyncedLocation.reminderKey(1)], "removed on every device")
+    }
+
+    @Test
+    fun `completing a task removes its synced reminder`() = runTest {
+        tasks.put(Task(id = 1, title = "Water the plants", done = true))
+        synced.set(SyncedLocation.placeKey("home"), SyncedLocation.placeValue("Home"))
+        synced.set(SyncedLocation.reminderKey(1), SyncedLocation.reminderValue("home", LocationTrigger.ARRIVE, 200))
+
+        coordinator.replan()
+
+        assertNull(synced.entries.first()[SyncedLocation.reminderKey(1)])
     }
 
     private data class Shown(val taskId: Long, val title: String, val body: String)

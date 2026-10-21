@@ -26,13 +26,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * event into notifications. The same on both platforms; [PlatformGeofencer] and [LocationNotifier]
  * are the platform halves.
  *
- * Only reminders of open tasks are watched. A reminder of a completed task is dropped, one of a
- * task created offline moves to the server's id once the task is sent, and one whose task is gone
- * is dropped by a [replan] that prunes (after a full sync, when a missing task really is gone).
+ * Only reminders of open tasks are watched, and only where this phone knows the place's position.
+ * A reminder of a completed task is dropped (on every device, when it is synced), one of a task
+ * created offline moves to the server's id once the task is sent, and one whose task is gone is
+ * dropped by a [replan] that prunes (after a full sync, when a missing task really is gone).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LocationReminderCoordinator(
-    private val store: LocationReminderStore,
+    private val locations: LocationRepository,
     private val taskRepository: TaskRepository,
     private val tempIds: TempIdGenerator,
     private val geofencer: PlatformGeofencer,
@@ -60,7 +61,7 @@ class LocationReminderCoordinator(
             }
         }
         scope.launch {
-            store.reminders
+            locations.reminders
                 .flatMapLatest { reminders ->
                     if (reminders.isEmpty()) {
                         flowOf(emptyList())
@@ -85,14 +86,15 @@ class LocationReminderCoordinator(
     suspend fun replan(force: Boolean = false, pruneMissing: Boolean = false) = mutex.withLock {
         try {
             followTempIds()
-            val reminders = store.all()
+            locations.tidy()
+            val reminders = locations.allReminders()
             val tasks = taskRepository.getByIds(reminders.mapTo(HashSet()) { it.taskId }).associateBy { it.id }
             val dropped = reminders.filter { reminder ->
                 val task = tasks[reminder.taskId]
                 if (task == null) pruneMissing else task.done
             }.mapTo(HashSet()) { it.taskId }
-            store.removeAll(dropped)
-            val open = reminders.filter { it.taskId !in dropped && tasks[it.taskId] != null }
+            locations.removeReminders(dropped)
+            val open = reminders.filter { it.taskId !in dropped && tasks[it.taskId] != null }.mapNotNull { it.watched() }
             val nearPoint = if (open.size > geofencer.capacity) near() else null
             val regions = LocationRegionPlanner.plan(open, geofencer.capacity, nearPoint)
             if (force || regions != applied) {
@@ -114,9 +116,10 @@ class LocationReminderCoordinator(
         val trigger = if (entered) LocationTrigger.ARRIVE else LocationTrigger.LEAVE
         val fired = mutex.withLock {
             followTempIds()
-            val due = store.all().filter { it.trigger == trigger && LocationRegionPlanner.regionId(it) == regionId }
+            val due = locations.allReminders().mapNotNull { it.watched() }
+                .filter { it.trigger == trigger && LocationRegionPlanner.regionId(it) == regionId }
             if (due.isEmpty()) return@withLock emptyList()
-            store.removeAll(due.mapTo(HashSet()) { it.taskId })
+            locations.removeReminders(due.mapTo(HashSet()) { it.taskId })
             due
         }
         if (fired.isEmpty()) return
@@ -132,13 +135,13 @@ class LocationReminderCoordinator(
 
     /** Moves reminders of tasks created offline to the ids the server gave them. */
     private suspend fun followTempIds() {
-        val temp = store.all().filter { it.taskId < 0 }
+        val temp = locations.allReminders().filter { it.taskId < 0 }
         if (temp.isEmpty()) return
         val present = taskRepository.getByIds(temp.mapTo(HashSet()) { it.taskId }).mapTo(HashSet(), Task::id)
         for (reminder in temp) {
             if (reminder.taskId in present) continue
             val realId = tempIds.realIdFor(reminder.taskId) ?: continue
-            store.remap(reminder.taskId, realId)
+            locations.followTempId(reminder.taskId, realId)
         }
     }
 

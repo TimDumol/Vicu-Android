@@ -18,6 +18,12 @@ This document describes the apps before 2.2.0. That release (branch `feat/synced
   session still holds the Inbox the screens read, and `SyncedPreferences` keeps it in step: choosing
   an Inbox writes the entry, a sync that brings another device's choice moves this device's Inbox.
 - **The task order** (global and per project) is a synced setting too (`TaskOrderPreferences`).
+- **Saved places and location reminders** sync without positions: each place's id and name
+  (`place.<id>`) and each task's reminder at a saved place (`location_reminder.<taskId>`), contract
+  section 11.7, through `LocationRepository`. Where a place is stays in `SavedPlacesStore`; a
+  reminder at an unsaved spot, or of a task without its server id yet, stays in
+  `LocationReminderStore`. The desktop picks places for a task's reminder and cannot create them;
+  only phones remind.
 - A new account-specific store, `SyncedPrefsStore` (`synced_prefs`): cleared by `wipeEverything`,
   excluded from Android backup, counted as unsynced work at sign-out.
 - Gap 8 (unknown routine fields), gap 9 (discard keeps unsynced custom-list changes) and gap 11
@@ -106,7 +112,7 @@ cloud backup and device transfer (section 8). The desktop column names the deskt
 | `BottomBarPrefsStore` (`bottom_bar_prefs`) | The three bottom bar slots (smart list, project or custom list, with icon and colour), smart list colours. General, Bottom bar. Holds project and list ids | Cleared | Included | None |
 | `LabelOrderPrefsStore` (`label_order_prefs`) | The drawer's label order (label ids). Dragging labels in the drawer. Vikunja has no label position | Cleared | Included | None |
 | `ProjectSectionPrefsStore` (`project_section_prefs`) | Collapsed sections, per project. Collapsing a section in a project | Cleared | Included | `sidebar_collapsed_projects` (the sidebar, not sections) |
-| `SavedPlacesStore` (`saved_places`) | The places saved for location reminders (name, position, address). Notifications, Places, and "Save as place" in the location reminder. Never synced | Kept | Excluded (privacy: positions stay on the device) | None |
+| `SavedPlacesStore` (`saved_places`) | Where this phone found each saved place (position and address, by place id), and the one-time move flag. The places' ids and names sync (`place.<id>`, `LocationRepository`); positions never do. Notifications, Places, and "Save as place" in the location reminder | Kept | Excluded (privacy: positions stay on the device) | Reads the synced names, has no positions |
 | `CustomListStore` (`custom_lists`) | The local copy of the synced custom lists and their sync state (`custom_lists_sync_v1`: device id, document, dirty, carrier id, last sync), plus the older plain list kept for widgets and downgrades | Cleared (`clearLocal`) | Excluded | `custom_lists`, `custom_lists_sync` |
 
 Stores that hold app state, not settings:
@@ -118,7 +124,7 @@ Stores that hold app state, not settings:
 | `TempIdGenerator` (`temp_ids`) | The negative id counter for offline creates, the temporary-to-real id map, and the creates that may have reached the server (`creates_maybe_sent`) | Never cleared | Excluded |
 | `SnoozeStore` (`snooze_prefs`) | Snoozed reminders | Emptied with the alarms | Excluded |
 | `ReminderAlarmRegistry` (`reminder_alarm_registry`) | Android's scheduled reminder alarms | Emptied with the alarms | Excluded |
-| `LocationReminderStore` (`location_reminders`) | The location reminders, one per task (place, position, radius, arrive or leave). Device-only: not on the Vikunja server, so another device does not have them | Cleared | Excluded |
+| `LocationReminderStore` (`location_reminders`) | The location reminders that stay on this phone: at a spot that is not a saved place, or of a task created offline until it has its server id. Reminders at saved places sync as `location_reminder.<taskId>` (`LocationRepository`) | Cleared | Excluded |
 | `NotificationPermissionStore` (`notification_permission`) | How often the app asked for the notification permission, and whether the after-setup prompt ran | Kept | Included |
 
 ---

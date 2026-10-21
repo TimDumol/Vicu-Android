@@ -10,6 +10,8 @@ import com.rendyhd.vicu.data.local.NotificationPrefsStore
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.SharedContent
+import com.rendyhd.vicu.location.FakeLocationPermission
+import com.rendyhd.vicu.location.testLocations
 import com.rendyhd.vicu.ui.FakeAttachmentRepository
 import com.rendyhd.vicu.ui.FakeLabelRepository
 import com.rendyhd.vicu.ui.FakeProjectRepository
@@ -72,6 +74,8 @@ class TaskEntryViewModelInitTest {
             notificationPrefsStore = NotificationPrefsStore(InMemoryPreferencesDataStore()),
             behaviorPrefsStore = BehaviorPrefsStore(InMemoryPreferencesDataStore()),
             appMessages = AppMessages(),
+            locations = testLocations(),
+            locationPermission = FakeLocationPermission(),
             dayClock = DayClock(
                 backgroundScope,
                 FixedTimeSource(Clock.System.now(), TimeZone.currentSystemDefault()),

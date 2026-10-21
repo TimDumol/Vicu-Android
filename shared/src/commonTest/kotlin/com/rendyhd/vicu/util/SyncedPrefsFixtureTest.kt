@@ -2,6 +2,7 @@ package com.rendyhd.vicu.util
 
 import com.rendyhd.vicu.domain.model.SyncedPrefKeys
 import com.rendyhd.vicu.domain.model.SyncedPrefsDocumentSerializer
+import com.rendyhd.vicu.location.SyncedLocation
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The `syncedPrefs` vectors of test-fixtures/cross-app-semantics-v1.json (contract section 11).
@@ -54,6 +56,15 @@ class SyncedPrefsFixtureTest {
             val value = v.entries[v.key]
             val expected = if (v.expect is JsonNull) null else v.expect.jsonPrimitive.longOrNull
             assertEquals(expected, SyncedPrefsEnvelope.projectId(value), v.name)
+        }
+    }
+
+    @Test
+    fun `places and location reminders read only values of the right shape`() {
+        val vectors = block.read.filter { SyncedLocation.isLocationKey(it.key) }
+        assertTrue(vectors.isNotEmpty())
+        for (v in vectors) {
+            assertEquals(v.expect, SyncedLocation.read(v.entries, v.key), v.name)
         }
     }
 

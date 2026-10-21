@@ -6,10 +6,10 @@ import kotlin.test.assertNull
 
 class PlacePhrasesTest {
 
-    private val home = Place("h", "Home", 52.37, 4.89)
-    private val work = Place("w", "Work", 52.34, 4.87)
-    private val office = Place("o", "Office", 52.30, 4.80)
-    private val parents = Place("p", "Mom's", 52.10, 5.10)
+    private val home = SavedPlace("h", "Home", GeoPoint(52.37, 4.89))
+    private val work = SavedPlace("w", "Work", GeoPoint(52.34, 4.87))
+    private val office = SavedPlace("o", "Office")
+    private val parents = SavedPlace("p", "Mom's", GeoPoint(52.10, 5.10))
     private val places = listOf(home, work, office, parents)
 
     private fun find(text: String) = PlacePhrases.find(text, places)
@@ -57,6 +57,12 @@ class PlacePhrasesTest {
     fun `a place word inside the sentence is not a reminder`() {
         assertNull(find("Clean the home office"))
         assertNull(find("Work on the report when I have time"))
+    }
+
+    @Test
+    fun `a phrase inside the sentence is read too`() {
+        assertEquals(PlacePhrase("Call mom tomorrow", home, LocationTrigger.ARRIVE), find("Call mom when I get home tomorrow"))
+        assertNull(find("Stop leaving work late"), "the bare 'leaving' only at the start or the end")
     }
 
     @Test

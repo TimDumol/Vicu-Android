@@ -39,8 +39,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rendyhd.vicu.location.LocationAccess
-import com.rendyhd.vicu.location.Place
 import com.rendyhd.vicu.location.PlaceSuggestion
+import com.rendyhd.vicu.location.SavedPlace
 
 /** Settings > Notifications > Places: the saved places and the location permission. */
 @Composable
@@ -48,8 +48,9 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
     val places by viewModel.places.collectAsStateWithLifecycle()
     val access by viewModel.access.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf<Place?>(null) }
-    var deleting by remember { mutableStateOf<Place?>(null) }
+    var renaming by remember { mutableStateOf<SavedPlace?>(null) }
+    var deleting by remember { mutableStateOf<SavedPlace?>(null) }
+    var locating by remember { mutableStateOf<SavedPlace?>(null) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refreshAccess() }
 
@@ -62,7 +63,7 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
         )
         Text(
-            text = "Places for location reminders. They stay on this device.",
+            text = "Places for location reminders. Their names sync with your other devices; where they are stays on this phone.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -109,7 +110,13 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(place.name, style = MaterialTheme.typography.bodyLarge)
-                    if (place.address.isNotBlank()) {
+                    if (place.position == null) {
+                        Text(
+                            LocationCopy.NOT_SET,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else if (place.address.isNotBlank()) {
                         Text(
                             place.address,
                             style = MaterialTheme.typography.bodySmall,
@@ -118,6 +125,9 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+                if (place.position == null) {
+                    TextButton(onClick = { locating = place }) { Text("Set location") }
                 }
                 IconButton(onClick = { deleting = place }) {
                     Icon(Icons.Outlined.Delete, contentDescription = "Delete ${place.name}")
@@ -138,6 +148,9 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
     if (adding) {
         AddPlaceDialog(viewModel = viewModel, onDone = { adding = false })
     }
+    locating?.let { place ->
+        AddPlaceDialog(viewModel = viewModel, onDone = { locating = null }, locate = place)
+    }
     renaming?.let { place ->
         PlaceNameDialog(
             title = "Rename place",
@@ -153,7 +166,7 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete ${place.name}?") },
-            text = { Text("Location reminders set at this place keep working.") },
+            text = { Text("It is deleted on all your devices, with the location reminders set at ${place.name}.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deletePlace(place)
@@ -166,9 +179,12 @@ fun PlacesSettingsSection(viewModel: PlacesViewModel) {
     LocationDisclosureSheet(viewModel)
 }
 
-/** Finds a place by search or the current position, then asks for its name. */
+/**
+ * Finds a place by search or the current position, then asks for its name. With [locate], sets
+ * where that place (saved on another device) is on this phone instead.
+ */
 @Composable
-private fun AddPlaceDialog(viewModel: PlacesViewModel, onDone: () -> Unit) {
+private fun AddPlaceDialog(viewModel: PlacesViewModel, onDone: () -> Unit, locate: SavedPlace? = null) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     val locating by viewModel.locating.collectAsStateWithLifecycle()
@@ -181,6 +197,11 @@ private fun AddPlaceDialog(viewModel: PlacesViewModel, onDone: () -> Unit) {
     }
 
     val picked = found
+    if (picked != null && locate != null) {
+        viewModel.setPosition(locate, picked)
+        close()
+        return
+    }
     if (picked != null) {
         PlaceNameDialog(
             title = "Name this place",
@@ -196,7 +217,7 @@ private fun AddPlaceDialog(viewModel: PlacesViewModel, onDone: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = ::close,
-        title = { Text("Add place") },
+        title = { Text(if (locate != null) "Where is ${locate.name}?" else "Add place") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),

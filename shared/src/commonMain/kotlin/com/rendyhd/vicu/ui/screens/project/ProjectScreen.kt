@@ -2,6 +2,8 @@
 
 package com.rendyhd.vicu.ui.screens.project
 
+import com.rendyhd.vicu.ui.components.fab.FabDropTarget
+import com.rendyhd.vicu.ui.components.fab.fabDropTarget
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.animation.core.animateDpAsState
@@ -495,7 +497,9 @@ private fun LazyListScope.projectSectionItems(
                 count = openTaskCount(section, completedTaskIds),
                 isExpanded = section.isExpanded,
                 onToggle = { onSectionToggle(section.project.id) },
-                modifier = Modifier.padding(start = (depth * 16).dp),
+                modifier = Modifier
+                    .fabDropTarget(FabDropTarget.project(section.project.id))
+                    .padding(start = (depth * 16).dp),
             )
         }
 

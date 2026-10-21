@@ -25,6 +25,7 @@ import com.rendyhd.vicu.ui.screens.shared.CompletionToast
 import com.rendyhd.vicu.ui.screens.shared.CompletionToastCenter
 import com.rendyhd.vicu.ui.screens.shared.ProjectActions
 import com.rendyhd.vicu.util.AppMessages
+import com.rendyhd.vicu.util.postIfRefused
 import com.rendyhd.vicu.util.BuildInfo
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import com.rendyhd.vicu.util.DayClock
@@ -39,6 +40,9 @@ import com.rendyhd.vicu.data.sync.SyncStaleness
 import com.rendyhd.vicu.data.sync.TaskRefresher
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TextTaskCreator
+import com.rendyhd.vicu.ui.components.fab.FabHint
+import com.rendyhd.vicu.voice.HoldToTalk
+import com.rendyhd.vicu.voice.VoiceAddResult
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.widget.TaskWidgetStates
 import kotlinx.coroutines.flow.first
@@ -80,6 +84,7 @@ val databaseModule = module {
     single { SavedPlacesStore(createDataStore(get(), "saved_places"), get()) }
     single { LocationReminderStore(createDataStore(get(), "location_reminders"), get()) }
     single { WidgetPrefsStore(createDataStore(get(), "widget_prefs")) }
+    single { FabHintStore(createDataStore(get(), "fab_hint")) }
 }
 
 val networkModule = module {
@@ -249,6 +254,28 @@ val commonModule = module {
             notificationPrefsStore = get(),
             dayClock = get(),
             time = get(),
+        )
+    }
+    single { FabHint(store = get(), scope = get()) }
+    // Holding the + to say a task: the words go through the same path as the other voice adds.
+    single {
+        val creator = get<TextTaskCreator>()
+        val tasks = get<TaskRepository>()
+        val hint = get<FabHint>()
+        val messages = get<AppMessages>()
+        HoldToTalk(
+            speech = get(),
+            messages = messages,
+            scope = get(),
+            addTask = { text, format ->
+                when (val result = creator.create(text, format)) {
+                    is TextTaskCreator.Result.Created -> VoiceAddResult(result.confirmation) {
+                        messages.postIfRefused(tasks.delete(result.task.id), "undo the task")
+                    }
+                    is TextTaskCreator.Result.Failed -> VoiceAddResult(result.message)
+                }
+            },
+            onVoiceAdded = hint::onVoiceUsed,
         )
     }
     single { NotificationActions(taskRepository = get(), routineRepository = get(), reminders = get(), hooks = get()) }

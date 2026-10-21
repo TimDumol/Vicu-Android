@@ -23,6 +23,8 @@ import com.rendyhd.vicu.util.TextTaskCreator
 import kotlinx.coroutines.CancellationException
 import com.rendyhd.vicu.widget.AppleWidgetBridge
 import com.rendyhd.vicu.widget.IosWidgetSnapshots
+import com.rendyhd.vicu.voice.AppleSpeechBridge
+import com.rendyhd.vicu.voice.IosSpeechBridgeHolder
 import org.koin.core.context.startKoin
 import org.koin.mp.KoinPlatform
 import kotlin.experimental.ExperimentalNativeApi
@@ -40,10 +42,11 @@ object IosApp {
 
     /**
      * [widgetBridge] reloads the widgets through WidgetKit, which only Swift can call;
-     * [locationBridge] watches the location reminders' regions with CLMonitor.
+     * [locationBridge] watches the location reminders' regions with CLMonitor; [speechBridge]
+     * listens for holding the + button (SFSpeechRecognizer).
      */
     @OptIn(ExperimentalNativeApi::class)
-    fun start(widgetBridge: AppleWidgetBridge?, locationBridge: AppleLocationBridge?) {
+    fun start(widgetBridge: AppleWidgetBridge?, locationBridge: AppleLocationBridge?, speechBridge: AppleSpeechBridge?) {
         if (started) return
         started = true
         // Before anything logs or builds the HTTP client: release builds log no requests.
@@ -63,6 +66,7 @@ object IosApp {
         koin.get<IosBackgroundTasks>().register()
         koin.get<IosWidgetSnapshots>().bridge = widgetBridge
         koin.get<IosLocationBridgeHolder>().bridge = locationBridge
+        koin.get<IosSpeechBridgeHolder>().bridge = speechBridge
         lifecycle().start()
     }
 

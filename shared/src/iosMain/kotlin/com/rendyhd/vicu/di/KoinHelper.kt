@@ -1,5 +1,8 @@
 package com.rendyhd.vicu.di
 
+import com.rendyhd.vicu.voice.IosSpeechBridgeHolder
+import com.rendyhd.vicu.voice.IosSpeechInput
+import com.rendyhd.vicu.voice.SpeechInput
 import coil3.ImageLoader
 import coil3.disk.DiskCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
@@ -159,6 +162,8 @@ val iosModule = module {
     }
     single { IosNotificationPermissionPlatform() }
     single { IosLocationBridgeHolder() }
+    single { IosSpeechBridgeHolder() }
+    single<SpeechInput> { IosSpeechInput(get()) }
     single { IosLocationPermissionPlatform(get()) }
     single<LocationPermissionPlatform> { get<IosLocationPermissionPlatform>() }
     single<PlatformGeofencer> { IosGeofencer(get()) }

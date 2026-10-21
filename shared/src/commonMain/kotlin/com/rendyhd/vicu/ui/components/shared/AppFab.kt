@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavBackStackEntry
+import com.rendyhd.vicu.ui.components.fab.FabController
+import com.rendyhd.vicu.ui.components.fab.fabGestures
 import com.rendyhd.vicu.ui.theme.VicuMotion
 
 /** What a screen's + button says and does. */
@@ -102,9 +104,11 @@ internal fun fabToShow(current: FabSpec?, last: FabSpec?, settling: Boolean): Fa
 /**
  * The app's + button: the one [screen] (the back stack entry on top) put in with [ScreenFab]. It
  * fades and scales in and out when a screen without one comes and goes, or a selection starts.
+ * With a [controller] it can also be held to say a task and dragged onto a header (`fabGestures`);
+ * a tap stays the screen's own.
  */
 @Composable
-fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier) {
+fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier, controller: FabController? = null) {
     // A screen puts its button in after its first frame; until a few frames have passed, a screen
     // that has not done so yet keeps the previous button instead of hiding it.
     var settledScreen by remember { mutableStateOf(screen) }
@@ -125,6 +129,19 @@ fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier) {
         exit = fadeOut(VicuMotion.fastEffectsSpec()) + scaleOut(VicuMotion.fastEffectsSpec(), targetScale = 0.8f),
     ) {
         val shown = spec ?: last[0] ?: return@AnimatedVisibility
-        VicuFab(onClick = shown.onClick, label = shown.label, expanded = shown.expanded)
+        if (controller == null) {
+            VicuFab(onClick = shown.onClick, label = shown.label, expanded = shown.expanded)
+        } else {
+            val tap = {
+                controller.onTapped()
+                shown.onClick()
+            }
+            VicuFab(
+                onClick = tap,
+                label = shown.label,
+                expanded = shown.expanded,
+                modifier = Modifier.fabGestures(controller, screen, openQuickAdd = tap),
+            )
+        }
     }
 }

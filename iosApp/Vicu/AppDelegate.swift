@@ -7,6 +7,8 @@ import shared
 final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Kept for the app's lifetime: the shared code holds the bridge, and CLMonitor reports to it.
     private var locationMonitor: LocationMonitor?
+    /// Kept for the app's lifetime: the shared code holds the bridge for holding the + to talk.
+    private let speechBridge = SpeechRecognizerBridge()
 
     func application(
         _ application: UIApplication,
@@ -15,7 +17,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Before start: iOS may have launched the app for a region event, which the monitor delivers.
         let monitor = LocationMonitor()
         locationMonitor = monitor
-        IosApp.shared.start(widgetBridge: WidgetBridge(), locationBridge: monitor)
+        IosApp.shared.start(widgetBridge: WidgetBridge(), locationBridge: monitor, speechBridge: speechBridge)
         return true
     }
 

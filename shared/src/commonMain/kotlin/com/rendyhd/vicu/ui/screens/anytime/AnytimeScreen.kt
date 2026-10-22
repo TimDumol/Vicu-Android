@@ -2,6 +2,8 @@
 
 package com.rendyhd.vicu.ui.screens.anytime
 
+import com.rendyhd.vicu.ui.components.fab.FabDropTarget
+import com.rendyhd.vicu.ui.components.fab.fabDropTarget
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
@@ -138,7 +140,9 @@ fun AnytimeScreen(
                                     count = row.taskCount,
                                     isExpanded = row.isExpanded,
                                     onToggle = { viewModel.toggleProject(row.project.id) },
-                                    modifier = Modifier.padding(start = indentFor(row.depth)),
+                                    modifier = Modifier
+                                        .fabDropTarget(FabDropTarget.project(row.project.id))
+                                        .padding(start = indentFor(row.depth)),
                                 )
                             }
                             is AnytimeRow.TaskRow -> {

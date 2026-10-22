@@ -2,6 +2,7 @@
 
 package com.rendyhd.vicu.ui.screens.customlist
 
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
@@ -128,7 +129,11 @@ fun CustomListScreen(
                 val addToProject = state.customList?.filter?.addToProjectId?.takeIf { requested ->
                     requested != 0L && projects.any { it.id == requested && !it.isArchived }
                 }
-                ScreenFab(onClick = { onShowTaskEntry(addToProject, null) }, expanded = !listState.canScrollBackward)
+                ScreenFab(
+                    onClick = { onShowTaskEntry(addToProject, null) },
+                    expanded = !listState.canScrollBackward,
+                    taskDefaults = TaskDefaults(projectId = addToProject),
+                )
             }
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,

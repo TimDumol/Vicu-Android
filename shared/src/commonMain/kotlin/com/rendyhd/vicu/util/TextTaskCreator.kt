@@ -53,7 +53,17 @@ class TextTaskCreator(
         data class Failed(val message: String) : Result
     }
 
-    suspend fun create(text: String, format: DateDisplayFormat): Result {
+    /**
+     * [defaultProjectId] and [defaultDueDate] are what the list the user is in gives a new task, as
+     * its quick add does (holding + on a project screen, on Today); a project or date in the words
+     * wins. Without them the task goes to the Inbox, undated.
+     */
+    suspend fun create(
+        text: String,
+        format: DateDisplayFormat,
+        defaultProjectId: Long? = null,
+        defaultDueDate: String? = null,
+    ): Result {
         val input = text.withoutLineBreaks().trim()
         if (input.isBlank()) return Result.Failed("Say what the task is.")
 
@@ -73,13 +83,16 @@ class TextTaskCreator(
         val projects = projectRepository.getAll().first()
         val labels = labelRepository.getAll().first()
         val now = time.now().toLocalDateTime(day.zone)
+        // A project that is gone or archived since the screen was drawn falls back to the Inbox.
+        val defaultProject = defaultProjectId?.takeIf { id -> projects.any { it.id == id && !it.isArchived } } ?: inboxId
         val parsed = if (config.enabled) TaskParser.parse(sentence, config, reference = now, zone = day.zone) else null
 
         // The same rules as the quick add sheet with nothing picked by hand (TaskEntryFields.kt).
         val fields = resolveEntryFields(
             TaskEntryUiState(
                 title = sentence,
-                projectId = inboxId,
+                projectId = defaultProject,
+                dueDate = defaultDueDate.orEmpty(),
                 allProjects = projects,
                 parseResult = parsed,
                 parserConfig = config,

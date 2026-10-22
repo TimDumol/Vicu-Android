@@ -1,5 +1,6 @@
 package com.rendyhd.vicu
 
+import com.rendyhd.vicu.voice.AndroidSpeechInput
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private val dailySummaryScheduler: DailySummaryScheduler by inject()
     private val notificationPermissionPlatform: AndroidNotificationPermissionPlatform by inject()
     private val locationPermissionPlatform: AndroidLocationPermissionPlatform by inject()
+    private val speechInput: AndroidSpeechInput by inject()
 
     private val _initialTaskId = MutableStateFlow<Long?>(null)
     private val _showTaskEntry = MutableStateFlow(false)
@@ -72,6 +74,15 @@ class MainActivity : ComponentActivity() {
         locationPermissionLauncher.launch(permissions)
     }
 
+    // Holding + to say a task asks for the microphone on the first hold.
+    private val microphonePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> speechInput.onPermissionResult(granted) }
+
+    private val launchMicrophonePermissionRequest: () -> Unit = {
+        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -87,6 +98,7 @@ class MainActivity : ComponentActivity() {
         // or when a reminder or summary is turned on (see NotificationPermissionCoordinator).
         notificationPermissionPlatform.attach(launchNotificationPermissionRequest)
         locationPermissionPlatform.attach(launchLocationPermissionRequest)
+        speechInput.attach(launchMicrophonePermissionRequest)
 
         lifecycleScope.launch {
             val storedUrl = authManager.getVikunjaUrl()
@@ -182,6 +194,7 @@ class MainActivity : ComponentActivity() {
         AuthDebugLog.lifecycle("onDestroy (isFinishing=$isFinishing)")
         notificationPermissionPlatform.detach(launchNotificationPermissionRequest)
         locationPermissionPlatform.detach(launchLocationPermissionRequest)
+        speechInput.detach(launchMicrophonePermissionRequest)
         super.onDestroy()
     }
 

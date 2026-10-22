@@ -2,6 +2,9 @@
 
 package com.rendyhd.vicu.ui.screens.today
 
+import com.rendyhd.vicu.voice.TaskDefaults
+import com.rendyhd.vicu.ui.components.fab.FabDropTarget
+import com.rendyhd.vicu.ui.components.fab.fabDropTarget
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.layout.Column
@@ -149,7 +152,12 @@ fun TodayScreen(
         floatingActionButton = {
             if (!selectionActive) {
                 val day = LocalClockDay.current
-                ScreenFab(onClick = { onShowTaskEntry(null, DueDates.today(day.date, day.zone).toString()) }, expanded = !listState.canScrollBackward)
+                val today = DueDates.today(day.date, day.zone).toString()
+                ScreenFab(
+                    onClick = { onShowTaskEntry(null, today) },
+                    expanded = !listState.canScrollBackward,
+                    taskDefaults = TaskDefaults(dueDate = today),
+                )
             }
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,
@@ -220,6 +228,8 @@ fun TodayScreen(
                         taskGroupItems(
                             groups = state.overdueGroups,
                             keyPrefix = "overdue",
+                            // An Overdue group takes the + for its project only: a new task is not overdue.
+                            dueToday = false,
                             level = SectionLevel.TWO,
                             state = state,
                             viewModel = viewModel,
@@ -233,12 +243,14 @@ fun TodayScreen(
                             SectionHeader(
                                 title = "Today",
                                 count = state.projectGroups.sumOf { openCount(it.tasks, state.completedTaskIds) },
+                                modifier = Modifier.fabDropTarget(LocalClockDay.current.let { FabDropTarget.day(it.date, it.zone) }),
                             )
                         }
                     }
                     taskGroupItems(
                         groups = state.projectGroups,
                         keyPrefix = "today",
+                        dueToday = true,
                         // Without an Overdue section above, the projects are the top level of the list.
                         level = if (showSectionTitles) SectionLevel.TWO else SectionLevel.ONE,
                         state = state,
@@ -279,6 +291,8 @@ fun TodayScreen(
 private fun LazyListScope.taskGroupItems(
     groups: List<TaskProjectGroup>,
     keyPrefix: String,
+    /** A + dropped on a group header makes a task due today in its project (else only in its project). */
+    dueToday: Boolean,
     level: SectionLevel,
     state: TodayUiState,
     viewModel: TodayViewModel,
@@ -293,11 +307,16 @@ private fun LazyListScope.taskGroupItems(
         val projectMeta = if (hasHeader) null else ProjectMeta(group.title, group.hexColor)
         if (hasHeader) {
             item(key = "${keyPrefix}_header_${group.projectId}", contentType = "header") {
+                val day = LocalClockDay.current
+                val projectId = group.projectId.takeIf { it > 0 }
                 SectionHeader(
                     title = group.title,
                     level = level,
                     dotColor = parseHexColor(group.hexColor),
                     count = openCount(group.tasks, state.completedTaskIds),
+                    modifier = Modifier.fabDropTarget(
+                        if (dueToday) FabDropTarget.day(day.date, day.zone, projectId) else projectId?.let { FabDropTarget(projectId = it) },
+                    ),
                 )
             }
         }

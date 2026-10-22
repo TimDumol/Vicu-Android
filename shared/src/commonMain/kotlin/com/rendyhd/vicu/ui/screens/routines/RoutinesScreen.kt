@@ -184,6 +184,8 @@ fun RoutinesScreen(
                     showEditor = true
                 },
                 label = "New routine",
+                // It adds a routine, not a task: holding it does not listen.
+                taskDefaults = null,
             )
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,

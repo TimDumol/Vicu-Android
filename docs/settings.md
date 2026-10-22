@@ -126,6 +126,8 @@ Stores that hold app state, not settings:
 | `ReminderAlarmRegistry` (`reminder_alarm_registry`) | Android's scheduled reminder alarms | Emptied with the alarms | Excluded |
 | `LocationReminderStore` (`location_reminders`) | The location reminders that stay on this phone: at a spot that is not a saved place, or of a task created offline until it has its server id. Reminders at saved places sync as `location_reminder.<taskId>` (`LocationRepository`) | Cleared | Excluded |
 | `NotificationPermissionStore` (`notification_permission`) | How often the app asked for the notification permission, and whether the after-setup prompt ran | Kept | Included |
+| `FabHintStore` (`fab_hint`) | The one-time "Hold + to say a task" hint: tasks added through the + button's quick add (counted up to 5), whether the hint was shown, whether a task was added by holding + | Kept | Included |
+| `AndroidSpeechInput` (SharedPreferences `speech_input`, Android only) | Whether the first hold of + asked for the microphone, so a refusal is told apart from never asked | Kept | Included |
 
 ---
 

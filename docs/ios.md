@@ -177,6 +177,15 @@ permission (While Using, then Always) and reads the current position; place sear
 `MKLocalSearch` in Kotlin (`IosPlaceSearch`). No `location` background mode is needed. See
 `docs/location-reminders.md`.
 
+### Holding + to say a task
+
+`iosApp/Vicu/SpeechRecognizerBridge.swift` is the `AppleSpeechBridge` the app delegate hands to
+`IosApp.start(widgetBridge:locationBridge:speechBridge:)`: `SFSpeechRecognizer` fed by
+`AVAudioEngine`, with partial results and the voice level. The shared `HoldToTalk` drives it
+through `IosSpeechInput`. Speech recognition and the microphone are asked for on the first hold
+(`NSSpeechRecognitionUsageDescription`, `NSMicrophoneUsageDescription` in `project.yml`). The
+simulator has a recognizer, but its microphone is the Mac's. See `docs/voice-input.md`.
+
 ### Background work
 
 - **Refresh** (`com.rendyhd.vicu.refresh`, BGAppRefreshTask, asked for every 30 minutes; iOS

@@ -70,6 +70,10 @@ import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
 import com.rendyhd.vicu.ui.components.picker.WhenSheet
 import com.rendyhd.vicu.ui.components.settings.NotificationPermissionSheet
+import com.rendyhd.vicu.ui.components.fab.FabController
+import com.rendyhd.vicu.ui.components.fab.FabHint
+import com.rendyhd.vicu.ui.components.fab.FabOverlays
+import com.rendyhd.vicu.ui.components.fab.LocalFabDropTargets
 import com.rendyhd.vicu.ui.components.shared.AppFab
 import com.rendyhd.vicu.ui.components.shared.AppFabHost
 import com.rendyhd.vicu.ui.components.shared.CustomListDialog
@@ -127,6 +131,7 @@ import com.rendyhd.vicu.ui.screens.taskdetail.EditorOverlay
 import com.rendyhd.vicu.ui.screens.taskdetail.TaskDetailScreen
 import com.rendyhd.vicu.ui.screens.taskdetail.TaskDetailViewModel
 import com.rendyhd.vicu.util.AppMessages
+import com.rendyhd.vicu.voice.HoldToTalk
 import com.rendyhd.vicu.util.Constants
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DayClock
@@ -440,6 +445,9 @@ fun VicuApp(
         showTaskEntrySheet = true
     }
 
+    // Tasks added through the + button's quick add count towards the "Hold + to say a task" hint.
+    var taskEntryFromFab by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(authState) {
         Logger.d("VicuApp", "authState changed to $authState, currentDest=${currentDestination?.route}")
         AuthDebugLog.log("NAVIGATION", "authState=$authState currentDest=${currentDestination?.route}")
@@ -521,8 +529,18 @@ fun VicuApp(
     val projectProgress by drawerViewModel.projectProgress.collectAsStateWithLifecycle()
     val projectOpenCounts by drawerViewModel.projectOpenCounts.collectAsStateWithLifecycle()
     val fabAlignStart by drawerViewModel.fabAlignStart.collectAsStateWithLifecycle()
-    // The screens' + buttons, drawn as one by AppFab.
+    // The screens' + buttons, drawn as one by AppFab, which can also be held to say a task and
+    // dragged onto a day or project header.
     val fabHost = remember { AppFabHost() }
+    val holdToTalk: HoldToTalk = koinInject()
+    val fabHint: FabHint = koinInject()
+    val fabController = remember(holdToTalk, fabHint) { FabController(holdToTalk, fabHint) }
+    fabController.format = dateFormat
+    fabController.onTapped = { taskEntryFromFab = true }
+    fabController.onDrop = { target ->
+        taskEntryFromFab = true
+        onShowTaskEntry(target.projectId, target.dueDate)
+    }
     val subtaskDisplayMode by drawerViewModel.subtaskDisplayMode.collectAsStateWithLifecycle()
 
     // What every surface of the app is composed under, the sheets and dialogs as much as the
@@ -660,7 +678,11 @@ fun VicuApp(
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    CompositionLocalProvider(*appLocals, LocalAppFabHost provides fabHost) {
+                    CompositionLocalProvider(
+                        *appLocals,
+                        LocalAppFabHost provides fabHost,
+                        LocalFabDropTargets provides fabController.dropTargets,
+                    ) {
                         AppNavHost(
                             navController = navController,
                             startDestination = startDestination,
@@ -675,6 +697,11 @@ fun VicuApp(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
+                    // The voice card, the dragged + and the hint, over the screens and under the
+                    // button, so the scrim does not dim the + that is being held.
+                    CompositionLocalProvider(*appLocals) {
+                        FabOverlays(fabController, fabAlignStart)
+                    }
                     // The + button of the screen on top, over the screens rather than in them, so a
                     // change of screen does not fade it. Placed where the screens' Scaffolds put it:
                     // 16 dp from the corner, above the system bar inset they leave free.
@@ -685,6 +712,7 @@ fun VicuApp(
                             .align(if (fabAlignStart) Alignment.BottomStart else Alignment.BottomEnd)
                             .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Bottom))
                             .padding(16.dp),
+                        controller = fabController.takeIf { authState == AuthState.Authenticated },
                     )
                 }
             }
@@ -702,9 +730,11 @@ fun VicuApp(
                     showTaskEntrySheet = false
                     taskEntryDefaultDueDate = null
                     pendingSharedContent = null
+                    taskEntryFromFab = false
                 },
                 onTaskCreated = {
                     pendingSharedContent = null
+                    if (taskEntryFromFab) fabHint.onTaskAddedWithPlus()
                 },
                 onOpenDetails = { taskId ->
                     editorFromEntry = true

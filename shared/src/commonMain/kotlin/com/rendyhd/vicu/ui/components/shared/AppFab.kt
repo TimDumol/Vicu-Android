@@ -25,11 +25,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavBackStackEntry
+import com.rendyhd.vicu.ui.components.fab.FabController
+import com.rendyhd.vicu.ui.components.fab.fabGestures
 import com.rendyhd.vicu.ui.theme.VicuMotion
+import com.rendyhd.vicu.voice.TaskDefaults
 
-/** What a screen's + button says and does. */
+/** What a screen's + button says and does; [taskDefaults] is null when it adds something else than a task. */
 @Immutable
-internal data class FabSpec(val label: String, val expanded: Boolean, val onClick: () -> Unit)
+internal data class FabSpec(
+    val label: String,
+    val expanded: Boolean,
+    val onClick: () -> Unit,
+    val taskDefaults: TaskDefaults? = TaskDefaults(),
+)
 
 /**
  * The buttons the screens put in with [ScreenFab], by back stack entry id. The app draws one + button
@@ -63,7 +71,9 @@ private val FAB_HEIGHT = 56.dp
  * A screen's + button, in its Scaffold's `floatingActionButton` slot. The button itself is drawn by
  * [AppFab]; this hands it [onClick], [label] and [expanded] while it is in the composition (leave it
  * out, for a selection, to hide the button) and keeps the button's place free, so the Scaffold still
- * lifts the screen's snackbar above it.
+ * lifts the screen's snackbar above it. [taskDefaults] is what a task said while holding the button
+ * gets, the same as the screen's quick add; null for a button that adds something else (a routine),
+ * which then only taps.
  *
  * The screen is told apart by its back stack entry, which the NavHost provides as the lifecycle owner
  * of each destination. Outside the app (no host, no entry) it draws its own [VicuFab].
@@ -73,6 +83,7 @@ fun ScreenFab(
     onClick: () -> Unit,
     expanded: Boolean = true,
     label: String = "New task",
+    taskDefaults: TaskDefaults? = TaskDefaults(),
 ) {
     val host = LocalAppFabHost.current
     val screen = (LocalLifecycleOwner.current as? NavBackStackEntry)?.id
@@ -82,7 +93,7 @@ fun ScreenFab(
     }
     val currentOnClick by rememberUpdatedState(onClick)
     val click = remember { { currentOnClick() } }
-    val spec = FabSpec(label, expanded, click)
+    val spec = FabSpec(label, expanded, click, taskDefaults)
     SideEffect { host.put(screen, spec) }
     DisposableEffect(host, screen) { onDispose { host.remove(screen) } }
     Spacer(Modifier.size(FAB_HEIGHT))
@@ -102,9 +113,11 @@ internal fun fabToShow(current: FabSpec?, last: FabSpec?, settling: Boolean): Fa
 /**
  * The app's + button: the one [screen] (the back stack entry on top) put in with [ScreenFab]. It
  * fades and scales in and out when a screen without one comes and goes, or a selection starts.
+ * With a [controller] it can also be held to say a task and dragged onto a header (`fabGestures`);
+ * a tap stays the screen's own.
  */
 @Composable
-fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier) {
+fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier, controller: FabController? = null) {
     // A screen puts its button in after its first frame; until a few frames have passed, a screen
     // that has not done so yet keeps the previous button instead of hiding it.
     var settledScreen by remember { mutableStateOf(screen) }
@@ -125,6 +138,20 @@ fun AppFab(host: AppFabHost, screen: String?, modifier: Modifier = Modifier) {
         exit = fadeOut(VicuMotion.fastEffectsSpec()) + scaleOut(VicuMotion.fastEffectsSpec(), targetScale = 0.8f),
     ) {
         val shown = spec ?: last[0] ?: return@AnimatedVisibility
-        VicuFab(onClick = shown.onClick, label = shown.label, expanded = shown.expanded)
+        val defaults = shown.taskDefaults
+        if (controller == null || defaults == null) {
+            VicuFab(onClick = shown.onClick, label = shown.label, expanded = shown.expanded)
+        } else {
+            val tap = {
+                controller.onTapped()
+                shown.onClick()
+            }
+            VicuFab(
+                onClick = tap,
+                label = shown.label,
+                expanded = shown.expanded,
+                modifier = Modifier.fabGestures(controller, screen, defaults, openQuickAdd = tap),
+            )
+        }
     }
 }

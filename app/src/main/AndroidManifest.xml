@@ -11,6 +11,18 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Holding + to say a task: asked on the first hold, never at start (docs/voice-input.md). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- The speech recognizer and the system speech screen must be visible to the app (Android 11+). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
 
     <application
         android:name=".VicuApplication"

@@ -1,5 +1,7 @@
 package com.rendyhd.vicu.di
 
+import com.rendyhd.vicu.voice.AndroidSpeechInput
+import com.rendyhd.vicu.voice.SpeechInput
 import org.koin.dsl.module
 import org.koin.android.ext.koin.androidContext
 import coil3.ImageLoader
@@ -81,6 +83,8 @@ val appModule = module {
     single<NotificationPermissionPlatform> { get<AndroidNotificationPermissionPlatform>() }
     single { AndroidLocationPermissionPlatform(androidContext()) }
     single<LocationPermissionPlatform> { get<AndroidLocationPermissionPlatform>() }
+    single { AndroidSpeechInput(androidContext()) }
+    single<SpeechInput> { get<AndroidSpeechInput>() }
     single<PlatformGeofencer> { AndroidGeofencer(androidContext()) }
     single<DeviceLocation> { AndroidDeviceLocation(androidContext()) }
     single<LocationNotifier> { AndroidLocationNotifier(androidContext()) }

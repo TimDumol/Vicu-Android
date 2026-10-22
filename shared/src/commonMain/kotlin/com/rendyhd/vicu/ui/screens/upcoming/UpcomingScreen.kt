@@ -2,6 +2,9 @@
 
 package com.rendyhd.vicu.ui.screens.upcoming
 
+import com.rendyhd.vicu.ui.components.fab.FabDropTarget
+import com.rendyhd.vicu.ui.components.fab.fabDropTarget
+import com.rendyhd.vicu.ui.components.shared.LocalClockDay
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.background
@@ -147,7 +150,9 @@ fun UpcomingScreen(
                                 count = openCount(day.tasks, state.completedTaskIds),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(MaterialTheme.colorScheme.background),
+                                    .background(MaterialTheme.colorScheme.background)
+                                    // Drop the + here for a task due that day; pinned over the rows.
+                                    .fabDropTarget(FabDropTarget.day(day.date, LocalClockDay.current.zone), layer = 1),
                             )
                         }
                         day.groups.forEach { group ->
@@ -161,6 +166,9 @@ fun UpcomingScreen(
                                         level = SectionLevel.TWO,
                                         dotColor = parseHexColor(group.hexColor),
                                         count = openCount(group.tasks, state.completedTaskIds),
+                                        modifier = Modifier.fabDropTarget(
+                                            FabDropTarget.day(day.date, LocalClockDay.current.zone, group.projectId.takeIf { it > 0 }),
+                                        ),
                                     )
                                 }
                             }

@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Notifications
@@ -807,6 +808,13 @@ fun TaskDetailScreen(
                         if (attachment.id in state.downloadingAttachmentIds) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         } else {
+                            IconButton(onClick = { viewModel.saveAttachment(attachment) }) {
+                                Icon(
+                                    Icons.Default.Download,
+                                    contentDescription = "Save ${attachment.fileName}",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
                             IconButton(onClick = { viewModel.shareAttachment(attachment) }) {
                                 Icon(
                                     Icons.Default.Share,

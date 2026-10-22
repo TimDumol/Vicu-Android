@@ -52,4 +52,11 @@ interface PlatformFiles {
 
     /** Offers the cached file at [path] to other apps. Returns a message when that is not possible. */
     fun shareFile(path: String, mimeType: String?): String?
+
+    /**
+     * Saves a copy of the cached file at [path] as [fileName] where the user keeps files: Android
+     * writes it to Downloads, iOS shows the Files "Save to" sheet. Returns what to tell the user
+     * (where it went, or why it failed), or null when the platform's own sheet takes over.
+     */
+    suspend fun saveFile(path: String, fileName: String, mimeType: String?): String?
 }

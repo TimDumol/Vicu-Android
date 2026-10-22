@@ -76,8 +76,9 @@ region assuming "outside").
 ## iOS
 
 - `LocationMonitor.swift` is created in the app delegate before `IosApp.start` and passed in as
-  the `AppleLocationBridge`. It owns a `CLMonitor` named `vicu-location-reminders`; iOS relaunches
-  the app in the background for an event, and the monitor (same name) delivers it to
+  the `AppleLocationBridge`. It owns a `CLMonitor` named `VicuLocationReminders` (letters and
+  digits only: iOS 26.5 ends the app for any other character in the name); iOS relaunches the app
+  in the background for an event, and the monitor (same name) delivers it to
   `IosApp.onRegionEvent`, which shows the notification inside a background task.
 - No `location` background mode is needed. Info.plist has `NSLocationWhenInUseUsageDescription` and
   `NSLocationAlwaysAndWhenInUseUsageDescription` (from `project.yml`).

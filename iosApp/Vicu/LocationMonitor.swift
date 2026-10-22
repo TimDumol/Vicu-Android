@@ -9,7 +9,9 @@ import shared
 ///
 /// The shared code decides everything else: which regions, and what an event shows.
 final class LocationMonitor: NSObject, AppleLocationBridge, CLLocationManagerDelegate {
-    private static let monitorName = "vicu-location-reminders"
+    /// Letters and digits only: iOS 26.5 throws (and ends the app) for any other character in a
+    /// monitor name. Changing it orphans the regions watched under the old name.
+    private static let monitorName = "VicuLocationReminders"
     private static let askedAlwaysKey = "location.askedAlways"
 
     private let manager = CLLocationManager()

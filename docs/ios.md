@@ -169,7 +169,8 @@ are planned ahead instead of being scheduled one by one:
 ### Location reminders
 
 `iosApp/Vicu/LocationMonitor.swift` watches the regions the shared `LocationReminderCoordinator`
-plans, with a `CLMonitor` named `vicu-location-reminders` (at most 20 regions). It is created in
+plans, with a `CLMonitor` named `VicuLocationReminders` (at most 20 regions; a monitor name is letters and digits
+only, iOS 26.5 ends the app for anything else). It is created in
 the app delegate before `IosApp.start(widgetBridge:locationBridge:)`, so a relaunch in the
 background for a region event delivers the event to `IosApp.onRegionEvent`, which posts the
 notification (`location:<taskId>`, kind `LOCATION`) inside a background task. It also asks for the

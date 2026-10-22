@@ -21,6 +21,7 @@ import platform.QuickLook.QLPreviewController
 import platform.QuickLook.QLPreviewControllerDataSourceProtocol
 import platform.QuickLook.QLPreviewItemProtocol
 import platform.UIKit.UIActivityViewController
+import platform.UIKit.UIDocumentPickerViewController
 import platform.UIKit.popoverPresentationController
 import platform.darwin.NSInteger
 import platform.darwin.NSObject
@@ -105,6 +106,17 @@ class IosPlatformFiles : PlatformFiles {
                 }
             }
             presenter.presentViewController(sheet, animated = true, completion = null)
+        }
+        return null
+    }
+
+    override suspend fun saveFile(path: String, fileName: String, mimeType: String?): String? {
+        if (!NSFileManager.defaultManager.fileExistsAtPath(path)) return "The file is no longer available"
+        val presenter = topViewController() ?: return "The file cannot be saved right now"
+        dispatch_async(dispatch_get_main_queue()) {
+            // The Files "Save to" sheet; the cached copy is already named after the attachment.
+            val picker = UIDocumentPickerViewController(forExportingURLs = listOf(NSURL.fileURLWithPath(path)), asCopy = true)
+            presenter.presentViewController(picker, animated = true, completion = null)
         }
         return null
     }

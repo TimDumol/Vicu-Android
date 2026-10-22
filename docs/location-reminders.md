@@ -5,15 +5,24 @@ is a saved place (Home, Work, Parents, ...), a searched address or the current p
 radius of 100, 200 or 500 m (200 by default). It fires once, also when the app is closed, and
 never for a task that is done or deleted.
 
-Location reminders and saved places stay on the device. They are not in the Vikunja task, not in
-the synced settings and not in backups, so another device (or the desktop app) does not show them.
+Where a place is never leaves the phone. What syncs, through the synced preferences
+(`docs/cross-app-semantics-v1.md`, section 11.7), is each saved place's id and name
+(`place.<id>`) and each task's reminder at a saved place (`location_reminder.<taskId>`: the place
+id, arrive or leave, the radius). So a place saved on the phone can be picked on the desktop, and
+the phone reminds there. Another phone lists the place as "Not set on this phone" until its
+position is set there (Settings > Notifications > Places, **Set location**); until then it does
+not watch it. A reminder at a searched spot or the current position (not a saved place) stays on
+the phone that set it, as does the reminder of a task created offline until the task has its
+server id. Only phones remind; the desktop never fires one.
 
 ## Where things are
 
 | Piece | Where |
 |---|---|
-| Models (`Place`, `LocationReminder`, `LocationTrigger`, `LocationAccess`) | `shared/.../location/LocationModels.kt` |
-| Stores: `SavedPlacesStore` (`saved_places`, device setting, kept on sign-out) and `LocationReminderStore` (`location_reminders`, account data, cleared on sign-out) | `location/LocationStores.kt` |
+| Models (`SavedPlace` and `PlaceReminder` as the app shows them; `Place` a stored position, `LocationReminder` what is watched; `LocationTrigger`, `LocationAccess`) | `shared/.../location/LocationModels.kt` |
+| The synced entries `place.<id>` and `location_reminder.<taskId>` | `location/SyncedLocation.kt` |
+| `LocationRepository`: joins the synced places and reminders with this phone's positions, decides what syncs, the one-time move (run by `SyncEngine` after the preferences sync) | `location/LocationRepository.kt` |
+| Stores: `SavedPlacesStore` (`saved_places`, positions by place id, device setting, kept on sign-out) and `LocationReminderStore` (`location_reminders`, the reminders that stay on the phone, account data, cleared on sign-out) | `location/LocationStores.kt` |
 | Regions: reminders with the same position, radius and trigger share one region; at most 20 on iOS and 100 on Android, nearest first | `location/LocationRegionPlanner.kt` |
 | Keeping the regions in step and turning an event into notifications | `location/LocationReminderCoordinator.kt` |
 | Platform seams: `PlatformGeofencer`, `LocationPermissionPlatform`, `DeviceLocation`, `PlaceSearch`, `LocationNotifier` | `location/LocationPlatform.kt` |
@@ -26,16 +35,23 @@ the synced settings and not in backups, so another device (or the desktop app) d
 ## How it works
 
 1. The editor's Reminder chip opens the reminder list; **At a location...** opens the location
-   dialog (only in the task editor: quick add has no task yet). Saving writes the reminder to
+   dialog (only in the task editor). Voice add and the typed quick add set one too, from "when I
+   get home" or "when I leave work" for a saved place (`docs/voice-input.md`; in quick add the
+   phrase is highlighted and a place chip shows "Arrive: Home", tap to switch to leave, clear to
+   keep the words in the title). Saving goes through `LocationRepository.setReminder`: one at a
+   saved place on a task the server knows is written to the synced preferences, any other to
    `LocationReminderStore`, keyed by the task id (a temporary id for a task made offline; it moves
-   to the server's id once the task is sent, through `TempIdGenerator.realIdFor`).
-2. `LocationReminderCoordinator` watches the store and the reminder tasks' done state. It drops the
-   reminders of completed tasks, plans the regions and hands them to the platform. It runs at app
+   to the server's id once the task is sent, through `TempIdGenerator.realIdFor`, and then syncs).
+2. `LocationReminderCoordinator` watches `LocationRepository.reminders` and the reminder tasks'
+   done state. It drops the reminders of completed tasks (writing null, so every device loses
+   them), skips the ones whose place has no position on this phone, plans the regions and hands
+   them to the platform. It runs at app
    start (forced), after every change, after boot on Android, and after the periodic background
    sync on both platforms (forced, and dropping reminders whose task is gone after a full sync).
 3. The platform reports "entered region X" or "left region X". The coordinator shows a notification
    for each reminder of that region with the matching trigger ("Arriving at Home", "Leaving Work"),
-   with **Mark Complete** and **Snooze 15 min** like a time reminder, and removes those reminders.
+   with **Mark Complete** and **Snooze 15 min** like a time reminder, and removes those reminders
+   (on every device: the desktop's chip clears after its next sync).
    Nothing shows for a task that is done or gone, or when task reminders are off in Settings.
 
 A reminder set while you are already at the place does not fire right away: it waits for the next
@@ -85,8 +101,8 @@ region assuming "outside").
 
 ## Store and privacy
 
-- `docs/privacy-policy.md` says that positions and places stay on the device and what place search
-  sends where.
+- `docs/privacy-policy.md` says that positions stay on the device, that place names and location
+  reminders are stored on the user's Vikunja server, and what place search sends where.
 - Google Play: the background location declaration (with a video of at most 30 seconds showing the
   disclosure, the permission and a reminder firing), the Data safety form (location: not
   collected, since it never leaves the device; the search text goes to Photon) and a mention in

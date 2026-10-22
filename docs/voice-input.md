@@ -14,6 +14,20 @@ date, the project the text names or else the Inbox. The task is stored on the de
 (`TaskRepository.createQueued`), so the answer comes at once and nothing is lost offline; the sync
 sends it. It answers with a confirmation such as `Added “Call mom”, tomorrow, 15:00`.
 
+A place phrase for a saved place sets the task's location reminder (`PlacePhrases`, English): "when
+I get home", "when I'm at work", "when I arrive at Mom's" (arrive) or "when I leave work", "when I'm
+leaving home" (leave), anywhere in the sentence ("When I get home, call mom", "Call mom when I get
+home tomorrow"); the bare "leaving home" and "arriving at work" only at its start or end, where they
+cannot be part of the task. "the" or "my" before the place is fine. The quick add on both apps reads the same
+phrases as you type (the parser's `TokenType.PLACE`, given the saved places): section 5.3 of the
+cross-app contract, with the place cases of `nlp-corpus-v1.json`. The phrase is taken out of the title, and the reply says it:
+`Added “Call mom”, when you arrive at Home`, plus a note when location access is not set to Always.
+A place that is not saved ("when I get to the supermarket") stays in the title and sets nothing.
+
+Siri itself sends "remind me ..." without an app name to Apple Reminders; iOS has no default app
+setting for reminders, so the user names Vicu ("Remind me in Vicu", then "call mom when I get
+home").
+
 ## In the app: hold +
 
 Holding the + button (`AppFab`) for 400 ms listens in the app, on both platforms. A card over the
@@ -24,8 +38,10 @@ adds the task through `TextTaskCreator` and says what was added on the app snack
 would put it (`TaskDefaults`, handed over by the screen's `ScreenFab`): a project screen's project,
 the Inbox, a custom list's "add to" project, today's date on Today; Upcoming, Anytime and a tag add
 to the Inbox, undated. A project or date in the words wins. The list's project and date show as
-pills before anything is said. Routines' + adds a routine, so holding it does not listen. Sliding the finger down by more than 56 dp arms the cancel ("Let go to
-cancel"); letting go there adds nothing. A pause while still holding does not end the task:
+pills before anything is said. Routines' + adds a routine, so holding it does not listen.
+
+Sliding the finger down by more than 56 dp arms the cancel ("Let go to cancel"); letting go there
+adds nothing. A pause while still holding does not end the task:
 Android's recognizer ends an utterance at a pause, and the next one is joined to it. After the
 finger lifts the app waits up to 1.5 s for the recognizer's last words, then adds what it has.
 
@@ -58,8 +74,7 @@ the initial pass so a tap reaches the button untouched), `FabDropTargets` (the h
 test), `FabOverlays` (the card, the dragged +, the hint). Tests: `FabGestureTest`,
 `FabDropTargetsTest`, `FabHintTest`, `HoldToTalkTest`, `VoicePreviewTest`.
 
-A place phrase ("call mom when I get home") sets a location reminder once `TextTaskCreator` reads
-place phrases (`PlacePhrases`); the hold needs nothing more for it.
+A place phrase works here too: "call mom when I get home" sets the location reminder, as above.
 
 ## iOS
 

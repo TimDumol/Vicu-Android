@@ -1,10 +1,15 @@
 package com.rendyhd.vicu.util.parser
 
+import com.rendyhd.vicu.location.PlaceMatch
 import kotlinx.datetime.LocalDateTime
 
 enum class SyntaxMode { TODOIST, VIKUNJA }
 
-enum class TokenType { LABEL, PROJECT, PRIORITY, RECURRENCE, DATE }
+/**
+ * [PLACE] is the phone's own: "when I get home" for a saved place (PlacePhrases), read only when
+ * the caller passes the saved places. It is not in the shared contract (the desktop saves no places).
+ */
+enum class TokenType { LABEL, PROJECT, PRIORITY, RECURRENCE, DATE, PLACE }
 
 data class ParsedToken(
     val type: TokenType,
@@ -33,6 +38,8 @@ data class ParseResult(
     val labels: List<String> = emptyList(),
     val project: String? = null,
     val recurrence: ParsedRecurrence? = null,
+    /** A saved place the text names with "when I get home", for a location reminder. */
+    val place: PlaceMatch? = null,
     val tokens: List<ParsedToken> = emptyList(),
 )
 

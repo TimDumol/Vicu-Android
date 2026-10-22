@@ -738,7 +738,12 @@ class TaskDetailViewModel(
         withCachedAttachment(attachment) { path -> platformFiles.shareFile(path, attachment.mimeType) }
     }
 
-    private fun withCachedAttachment(attachment: Attachment, present: (String) -> String?) {
+    /** Downloads the attachment and saves a copy where the user keeps files (Downloads; Files on iOS). */
+    fun saveAttachment(attachment: Attachment) {
+        withCachedAttachment(attachment) { path -> platformFiles.saveFile(path, attachment.fileName, attachment.mimeType) }
+    }
+
+    private fun withCachedAttachment(attachment: Attachment, present: suspend (String) -> String?) {
         if (attachment.id in _uiState.value.downloadingAttachmentIds) return
         _uiState.update { it.copy(downloadingAttachmentIds = it.downloadingAttachmentIds + attachment.id) }
         viewModelScope.launch {

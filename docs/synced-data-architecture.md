@@ -282,6 +282,7 @@ what is about this device** (its look, sounds, notifications, gestures, widgets 
 | Widgets, bottom bar, swipe action, button side, keep entry open | `widget_prefs`, `bottom_bar_prefs`, `behavior_prefs` | none | Device |
 | Windows, hotkeys, Quick Entry and Quick View, Obsidian | none | various | Device |
 | Collapsed sections, carrier ids, cursors, last used project | several | several | Device, cleared with the account |
+| Saved places (id and name) and location reminders at them | `saved_places`, `location_reminders` | none | **Sync, without positions** (contract 11.7): `place.<id>` and `location_reminder.<taskId>`. Positions stay on the phone; the desktop picks places and never fires |
 
 ### 7.2 The Inbox
 
@@ -428,6 +429,7 @@ is about **this device** (its look, sounds, notifications, gestures, widgets, wi
 | Notifications and daily summaries | **Decided**: device | | A desktop and a phone need different alerts |
 | Widgets, bottom bar, swipe action, button side, keep entry open, logbook retention | **Decided**: device | | Mobile only, about the device |
 | Windows, hotkeys, Quick Entry and Quick View, Obsidian | **Decided**: device | | Desktop only, about the device |
+| Saved places and location reminders | **Decided** (2026-10-21): id, name and reminder sync; positions stay on the phone | 2.2.x | A place saved on the phone can be chosen on the desktop and the phone reminds there. Another phone asks for the position (Not set on this phone); a reminder at an unsaved spot stays on its phone; the desktop picks only |
 
 ### 13.3 Task order details
 

@@ -2,10 +2,16 @@ package com.rendyhd.vicu.util
 
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.copyTo
@@ -138,6 +144,39 @@ object FileUtils {
             null
         } catch (_: ActivityNotFoundException) {
             "No app on this device can receive this file"
+        }
+    }
+
+    /**
+     * Copies the file at [path] into the public Downloads folder as [fileName] (Android 10 and
+     * later: no permission needed). Blocking: call it off the main thread. A name that is taken
+     * gets a number added by the system. Returns the message for the user.
+     */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    fun saveToDownloads(context: Context, path: String, fileName: String, mimeType: String?): String {
+        val source = File(path)
+        if (!source.isFile) return "The file is no longer available"
+        val type = mimeType?.takeIf { it.isNotBlank() }
+            ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(source.extension.lowercase())
+            ?: "application/octet-stream"
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, type)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            // Hidden from other apps until it is complete.
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: return "Could not save \"$fileName\" to Downloads"
+        return try {
+            val out = resolver.openOutputStream(uri) ?: error("no output stream")
+            out.use { stream -> source.inputStream().use { it.copyTo(stream) } }
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            "Saved \"$fileName\" to Downloads"
+        } catch (e: Exception) {
+            resolver.delete(uri, null, null)
+            "Could not save \"$fileName\": ${e.message}"
         }
     }
 

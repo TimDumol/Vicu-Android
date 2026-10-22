@@ -1,9 +1,11 @@
 package com.rendyhd.vicu.voice
 
 import com.rendyhd.vicu.domain.model.Project
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.ui.screens.taskentry.FieldSource
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryUiState
 import com.rendyhd.vicu.ui.screens.taskentry.entryLabelsWords
+import com.rendyhd.vicu.ui.screens.taskentry.entryPlaceChipLabel
 import com.rendyhd.vicu.ui.screens.taskentry.entryPriorityName
 import com.rendyhd.vicu.ui.screens.taskentry.resolveEntryFields
 import com.rendyhd.vicu.util.ClockDay
@@ -42,8 +44,13 @@ fun voicePreview(
     inboxId: Long,
     format: DateDisplayFormat,
     defaults: TaskDefaults = TaskDefaults(),
+    places: List<SavedPlace> = emptyList(),
 ): VoicePreview {
-    val parsed = if (text.isNotBlank() && config.enabled) TaskParser.parse(text, config, reference = now, zone = day.zone) else null
+    val parsed = if (text.isNotBlank() && config.enabled) {
+        TaskParser.parse(text, config, reference = now, zone = day.zone, places = places)
+    } else {
+        null
+    }
     val defaultProject = defaults.projectId?.takeIf { id -> projects.any { it.id == id } } ?: inboxId
     val fields = resolveEntryFields(
         TaskEntryUiState(
@@ -72,6 +79,8 @@ fun voicePreview(
         if (fields.recurrenceSource == FieldSource.TEXT) {
             add(VoicePill(TokenType.RECURRENCE, DateUtils.formatRecurrence(fields.recurrence.repeatAfter, fields.recurrence.repeatMode)))
         }
+        // "When I get home" for a saved place: the location reminder the task gets.
+        parsed?.place?.let { add(VoicePill(TokenType.PLACE, entryPlaceChipLabel(it))) }
     }
     // A project that does not exist is not highlighted: the task goes to the Inbox.
     val tokens = parsed?.tokens.orEmpty().filter { it.type != TokenType.PROJECT || !fields.projectNotFound }

@@ -262,6 +262,42 @@ the date and recurrence rules.
 - The API mapping is unchanged (monthly is `repeat_mode` 1; `every N months` for N > 1 and
   yearly use day approximations, as today).
 
+### 5.3 Places
+
+A phrase that names a saved place (section 11.7) asks for a location reminder: "Call mom when I
+get home" is the title "Call mom" with a reminder on arriving at Home. The parser reads it only
+when the app gives it the saved places (their ids and names); without places, or with the parser
+off, the words stay in the title. The corpus parses every case with its `places`.
+
+- The phrase is a lead-in and a place name. Arriving: `when I get`, `when I get to`, `when I get
+  back`, `when I get back to`, `when I arrive`, `when I arrive at`, `when I arrive in`, `when I
+  arrive back at`, `when I'm`, `when I am`, `when I'm at`, `when I am at`, `when I'm back`, `when
+  I am back`, `when I'm back at`, `when I am back at`, `when I come`, `when I come to`, `when I
+  come back`, `when I come back to`, `when I reach`, `once I get`, `once I get to`, `once I'm`,
+  `once I'm at`, `arriving at`. Leaving: `when I leave`, `when I'm leaving`, `when I am leaving`,
+  `when I get out of`, `once I leave`, `leaving`. `the ` or `my ` may stand before the name.
+- Matching ignores case, and a curly apostrophe (’ or ‘) counts as a straight one, in the
+  phrase and in the place name ("when I’m at Mom’s").
+- The phrase is made of whole words: no letter, digit or apostrophe directly before it or after
+  it. "when I get homework done" names no place.
+- A phrase that starts with `when` or `once` counts anywhere in the text. `leaving` and
+  `arriving at` count only at the start of the text or at its end (where only spaces and
+  `. ! ?` follow): "Take the keys leaving home" is a reminder, "Stop leaving work late" is not.
+- When several phrases match, the longest wins, and between equally long ones the earliest.
+  Only one place is read. Two saved places with the same name (ignoring case): the one whose id
+  comes first in character-code order.
+- The phrase leaves the title together with what joined it to the rest: at the start, the
+  spaces and `, ; : -` after it ("When I get home, call mom" is "call mom"); at the end, the
+  spaces and `, ; : -` before it and the `. ! ?` after it ("Call mom, when I get home." is "Call
+  mom"); in the middle, a `,` or `;` right after it (spaces between allowed): "Buy milk, when I
+  get home, and bread" is "Buy milk, and bread".
+- A phrase that would leave no title is not read: "When I get home" stays the title.
+- The place is read before labels, projects, priority, recurrence and dates, so no word of the
+  phrase is read as anything else; the rest of the text is parsed as usual ("Buy milk when I
+  leave work tomorrow #errands").
+- The reminder uses the default radius (200 m). It is written as `location_reminder.<taskId>`
+  once the task has its server id (section 11.7).
+
 ---
 
 ## 6. Routine history
@@ -827,6 +863,8 @@ A key is added here, in both repos, in the release that starts writing it.
 | `inbox_project_id` | the Inbox project id, a whole number above 0 | none: the app asks during setup |
 | `task_order` | a task order key (section 12.1) | `due_date_first` |
 | `task_order.project.<id>` | a task order key, or `null` | follows the parent project, then `task_order` (section 12.3) |
+| `place.<placeId>` | a saved place's name, `{"name": "Home"}`, or `null` (deleted); section 11.7 | none |
+| `location_reminder.<taskId>` | a task's location reminder, `{"place", "trigger", "radius_m"}`, or `null`; section 11.7 | none |
 
 ### 11.4 The Inbox
 
@@ -850,6 +888,32 @@ default, the first device to update decides for every device of the account.
 `syncedPrefs.merge` gives `local`, `server` and the merged document. `syncedPrefs.read` gives
 entries, a key and the value an app uses. `syncedPrefs.move` gives a key, the local value, the
 carrier's entry (absent when not given) and whether the device writes.
+
+### 11.7 Places and location reminders
+
+A task can remind the user when they arrive at or leave a place they saved on a phone. The place's
+**name** and the reminder sync; where the place is never does.
+
+- `place.<placeId>`: `{"name": "<name>"}`. `<placeId>` is 1 to 64 letters, digits, `-` and `_`
+  (phones use a random UUID). The name is the user's own text, not blank after trimming. `null`
+  deletes the place.
+- `location_reminder.<taskId>`: `{"place": "<placeId>", "trigger": "arrive" | "leave", "radius_m":
+  <whole number 100 to 1000>}`, at most one per task. `<taskId>` is the server's task id, a whole
+  number above 0: a key is never written for a task created offline (a temporary id); the phone
+  holds that reminder until the task has its server id. `null` means the task has no location
+  reminder.
+- A value that does not have that shape reads as none and is kept unchanged (section 11.2), so a
+  later version can add fields.
+- **Positions stay on the phone.** Each phone keeps the latitude, longitude and address of the
+  places it located, by place id; they are never sent anywhere. A phone that has a place's name but
+  not its position shows it as not set on that phone and lets the user locate it there.
+- **Only phones remind.** A phone watches a reminder when it knows the place's position, and
+  notifies once on arriving or leaving (no notification for being there already when the reminder
+  is set). Desktop shows and sets reminders at synced places but never creates a place.
+- A reminder ends with `null`: when it fires, when the task is completed, deleted or no longer on
+  the server, when the user removes it, and for every reminder at a place that is deleted.
+- A reminder at a spot that is not a saved place (a searched address, the current position) stays
+  on the phone that set it and is not synced.
 
 ---
 

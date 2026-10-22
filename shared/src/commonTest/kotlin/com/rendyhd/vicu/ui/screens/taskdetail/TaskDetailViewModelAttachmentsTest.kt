@@ -174,6 +174,20 @@ class TaskDetailViewModelAttachmentsTest {
     }
 
     @Test
+    fun `saving an attachment downloads it and saves a copy under its own name`() = runTest {
+        val rig = opened()
+        rig.files.saveMessage = "Saved \"plan.pdf\" to Downloads"
+
+        rig.viewModel.saveAttachment(pdf)
+        runCurrent()
+
+        assertEquals(listOf("/cache/attachments/9/plan.pdf" to "plan.pdf"), rig.files.savedCopies)
+        assertEquals(listOf("Saved \"plan.pdf\" to Downloads"), rig.received)
+        assertEquals(emptySet<Long>(), rig.viewModel.uiState.value.downloadingAttachmentIds)
+        rig.close()
+    }
+
+    @Test
     fun `a failed download is reported and nothing is opened`() = runTest {
         val rig = opened()
         rig.attachments.downloadResult = { NetworkResult.Error("offline") }

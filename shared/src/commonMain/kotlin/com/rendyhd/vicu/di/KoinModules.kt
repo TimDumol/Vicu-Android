@@ -3,6 +3,7 @@ package com.rendyhd.vicu.di
 import com.rendyhd.vicu.location.DeviceLocation
 import com.rendyhd.vicu.location.LocationReminderCoordinator
 import com.rendyhd.vicu.location.LocationReminderStore
+import com.rendyhd.vicu.location.LocationRepository
 import com.rendyhd.vicu.location.SavedPlacesStore
 import org.koin.dsl.module
 import org.koin.core.context.startKoin
@@ -83,6 +84,7 @@ val databaseModule = module {
     single { ThemePrefsStore(createDataStore(get(), "theme_prefs")) }
     single { SavedPlacesStore(createDataStore(get(), "saved_places"), get()) }
     single { LocationReminderStore(createDataStore(get(), "location_reminders"), get()) }
+    single { LocationRepository(synced = get<SyncedPreferences>(), positions = get(), local = get()) }
     single { WidgetPrefsStore(createDataStore(get(), "widget_prefs")) }
     single { FabHintStore(createDataStore(get(), "fab_hint")) }
 }
@@ -254,6 +256,8 @@ val commonModule = module {
             notificationPrefsStore = get(),
             dayClock = get(),
             time = get(),
+            locations = get(),
+            locationPermission = get(),
         )
     }
     single { FabHint(store = get(), scope = get()) }
@@ -351,7 +355,7 @@ val commonModule = module {
     }
     single {
         LocationReminderCoordinator(
-            store = get(),
+            locations = get(),
             taskRepository = get(),
             tempIds = get(),
             geofencer = get(),
@@ -426,6 +430,7 @@ val commonModule = module {
             collabSync = get(),
             collaboration = get(),
             syncedPreferences = get(),
+            locations = get(),
         )
     }
 }

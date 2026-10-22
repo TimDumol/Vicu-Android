@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.util
 
+import android.os.Build
 import androidx.core.net.toUri
 import com.rendyhd.vicu.data.local.PlatformContext
 import io.ktor.utils.io.ByteReadChannel
@@ -37,4 +38,13 @@ class AndroidPlatformFiles(private val platformContext: PlatformContext) : Platf
 
     override fun shareFile(path: String, mimeType: String?): String? =
         FileUtils.shareFile(platformContext.context, path, mimeType)
+
+    override suspend fun saveFile(path: String, fileName: String, mimeType: String?): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            withContext(Dispatchers.IO) { FileUtils.saveToDownloads(platformContext.context, path, fileName, mimeType) }
+        } else {
+            // Before Android 10 writing to Downloads needs a storage permission; the share sheet
+            // offers the places to save it instead.
+            FileUtils.shareFile(platformContext.context, path, mimeType)
+        }
 }

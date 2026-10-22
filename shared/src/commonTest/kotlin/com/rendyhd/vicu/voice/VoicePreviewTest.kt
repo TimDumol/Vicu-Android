@@ -1,6 +1,7 @@
 package com.rendyhd.vicu.voice
 
 import com.rendyhd.vicu.domain.model.Project
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DueDates
@@ -59,5 +60,21 @@ class VoicePreviewTest {
     @Test
     fun theInboxNeedsNoPill() {
         assertTrue(preview("", defaults = TaskDefaults(projectId = 1)).pills.isEmpty())
+    }
+
+    @Test
+    fun aSavedPlaceIsHighlightedAndBecomesAPill() {
+        val result = voicePreview(
+            "call mom when I get home",
+            ParserConfig(),
+            now,
+            day,
+            projects,
+            inboxId = 1,
+            format = format,
+            places = listOf(SavedPlace("h", "Home")),
+        )
+        assertEquals(listOf(VoicePill(TokenType.PLACE, "Arrive: Home")), result.pills)
+        assertTrue(result.tokens.any { it.type == TokenType.PLACE })
     }
 }

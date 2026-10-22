@@ -63,4 +63,13 @@ class FakePlatformFiles : PlatformFiles {
         sharedPaths += path to mimeType
         return presentMessage
     }
+
+    /** (path, file name) of each save; [saveMessage] is what saving answers. */
+    val savedCopies = mutableListOf<Pair<String, String>>()
+    var saveMessage: String? = null
+
+    override suspend fun saveFile(path: String, fileName: String, mimeType: String?): String? {
+        savedCopies += path to fileName
+        return saveMessage
+    }
 }

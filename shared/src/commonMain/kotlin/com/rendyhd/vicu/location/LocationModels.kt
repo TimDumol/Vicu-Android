@@ -7,8 +7,9 @@ import kotlinx.serialization.Serializable
 data class GeoPoint(val latitude: Double, val longitude: Double)
 
 /**
- * A place the user saved on this device (Home, Work, ...), offered first when a location reminder
- * is set. Places never leave the device: they are not synced and not in backups.
+ * Where this phone found a saved place: its position and address, by place id. Positions never
+ * leave the device (not synced, not in backups); the place's name syncs (section 11.7 of the
+ * cross-app contract), and [name] here is the name it had when this phone saved it.
  */
 @Serializable
 data class Place(
@@ -22,15 +23,25 @@ data class Place(
     val point: GeoPoint get() = GeoPoint(latitude, longitude)
 }
 
+/**
+ * A saved place as the app shows it: the synced name, and the position when this phone knows it
+ * (a place saved on another phone has none until it is located here).
+ */
+data class SavedPlace(
+    val id: String,
+    val name: String,
+    val position: GeoPoint? = null,
+    val address: String = "",
+)
+
 @Serializable
 enum class LocationTrigger { ARRIVE, LEAVE }
 
 /**
- * "Remind me when I arrive at (or leave) a place" for one task. A task has at most one. It is kept
- * on this device only, never sent to the Vikunja server, and removed once it has fired.
- *
- * A reminder at a saved place names it ([placeId]) and keeps a copy of its position, so it still
- * works when the place is deleted; renaming or moving the place updates its reminders.
+ * "Remind me when I arrive at (or leave) a place" for one task, with the position to watch. A task
+ * has at most one, and it is removed once it has fired. This is what the coordinator watches and
+ * what [LocationReminderStore] keeps on this phone; [LocationRepository] syncs a reminder at a
+ * saved place ([placeId]) without its position.
  */
 @Serializable
 data class LocationReminder(
@@ -50,6 +61,26 @@ data class LocationReminder(
     }
 }
 
+/**
+ * A task's location reminder as the app shows it, synced or kept on this phone. [position] is
+ * null when this phone does not know where the place is; such a reminder is not watched here.
+ */
+data class PlaceReminder(
+    val taskId: Long,
+    val placeId: String?,
+    val placeName: String,
+    val trigger: LocationTrigger,
+    val radiusMeters: Int = LocationReminder.DEFAULT_RADIUS_METERS,
+    val position: GeoPoint? = null,
+    /** True when it is in the synced preferences, false when it stays on this phone. */
+    val synced: Boolean = false,
+) {
+    /** The reminder to watch, or null without a position. */
+    fun watched(): LocationReminder? = position?.let {
+        LocationReminder(taskId, placeId, placeName, it.latitude, it.longitude, radiusMeters, trigger)
+    }
+}
+
 /** How much location access the app has. Location reminders need [ALWAYS] to work while the app is closed. */
 enum class LocationAccess { NONE, WHILE_USING, ALWAYS }
 
@@ -64,7 +95,11 @@ data class PlaceSuggestion(
 }
 
 /** "Arrive: Home" or "Leave: Work", for the reminder chip and lists. */
-fun LocationReminder.label(): String = when (trigger) {
+fun LocationReminder.label(): String = locationLabel(trigger, placeName)
+
+fun PlaceReminder.label(): String = locationLabel(trigger, placeName)
+
+private fun locationLabel(trigger: LocationTrigger, placeName: String): String = when (trigger) {
     LocationTrigger.ARRIVE -> "Arrive: $placeName"
     LocationTrigger.LEAVE -> "Leave: $placeName"
 }

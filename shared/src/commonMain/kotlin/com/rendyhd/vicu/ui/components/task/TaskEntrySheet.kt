@@ -82,6 +82,7 @@ import com.rendyhd.vicu.ui.components.shared.VicuDragHandle
 import com.rendyhd.vicu.ui.screens.taskentry.FieldSource
 import com.rendyhd.vicu.ui.screens.taskentry.TaskEntryViewModel
 import com.rendyhd.vicu.ui.screens.taskentry.entryLabelsWords
+import com.rendyhd.vicu.ui.screens.taskentry.entryPlaceChipLabel
 import com.rendyhd.vicu.ui.screens.taskentry.entryPriorityName
 import com.rendyhd.vicu.ui.screens.taskentry.entryProjectChipLabel
 import com.rendyhd.vicu.ui.screens.taskentry.resolveEntryFields
@@ -367,6 +368,18 @@ fun TaskEntrySheet(
                 }
                 if (state.reminders.isNotEmpty()) {
                     ReminderChip(state.reminders.size) { showReminderPicker = true }
+                }
+                // "When I get home" for a saved place: the location reminder the task gets. A tap
+                // switches arrive and leave; the clear button leaves the words in the title.
+                state.placeMatch?.let { match ->
+                    TaskEntryChip(
+                        label = entryPlaceChipLabel(match),
+                        onClick = viewModel::togglePlaceTrigger,
+                        tint = tokenChipColor(TokenType.PLACE, isDarkTheme),
+                        clearDescription = "Remove location reminder",
+                        onClear = { viewModel.suppressType(TokenType.PLACE) },
+                        tokenRect = { tokenRectOf(TokenType.PLACE) },
+                    )
                 }
 
                 TaskEntryChip(

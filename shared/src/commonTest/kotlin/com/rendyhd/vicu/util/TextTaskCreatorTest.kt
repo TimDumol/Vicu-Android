@@ -6,7 +6,16 @@ import com.rendyhd.vicu.auth.InMemoryTokenStorage
 import com.rendyhd.vicu.auth.RecordingAuthHooks
 import com.rendyhd.vicu.data.local.NlpPrefsStore
 import com.rendyhd.vicu.data.local.NotificationPrefsStore
+import com.rendyhd.vicu.data.remote.createApiJson
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
+import com.rendyhd.vicu.location.GeoPoint
+import com.rendyhd.vicu.location.LocationAccess
+import com.rendyhd.vicu.location.LocationPermissionPlatform
+import com.rendyhd.vicu.location.LocationReminder
+import com.rendyhd.vicu.location.SyncedLocation
+import com.rendyhd.vicu.location.testLocations
+import com.rendyhd.vicu.data.repository.InMemorySyncedEntries
+import com.rendyhd.vicu.location.LocationTrigger
 import com.rendyhd.vicu.domain.model.Label
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.domain.model.Task
@@ -16,6 +25,9 @@ import com.rendyhd.vicu.ui.FakeTaskRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -40,6 +52,15 @@ class TextTaskCreatorTest {
     }
     private val labels = FakeLabelRepository()
     private val format = DateDisplayFormat.system(is24Hour = true)
+    private val synced = InMemorySyncedEntries()
+    private val locations = testLocations(synced)
+    private val locationAccess = MutableStateFlow(LocationAccess.ALWAYS)
+    private val permission = object : LocationPermissionPlatform {
+        override val access: StateFlow<LocationAccess> = locationAccess
+        override fun refresh() {}
+        override fun request() = true
+        override fun openSettings() {}
+    }
 
     @AfterTest
     fun close() = scope.cancel()
@@ -67,6 +88,8 @@ class TextTaskCreatorTest {
             notificationPrefsStore = NotificationPrefsStore(InMemoryPreferencesDataStore()),
             dayClock = DayClock(scope, time, ticking = false),
             time = time,
+            locations = locations,
+            locationPermission = permission,
         )
     }
 
@@ -137,6 +160,68 @@ class TextTaskCreatorTest {
     fun `nothing is made when signed out or without an Inbox`() = runTest {
         assertIs<TextTaskCreator.Result.Failed>(creator(signedIn = false).create("Call mom", format))
         assertTrue(tasks.created.isEmpty())
+    }
+
+    @Test
+    fun `when I get home sets an arrive reminder at the saved Home`() = runTest {
+        val home = locations.addPlace("Home", GeoPoint(52.37, 4.89))
+
+        val result = creator().create("Call mom tomorrow when I get home", format)
+
+        assertIs<TextTaskCreator.Result.Created>(result)
+        assertEquals("Call mom", created().title)
+        assertEquals(LocalDate(2026, 10, 21), Instant.parse(created().dueDate).toLocalDateTime(zone).date)
+        // Created offline (a temporary id): the reminder waits on this phone until the task has its server id.
+        val reminder = locations.allReminders().single()
+        assertEquals(result.task.id, reminder.taskId)
+        assertEquals(false, reminder.synced)
+        assertEquals(home.id, reminder.placeId)
+        assertEquals(LocationTrigger.ARRIVE, reminder.trigger)
+        assertEquals("Added “Call mom”, tomorrow, when you arrive at Home", result.confirmation)
+    }
+
+    @Test
+    fun `without Always location access the reply says what to change`() = runTest {
+        locations.addPlace("Work", GeoPoint(52.34, 4.87))
+        locationAccess.value = LocationAccess.WHILE_USING
+
+        val result = creator().create("Take the laptop when I leave work", format)
+
+        assertIs<TextTaskCreator.Result.Created>(result)
+        assertEquals(LocationTrigger.LEAVE, locations.allReminders().single().trigger)
+        assertEquals("Added “Take the laptop”, when you leave Work. ${TextTaskCreator.NEEDS_ALWAYS}", result.confirmation)
+    }
+
+    @Test
+    fun `a place that is not saved stays in the title and sets nothing`() = runTest {
+        creator().create("Buy milk when I get to the supermarket", format)
+
+        assertEquals("Buy milk when I get to the supermarket", created().title)
+        assertTrue(locations.allReminders().isEmpty())
+    }
+
+    @Test
+    fun `a task the server knows gets a synced reminder`() = runTest {
+        tasks.createHandler = { task -> NetworkResult.Success(task.copy(id = 7)) }
+        val home = locations.addPlace("Home", GeoPoint(52.37, 4.89))
+
+        creator().create("Call mom when I get home", format)
+
+        assertEquals(
+            SyncedLocation.reminderValue(home.id, LocationTrigger.ARRIVE, LocationReminder.DEFAULT_RADIUS_METERS),
+            synced.entries.first()[SyncedLocation.reminderKey(7)],
+        )
+    }
+
+    @Test
+    fun `a place saved on another phone sets the reminder and says this phone needs its position`() = runTest {
+        synced.set(SyncedLocation.placeKey("elsewhere"), SyncedLocation.placeValue("Work"))
+
+        val result = creator().create("Take the laptop when I leave work", format)
+
+        assertIs<TextTaskCreator.Result.Created>(result)
+        assertEquals("elsewhere", locations.allReminders().single().placeId)
+        assertEquals("Added “Take the laptop”, when you leave Work. ${TextTaskCreator.notLocated("Work")}", result.confirmation)
     }
 
     @Test

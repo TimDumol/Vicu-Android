@@ -99,6 +99,7 @@ internal fun chipDismissDescription(type: TokenType, label: String): String = wh
     TokenType.LABEL -> "Remove label $label"
     TokenType.PROJECT -> "Remove project $label"
     TokenType.RECURRENCE -> "Remove repeat"
+    TokenType.PLACE -> "Remove location reminder"
 }
 
 /**

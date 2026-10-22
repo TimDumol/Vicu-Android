@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.NlpPrefsStore
 import com.rendyhd.vicu.domain.repository.ProjectRepository
+import com.rendyhd.vicu.location.LocationRepository
 import com.rendyhd.vicu.ui.components.shared.LocalClockDay
 import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
 import com.rendyhd.vicu.ui.components.task.tokenBgColor
@@ -319,10 +320,12 @@ private fun rememberVoicePreview(text: String, defaults: TaskDefaults): VoicePre
     val config by nlpPrefs.config.collectAsState(initial = ParserConfig())
     val projects by projectRepository.getAll().collectAsState(initial = emptyList())
     val inboxId by produceState(0L, authManager) { value = authManager.getInboxProjectId() ?: 0L }
+    val locations: LocationRepository = koinInject()
+    val places by locations.places.collectAsState(initial = emptyList())
     val day = LocalClockDay.current
     val format = LocalDateFormat.current
-    return remember(text, config, projects, inboxId, day, format, defaults) {
-        voicePreview(text, config, time.now().toLocalDateTime(day.zone), day, projects, inboxId, format, defaults)
+    return remember(text, config, projects, inboxId, day, format, defaults, places) {
+        voicePreview(text, config, time.now().toLocalDateTime(day.zone), day, projects, inboxId, format, defaults, places)
     }
 }
 

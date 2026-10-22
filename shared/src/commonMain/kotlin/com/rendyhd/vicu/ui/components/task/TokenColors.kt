@@ -11,6 +11,7 @@ private val PRIORITY_TEXT_LIGHT = VicuLightColors.priorityUrgent
 private val LABEL_TEXT_LIGHT = Color(0xFFEA580C)
 private val PROJECT_TEXT_LIGHT = Color(0xFF2563EB)
 private val RECURRENCE_TEXT_LIGHT = Color(0xFF9333EA)
+private val PLACE_TEXT_LIGHT = Color(0xFF0D9488)
 
 // Dark theme text colors
 private val DATE_TEXT_DARK = Color(0xFF4ADE80)
@@ -18,6 +19,7 @@ private val PRIORITY_TEXT_DARK = VicuDarkColors.priorityUrgent
 private val LABEL_TEXT_DARK = Color(0xFFFB923C)
 private val PROJECT_TEXT_DARK = Color(0xFF60A5FA)
 private val RECURRENCE_TEXT_DARK = Color(0xFFC084FC)
+private val PLACE_TEXT_DARK = Color(0xFF2DD4BF)
 
 // Light theme background colors (alpha ~0.12)
 private val DATE_BG_LIGHT = Color(0x1F22C55E)
@@ -25,6 +27,7 @@ private val PRIORITY_BG_LIGHT = VicuLightColors.priorityUrgent.copy(alpha = 0.12
 private val LABEL_BG_LIGHT = Color(0x1FF97316)
 private val PROJECT_BG_LIGHT = Color(0x1F3B82F6)
 private val RECURRENCE_BG_LIGHT = Color(0x1FA855F7)
+private val PLACE_BG_LIGHT = Color(0x1F14B8A6)
 
 // Dark theme background colors (alpha ~0.20)
 private val DATE_BG_DARK = Color(0x3322C55E)
@@ -32,6 +35,7 @@ private val PRIORITY_BG_DARK = VicuDarkColors.priorityUrgent.copy(alpha = 0.20f)
 private val LABEL_BG_DARK = Color(0x33F97316)
 private val PROJECT_BG_DARK = Color(0x333B82F6)
 private val RECURRENCE_BG_DARK = Color(0x33A855F7)
+private val PLACE_BG_DARK = Color(0x3314B8A6)
 
 fun tokenTextColor(type: TokenType, isDark: Boolean): Color = when (type) {
     TokenType.DATE -> if (isDark) DATE_TEXT_DARK else DATE_TEXT_LIGHT
@@ -39,6 +43,7 @@ fun tokenTextColor(type: TokenType, isDark: Boolean): Color = when (type) {
     TokenType.LABEL -> if (isDark) LABEL_TEXT_DARK else LABEL_TEXT_LIGHT
     TokenType.PROJECT -> if (isDark) PROJECT_TEXT_DARK else PROJECT_TEXT_LIGHT
     TokenType.RECURRENCE -> if (isDark) RECURRENCE_TEXT_DARK else RECURRENCE_TEXT_LIGHT
+    TokenType.PLACE -> if (isDark) PLACE_TEXT_DARK else PLACE_TEXT_LIGHT
 }
 
 fun tokenBgColor(type: TokenType, isDark: Boolean): Color = when (type) {
@@ -47,6 +52,7 @@ fun tokenBgColor(type: TokenType, isDark: Boolean): Color = when (type) {
     TokenType.LABEL -> if (isDark) LABEL_BG_DARK else LABEL_BG_LIGHT
     TokenType.PROJECT -> if (isDark) PROJECT_BG_DARK else PROJECT_BG_LIGHT
     TokenType.RECURRENCE -> if (isDark) RECURRENCE_BG_DARK else RECURRENCE_BG_LIGHT
+    TokenType.PLACE -> if (isDark) PLACE_BG_DARK else PLACE_BG_LIGHT
 }
 
 fun tokenChipColor(type: TokenType, isDark: Boolean): Color = tokenTextColor(type, isDark)

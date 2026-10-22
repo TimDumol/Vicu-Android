@@ -15,7 +15,7 @@ Vicu does not collect your data. The developer runs no server for Vicu and recei
 - **Your sign-in** (a session token, or an API token you paste in) is stored on the device, encrypted (the Android Keystore; the iOS Keychain). Your password is sent only to your Vikunja server when you sign in, and is not stored.
 - **Images you open** in the app, such as people's avatars, are loaded from your Vikunja server.
 - **Links in task descriptions** open in your browser only when you tap them.
-- **Location reminders and saved places** (Home, Work, ...) stay on your device. They are not sent to your Vikunja server or anywhere else, and they are excluded from backups.
+- **Saved places and location reminders**: where your places are (Home, Work, ...) stays on your device. It is not sent to your Vikunja server or anywhere else, and it is excluded from backups. The names of your saved places, and which task reminds you at which place, are stored on your Vikunja server with Vicu's other synced settings, so your other devices can use them. A reminder at a place you did not save stays on the device.
 - **Place search**: when you search for a place for a location reminder, the text you type is sent to a search service, together with your approximate position (rounded to about a kilometre on Android) so nearby places come first. On Android that is [Photon](https://photon.komoot.io/) by komoot, which uses OpenStreetMap data; on iPhone and iPad it is Apple Maps. Nothing else is sent with it.
 
 Apart from place search, Vicu sends nothing to any other party. Its other connections are to your Vikunja server, and to your identity provider when you sign in with single sign-on.

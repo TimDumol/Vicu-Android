@@ -7,11 +7,11 @@ import com.rendyhd.vicu.location.GeoPoint
 import com.rendyhd.vicu.location.LocationAccess
 import com.rendyhd.vicu.location.LocationPermissionPlatform
 import com.rendyhd.vicu.location.LocationReminder
-import com.rendyhd.vicu.location.LocationReminderStore
-import com.rendyhd.vicu.location.Place
+import com.rendyhd.vicu.location.LocationRepository
+import com.rendyhd.vicu.location.PlaceReminder
 import com.rendyhd.vicu.location.PlaceSearch
 import com.rendyhd.vicu.location.PlaceSuggestion
-import com.rendyhd.vicu.location.SavedPlacesStore
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.util.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
@@ -36,19 +36,19 @@ sealed interface PlaceSearchState {
 
 /**
  * The saved places, the place search and the location permission, for the location reminder
- * dialog and Settings > Notifications > Places. Places and location reminders stay on the device.
+ * dialog and Settings > Notifications > Places. Places' names and reminders at them sync; where a
+ * place is stays on the device (LocationRepository).
  */
 @OptIn(FlowPreview::class)
 class PlacesViewModel(
-    private val placesStore: SavedPlacesStore,
-    private val reminderStore: LocationReminderStore,
+    private val locations: LocationRepository,
     private val permission: LocationPermissionPlatform,
     private val search: PlaceSearch,
     private val deviceLocation: DeviceLocation,
 ) : ViewModel() {
 
-    val places: StateFlow<List<Place>> =
-        placesStore.places.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val places: StateFlow<List<SavedPlace>> =
+        locations.places.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val access: StateFlow<LocationAccess> = permission.access
 
@@ -108,34 +108,33 @@ class PlacesViewModel(
         _results.value = PlaceSearchState.Idle
     }
 
-    fun reminderFor(taskId: Long): Flow<LocationReminder?> = reminderStore.forTask(taskId)
+    fun reminderFor(taskId: Long): Flow<PlaceReminder?> = locations.reminderFor(taskId)
 
     fun saveReminder(reminder: LocationReminder) {
-        viewModelScope.launch { reminderStore.put(reminder) }
+        viewModelScope.launch { locations.setReminder(reminder) }
     }
 
     fun removeReminder(taskId: Long) {
-        viewModelScope.launch { reminderStore.remove(taskId) }
+        viewModelScope.launch { locations.removeReminder(taskId) }
     }
 
     /** Saves [suggestion] as a place called [name]; [then] gets the new place. */
-    fun addPlace(name: String, suggestion: PlaceSuggestion, then: (Place) -> Unit = {}) {
-        viewModelScope.launch { then(placesStore.add(name, suggestion.point, suggestion.address)) }
+    fun addPlace(name: String, suggestion: PlaceSuggestion, then: (SavedPlace) -> Unit = {}) {
+        viewModelScope.launch { then(locations.addPlace(name, suggestion.point, suggestion.address)) }
     }
 
-    fun renamePlace(place: Place, name: String) {
+    /** Sets where [place], saved on another device, is on this phone. */
+    fun setPosition(place: SavedPlace, suggestion: PlaceSuggestion) {
+        viewModelScope.launch { locations.setPosition(place, suggestion.point, suggestion.address) }
+    }
+
+    fun renamePlace(place: SavedPlace, name: String) {
         if (name.isBlank()) return
-        viewModelScope.launch {
-            placesStore.rename(place.id, name)
-            reminderStore.placeRenamed(place.copy(name = name.trim()))
-        }
+        viewModelScope.launch { locations.renamePlace(place.id, name) }
     }
 
-    fun deletePlace(place: Place) {
-        viewModelScope.launch {
-            placesStore.delete(place.id)
-            reminderStore.placeDeleted(place.id)
-        }
+    fun deletePlace(place: SavedPlace) {
+        viewModelScope.launch { locations.deletePlace(place.id) }
     }
 
     /** The device's position as a place ("Current location" when nothing is known about it), or null. */

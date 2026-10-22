@@ -40,7 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.domain.model.TaskReminder
-import com.rendyhd.vicu.location.LocationReminder
+import com.rendyhd.vicu.location.PlaceReminder
 import com.rendyhd.vicu.location.label
 import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
 import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
@@ -79,7 +79,7 @@ fun ReminderPickerDialog(
     onEditReminder: ((Int, TaskReminder) -> Unit)? = null,
     dueDate: String = "",
     /** The task's location reminder; shown in the list when set. */
-    locationReminder: LocationReminder? = null,
+    locationReminder: PlaceReminder? = null,
     /** Opens the location reminder dialog; null where a task cannot have one yet (quick add). */
     onLocationClick: (() -> Unit)? = null,
     onRemoveLocation: () -> Unit = {},

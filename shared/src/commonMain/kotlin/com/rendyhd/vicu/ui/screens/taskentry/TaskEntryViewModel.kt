@@ -19,6 +19,12 @@ import com.rendyhd.vicu.domain.repository.AttachmentRepository
 import com.rendyhd.vicu.domain.repository.LabelRepository
 import com.rendyhd.vicu.domain.repository.ProjectRepository
 import com.rendyhd.vicu.domain.repository.TaskRepository
+import com.rendyhd.vicu.location.LocationAccess
+import com.rendyhd.vicu.location.LocationPermissionPlatform
+import com.rendyhd.vicu.location.LocationRepository
+import com.rendyhd.vicu.location.LocationTrigger
+import com.rendyhd.vicu.location.PlaceMatch
+import com.rendyhd.vicu.location.SavedPlace
 import com.rendyhd.vicu.util.Constants
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.DayClock
@@ -27,6 +33,7 @@ import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.ImageTokens
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.RecurrenceValue
+import com.rendyhd.vicu.util.TextTaskCreator
 import com.rendyhd.vicu.util.parser.ParseResult
 import com.rendyhd.vicu.util.parser.ParserConfig
 import com.rendyhd.vicu.util.parser.SyntaxPrefixes
@@ -78,7 +85,18 @@ data class TaskEntryUiState(
     val pendingImages: Map<String, String> = emptyMap(),
     /** When true, keep the entry sheet open after saving (mass-add). */
     val keepEntryOpen: Boolean = false,
-)
+    /** The saved places "when I get home" in the title may name (TokenType.PLACE). */
+    val places: List<SavedPlace> = emptyList(),
+    /** Arrive or leave, set by tapping the place chip: wins over the words of the title. */
+    val placeTrigger: LocationTrigger? = null,
+) {
+    /** The location reminder the title asks for ("when I get home"), or null. */
+    val placeMatch: PlaceMatch?
+        get() {
+            val match = parseResult?.place?.takeIf { parserConfig.enabled } ?: return null
+            return if (placeTrigger != null) match.copy(trigger = placeTrigger) else match
+        }
+}
 
 class TaskEntryViewModel(
     private val taskRepository: TaskRepository,
@@ -91,6 +109,8 @@ class TaskEntryViewModel(
     private val behaviorPrefsStore: BehaviorPrefsStore,
     private val appMessages: AppMessages,
     private val dayClock: DayClock,
+    private val locations: LocationRepository,
+    private val locationPermission: LocationPermissionPlatform,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TaskEntryUiState())
@@ -161,7 +181,21 @@ class TaskEntryViewModel(
                     state.copy(
                         parserConfig = newConfig,
                         parseResult = if (state.title.isNotBlank()) {
-                            TaskParser.parse(state.title, newConfig)
+                            parse(state.title, newConfig, state.places)
+                        } else {
+                            state.parseResult
+                        },
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            locations.places.collect { places ->
+                _uiState.update { state ->
+                    state.copy(
+                        places = places,
+                        parseResult = if (state.title.isNotBlank()) {
+                            parse(state.title, state.parserConfig, places)
                         } else {
                             state.parseResult
                         },
@@ -170,6 +204,9 @@ class TaskEntryViewModel(
             }
         }
     }
+
+    private fun parse(title: String, config: ParserConfig, places: List<SavedPlace>): ParseResult =
+        TaskParser.parse(title, config, places = places)
 
     fun initWithDefaults(defaultProjectId: Long?, defaultDueDate: String? = null) {
         isInitialized = true
@@ -253,7 +290,7 @@ class TaskEntryViewModel(
 
             val config = state.parserConfig.copy(suppressTypes = activeSuppressed)
             val parseResult = if (title.isNotBlank()) {
-                TaskParser.parse(title, config)
+                parse(title, config, state.places)
             } else {
                 null
             }
@@ -262,6 +299,8 @@ class TaskEntryViewModel(
                 parseResult = parseResult,
                 suppressedTypes = activeSuppressed,
                 parserConfig = config,
+                // A tap on the place chip holds while the title names a place.
+                placeTrigger = state.placeTrigger.takeIf { parseResult?.place != null },
             )
         }
     }
@@ -275,7 +314,7 @@ class TaskEntryViewModel(
             val newSuppressed = state.suppressedTypes + type
             val config = state.parserConfig.copy(suppressTypes = newSuppressed)
             val newResult = if (state.title.isNotBlank()) {
-                TaskParser.parse(state.title, config)
+                parse(state.title, config, state.places)
             } else {
                 null
             }
@@ -300,7 +339,7 @@ class TaskEntryViewModel(
             state.copy(
                 suppressedTypes = suppressed,
                 parserConfig = config,
-                parseResult = if (state.title.isNotBlank()) TaskParser.parse(state.title, config) else null,
+                parseResult = if (state.title.isNotBlank()) parse(state.title, config, state.places) else null,
             )
         }
     }
@@ -328,6 +367,15 @@ class TaskEntryViewModel(
     fun setProjectId(projectId: Long) {
         _uiState.update { it.copy(projectId = projectId, projectIsManual = true) }
         pin(TokenType.PROJECT)
+    }
+
+    /** The place chip: "when I get home" becomes "when I leave home", and back. */
+    fun togglePlaceTrigger() {
+        _uiState.update { state ->
+            val match = state.placeMatch ?: return@update state
+            val flipped = if (match.trigger == LocationTrigger.ARRIVE) LocationTrigger.LEAVE else LocationTrigger.ARRIVE
+            state.copy(placeTrigger = flipped)
+        }
     }
 
     fun toggleLabel(labelId: Long) {
@@ -431,6 +479,7 @@ class TaskEntryViewModel(
 
         _uiState.update { it.copy(isSaving = true, error = null) }
 
+        val placeMatch = state.placeMatch
         val pendingUris = state.pendingAttachmentUris
         val pendingImages = state.pendingImages
         val descriptionAtSave = state.description
@@ -477,6 +526,7 @@ class TaskEntryViewModel(
                         for (labelId in resolvedLabelIds) {
                             labelRepository.addToTask(createdTask.id, labelId)
                         }
+                        if (placeMatch != null) setLocationReminder(createdTask.id, placeMatch)
                         if (pendingUris.isNotEmpty()) {
                             uploadPendingAttachments(createdTask.id, pendingUris)
                         }
@@ -505,6 +555,20 @@ class TaskEntryViewModel(
                     it.copy(isSaving = false, error = e.message ?: "Failed to save task")
                 }
             }
+        }
+    }
+
+    /**
+     * "When I get home" in the title: the reminder, and a word when this phone cannot remind there
+     * (the place was saved on another device, or location access is not Always).
+     */
+    private suspend fun setLocationReminder(taskId: Long, match: PlaceMatch) {
+        locations.setReminder(locations.reminderAt(taskId, match.place, match.trigger))
+        locationPermission.refresh()
+        when {
+            match.place.position == null -> appMessages.post(TextTaskCreator.notLocated(match.place.name))
+            locationPermission.access.value != LocationAccess.ALWAYS ->
+                appMessages.post(NEEDS_ALWAYS, "Settings") { locationPermission.openSettings() }
         }
     }
 
@@ -552,6 +616,7 @@ class TaskEntryViewModel(
                 selectedLabelIds = emptySet(),
                 reminders = emptyList(),
                 manualRecurrence = null,
+                placeTrigger = null,
                 isSaving = false,
                 savedTaskId = null,
                 error = null,
@@ -562,5 +627,9 @@ class TaskEntryViewModel(
                 pendingImages = emptyMap(),
             )
         }
+    }
+
+    internal companion object {
+        const val NEEDS_ALWAYS = "Set location access to Always so Vicu can remind you there"
     }
 }

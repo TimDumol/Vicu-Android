@@ -34,6 +34,7 @@ import com.rendyhd.vicu.domain.model.CustomListSyncStatus
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.domain.repository.CustomListRepository
 import com.rendyhd.vicu.domain.repository.RoutineRepository
+import com.rendyhd.vicu.location.LocationRepository
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.isRetriableNetworkError
@@ -99,6 +100,8 @@ class SyncEngine(
     private val collaboration: CollaborationRepository? = null,
     /** The settings every device of the account shares (cross-app semantics section 11). */
     private val syncedPreferences: SyncedPreferences? = null,
+    /** Offers the places kept before they synced to the synced preferences, once (section 11.7). */
+    private val locations: LocationRepository? = null,
 ) {
     private val missing = MissingResourceCheck(api)
 
@@ -182,6 +185,8 @@ class SyncEngine(
             when (syncedPreferences?.sync()) {
                 SyncedDocumentStatus.Pending,
                 is SyncedDocumentStatus.Offline -> run.hasRetriableFailures = true
+                // The carrier has been read: what this phone kept before places synced can be offered.
+                SyncedDocumentStatus.Idle -> locations?.moveLocalData()
                 else -> Unit
             }
             val outcome = refreshAllFromServer()

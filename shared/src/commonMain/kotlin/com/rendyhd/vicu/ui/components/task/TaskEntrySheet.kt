@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.ui.components.task
 
+import com.rendyhd.vicu.ui.keyboardTargetPadding
 import com.rendyhd.vicu.ui.rememberImagePicker
 import org.koin.compose.koinInject
 import com.rendyhd.vicu.permission.NotificationPermissionCoordinator
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -163,12 +162,11 @@ fun TaskEntrySheet(
         initializedBeforeRecreation = true
     }
 
-    // Defer focus until the sheet has fully expanded, so the keyboard-show animation doesn't
-    // fight the sheet-enter animation (open-task stutter).
-    LaunchedEffect(sheetState.currentValue) {
-        if (sheetState.currentValue == SheetValue.Expanded) {
-            focusRequester.requestFocus()
-        }
+    // The keyboard opens with the sheet: the title is focused at once, and the sheet makes room for
+    // the keyboard's full height as soon as it starts to open ([keyboardTargetPadding]), so the two
+    // slide up together instead of the keyboard following once the sheet has settled.
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
     }
 
     LaunchedEffect(state.savedTaskId) {
@@ -239,7 +237,7 @@ fun TaskEntrySheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 12.dp)
-                .imePadding(),
+                .keyboardTargetPadding(),
         ) {
             // The title with its parsed words highlighted, and the send button next to it.
             Row(verticalAlignment = Alignment.CenterVertically) {

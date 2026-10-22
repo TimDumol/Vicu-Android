@@ -271,4 +271,4 @@ Found a bug or have an idea? [Open an issue](https://github.com/rendyhd/Vicu-Mob
 
 ## License
 
-[MIT](LICENSE)
+MIT

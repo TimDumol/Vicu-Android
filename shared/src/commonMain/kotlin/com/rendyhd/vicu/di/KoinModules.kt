@@ -249,6 +249,9 @@ val commonModule = module {
             notificationPrefsStore = get(),
             dayClock = get(),
             time = get(),
+            savedPlaces = get(),
+            locationReminders = get(),
+            locationPermission = get(),
         )
     }
     single { NotificationActions(taskRepository = get(), routineRepository = get(), reminders = get(), hooks = get()) }

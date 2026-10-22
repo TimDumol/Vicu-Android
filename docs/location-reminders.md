@@ -26,7 +26,8 @@ the synced settings and not in backups, so another device (or the desktop app) d
 ## How it works
 
 1. The editor's Reminder chip opens the reminder list; **At a location...** opens the location
-   dialog (only in the task editor: quick add has no task yet). Saving writes the reminder to
+   dialog (only in the task editor: quick add has no task yet). Voice add sets one too, from
+   "when I get home" or "when I leave work" for a saved place (`docs/voice-input.md`). Saving writes the reminder to
    `LocationReminderStore`, keyed by the task id (a temporary id for a task made offline; it moves
    to the server's id once the task is sent, through `TempIdGenerator.realIdFor`).
 2. `LocationReminderCoordinator` watches the store and the reminder tasks' done state. It drops the

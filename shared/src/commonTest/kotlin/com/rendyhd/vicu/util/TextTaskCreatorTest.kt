@@ -97,6 +97,33 @@ class TextTaskCreatorTest {
     }
 
     @Test
+    fun `the list it was said in gives its project and date`() = runTest {
+        val today = DueDates.today(LocalDate(2026, 10, 20), zone).toString()
+        val result = creator().create("Call mom", format, defaultProjectId = 2, defaultDueDate = today)
+
+        assertIs<TextTaskCreator.Result.Created>(result)
+        assertEquals(2, created().projectId)
+        assertEquals(today, created().dueDate)
+        assertEquals("Added “Call mom” to Work, today", result.confirmation)
+    }
+
+    @Test
+    fun `a date in the words wins over the list date`() = runTest {
+        val today = DueDates.today(LocalDate(2026, 10, 20), zone).toString()
+        creator().create("Call mom tomorrow", format, defaultProjectId = 2, defaultDueDate = today)
+
+        assertEquals(2, created().projectId)
+        assertEquals(LocalDate(2026, 10, 21), Instant.parse(created().dueDate).toLocalDateTime(zone).date)
+    }
+
+    @Test
+    fun `a list project that is gone sends the task to the Inbox`() = runTest {
+        creator().create("Call mom", format, defaultProjectId = 99)
+
+        assertEquals(1, created().projectId)
+    }
+
+    @Test
     fun `a label is matched by name - and one that does not exist is created`() = runTest {
         labels.labels.value = listOf(Label(id = 7, title = "Errands", hexColor = ""))
 

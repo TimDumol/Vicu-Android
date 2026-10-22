@@ -79,6 +79,7 @@ import com.rendyhd.vicu.ui.theme.VicuMotion
 import com.rendyhd.vicu.ui.theme.rememberReduceMotion
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.util.parser.ParserConfig
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.voice.VoiceCapture
 import com.rendyhd.vicu.voice.VoicePhase
 import com.rendyhd.vicu.voice.VoicePreview
@@ -165,7 +166,7 @@ private fun riseOut(reduceMotion: Boolean): ExitTransition =
 @Composable
 private fun VoiceCard(capture: VoiceCapture, controller: FabController, reduceMotion: Boolean) {
     val scheme = MaterialTheme.colorScheme
-    val preview = rememberVoicePreview(capture.text)
+    val preview = rememberVoicePreview(capture.text, capture.defaults)
     val isDark = scheme.background.luminance() < 0.5f
     Surface(
         modifier = Modifier
@@ -310,7 +311,7 @@ private fun highlighted(text: String, preview: VoicePreview, isDark: Boolean): A
 
 /** [voicePreview] with the user's parser settings, projects and Inbox. */
 @Composable
-private fun rememberVoicePreview(text: String): VoicePreview {
+private fun rememberVoicePreview(text: String, defaults: TaskDefaults): VoicePreview {
     val nlpPrefs: NlpPrefsStore = koinInject()
     val projectRepository: ProjectRepository = koinInject()
     val authManager: AuthManager = koinInject()
@@ -320,8 +321,8 @@ private fun rememberVoicePreview(text: String): VoicePreview {
     val inboxId by produceState(0L, authManager) { value = authManager.getInboxProjectId() ?: 0L }
     val day = LocalClockDay.current
     val format = LocalDateFormat.current
-    return remember(text, config, projects, inboxId, day, format) {
-        voicePreview(text, config, time.now().toLocalDateTime(day.zone), day, projects, inboxId, format)
+    return remember(text, config, projects, inboxId, day, format, defaults) {
+        voicePreview(text, config, time.now().toLocalDateTime(day.zone), day, projects, inboxId, format, defaults)
     }
 }
 

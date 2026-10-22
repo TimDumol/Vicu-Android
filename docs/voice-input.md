@@ -20,7 +20,11 @@ Holding the + button (`AppFab`) for 400 ms listens in the app, on both platforms
 screen shows the words as they are recognized, with the parsed parts in the quick add colours and
 the fields as pills under them (`voicePreview`, the same reading as `TextTaskCreator`). Letting go
 adds the task through `TextTaskCreator` and says what was added on the app snackbar, with Undo
-(which deletes the task). Sliding the finger down by more than 56 dp arms the cancel ("Let go to
+(which deletes the task). The task goes to the list the + was held in, as that list's quick add
+would put it (`TaskDefaults`, handed over by the screen's `ScreenFab`): a project screen's project,
+the Inbox, a custom list's "add to" project, today's date on Today; Upcoming, Anytime and a tag add
+to the Inbox, undated. A project or date in the words wins. The list's project and date show as
+pills before anything is said. Routines' + adds a routine, so holding it does not listen. Sliding the finger down by more than 56 dp arms the cancel ("Let go to
 cancel"); letting go there adds nothing. A pause while still holding does not end the task:
 Android's recognizer ends an utterance at a pause, and the next one is joined to it. After the
 finger lifts the app waits up to 1.5 s for the recognizer's last words, then adds what it has.

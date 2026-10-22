@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.voice.HoldToTalk
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.voice.VoiceBegin
 
 /**
@@ -37,16 +38,16 @@ class FabController(
      * The + was held: starts listening. True when the voice card is up; otherwise the gesture is
      * over (a prompt, the system speech screen, or [openQuickAdd] when the device cannot listen).
      */
-    fun startHold(openQuickAdd: () -> Unit): Boolean = begin(handsFree = false, openQuickAdd)
+    fun startHold(defaults: TaskDefaults, openQuickAdd: () -> Unit): Boolean = begin(handsFree = false, defaults, openQuickAdd)
 
     /** "Say a task" for a screen reader: listens without a hold; the card has Add and Cancel. */
-    fun sayTask(openQuickAdd: () -> Unit) {
-        begin(handsFree = true, openQuickAdd)
+    fun sayTask(defaults: TaskDefaults, openQuickAdd: () -> Unit) {
+        begin(handsFree = true, defaults, openQuickAdd)
     }
 
-    private fun begin(handsFree: Boolean, openQuickAdd: () -> Unit): Boolean {
+    private fun begin(handsFree: Boolean, defaults: TaskDefaults, openQuickAdd: () -> Unit): Boolean {
         hint.dismiss()
-        return when (holdToTalk.begin(format, handsFree)) {
+        return when (holdToTalk.begin(format, handsFree, defaults)) {
             VoiceBegin.STARTED -> true
             VoiceBegin.UNAVAILABLE -> {
                 openQuickAdd()

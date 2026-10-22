@@ -2,6 +2,7 @@
 
 package com.rendyhd.vicu.ui.screens.today
 
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.ui.components.fab.FabDropTarget
 import com.rendyhd.vicu.ui.components.fab.fabDropTarget
 import com.rendyhd.vicu.ui.navigation.ScreenReady
@@ -151,7 +152,12 @@ fun TodayScreen(
         floatingActionButton = {
             if (!selectionActive) {
                 val day = LocalClockDay.current
-                ScreenFab(onClick = { onShowTaskEntry(null, DueDates.today(day.date, day.zone).toString()) }, expanded = !listState.canScrollBackward)
+                val today = DueDates.today(day.date, day.zone).toString()
+                ScreenFab(
+                    onClick = { onShowTaskEntry(null, today) },
+                    expanded = !listState.canScrollBackward,
+                    taskDefaults = TaskDefaults(dueDate = today),
+                )
             }
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,

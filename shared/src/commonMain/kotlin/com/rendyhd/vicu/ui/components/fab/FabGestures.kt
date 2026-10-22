@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.rendyhd.vicu.voice.TaskDefaults
 import kotlinx.coroutines.CancellationException
 
 /** How far below the + the finger slides before letting go cancels. */
@@ -31,15 +32,22 @@ internal const val SAY_A_TASK = "Say a task"
  * The + button's hold and drag ([FabGesture]) on top of its own tap. The pointer is watched before
  * the button sees it (the initial pass): a quick tap reaches the button untouched and opens quick
  * add as always; once a hold or a drag starts, the rest of the gesture is taken from the button, so
- * its click does not fire. [openQuickAdd] is the button's tap, for a device that cannot listen.
+ * its click does not fire. The task said gets [defaults], the list's own; [openQuickAdd] is the
+ * button's tap, for a device that cannot listen.
  *
  * A screen reader gets "Say a task" as a custom action; dragging only saves taps, so it has none.
  */
 @Composable
-internal fun Modifier.fabGestures(controller: FabController, screen: String?, openQuickAdd: () -> Unit): Modifier {
+internal fun Modifier.fabGestures(
+    controller: FabController,
+    screen: String?,
+    defaults: TaskDefaults,
+    openQuickAdd: () -> Unit,
+): Modifier {
     val haptics = LocalHapticFeedback.current
     val currentScreen by rememberUpdatedState(screen)
     val currentOpen by rememberUpdatedState(openQuickAdd)
+    val currentDefaults by rememberUpdatedState(defaults)
     val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     return this
         .onGloballyPositioned { coordinates[0] = it }
@@ -48,7 +56,7 @@ internal fun Modifier.fabGestures(controller: FabController, screen: String?, op
         .semantics {
             customActions = listOf(
                 CustomAccessibilityAction(SAY_A_TASK) {
-                    controller.sayTask { currentOpen() }
+                    controller.sayTask(currentDefaults) { currentOpen() }
                     true
                 },
             )
@@ -73,7 +81,7 @@ internal fun Modifier.fabGestures(controller: FabController, screen: String?, op
                     when (event) {
                         null -> Unit
                         FabGestureEvent.StartHold -> {
-                            if (controller.startHold { currentOpen() }) {
+                            if (controller.startHold(currentDefaults) { currentOpen() }) {
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             } else {
                                 gesture.end()

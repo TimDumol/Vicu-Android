@@ -29,8 +29,9 @@ data class VoicePreview(val tokens: List<ParsedToken>, val pills: List<VoicePill
 
 /**
  * Reads [text] the way the task will be added (`TextTaskCreator`: the parser with the user's
- * settings, the quick add field rules, the Inbox unless a project is named), so the card shows
- * what letting go adds.
+ * settings, the quick add field rules, the [defaults] of the list unless the words name a project
+ * or a date), so the card shows what letting go adds. The list's own project and date are pills
+ * too (not highlighted words), so the card says where the task goes before anything is said.
  */
 fun voicePreview(
     text: String,
@@ -40,13 +41,15 @@ fun voicePreview(
     projects: List<Project>,
     inboxId: Long,
     format: DateDisplayFormat,
+    defaults: TaskDefaults = TaskDefaults(),
 ): VoicePreview {
-    if (text.isBlank() || !config.enabled) return VoicePreview.EMPTY
-    val parsed = TaskParser.parse(text, config, reference = now, zone = day.zone)
+    val parsed = if (text.isNotBlank() && config.enabled) TaskParser.parse(text, config, reference = now, zone = day.zone) else null
+    val defaultProject = defaults.projectId?.takeIf { id -> projects.any { it.id == id } } ?: inboxId
     val fields = resolveEntryFields(
         TaskEntryUiState(
             title = text,
-            projectId = inboxId,
+            projectId = defaultProject,
+            dueDate = defaults.dueDate.orEmpty(),
             allProjects = projects,
             parseResult = parsed,
             parserConfig = config,
@@ -54,13 +57,15 @@ fun voicePreview(
         day.zone,
     )
     val pills = buildList {
-        if (fields.dueSource == FieldSource.TEXT && fields.dueDate.isNotBlank()) {
+        if (fields.dueSource != null && fields.dueDate.isNotBlank()) {
             add(VoicePill(TokenType.DATE, DateDisplay.formatDue(DateContext.CHIP, fields.dueDate, day.date, day.zone, format)))
         }
-        if (fields.parsedProjectName != null && !fields.projectNotFound) {
+        // The project the words name, or the list's own; the Inbox, where tasks go anyway, needs no pill.
+        val namedProject = fields.parsedProjectName != null && !fields.projectNotFound
+        if (namedProject || fields.projectId != inboxId) {
             projects.find { it.id == fields.projectId }?.let { add(VoicePill(TokenType.PROJECT, it.title)) }
         }
-        entryLabelsWords(emptyList(), parsed.labels)?.let { add(VoicePill(TokenType.LABEL, it)) }
+        entryLabelsWords(emptyList(), parsed?.labels.orEmpty())?.let { add(VoicePill(TokenType.LABEL, it)) }
         if (fields.prioritySource == FieldSource.TEXT) {
             entryPriorityName(fields.priority)?.let { add(VoicePill(TokenType.PRIORITY, it)) }
         }
@@ -69,6 +74,6 @@ fun voicePreview(
         }
     }
     // A project that does not exist is not highlighted: the task goes to the Inbox.
-    val tokens = parsed.tokens.filter { it.type != TokenType.PROJECT || !fields.projectNotFound }
+    val tokens = parsed?.tokens.orEmpty().filter { it.type != TokenType.PROJECT || !fields.projectNotFound }
     return VoicePreview(tokens, pills)
 }

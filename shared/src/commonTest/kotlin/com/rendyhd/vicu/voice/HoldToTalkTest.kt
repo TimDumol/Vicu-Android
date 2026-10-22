@@ -56,6 +56,7 @@ class HoldToTalkTest {
     private val speech = FakeSpeech()
     private val messages = AppMessages()
     private val added = mutableListOf<String>()
+    private val addedDefaults = mutableListOf<TaskDefaults>()
     private var undone = 0
     private var voiceUsed = 0
 
@@ -63,8 +64,9 @@ class HoldToTalkTest {
         speech = speech,
         messages = messages,
         scope = this,
-        addTask = { text, _ ->
+        addTask = { text, _, defaults ->
             added += text
+            addedDefaults += defaults
             if (addFails) VoiceAddResult("Sign in to Vicu first.") else VoiceAddResult("Added “$text”") { undone++ }
         },
         onVoiceAdded = { voiceUsed++ },
@@ -98,6 +100,18 @@ class HoldToTalkTest {
         advanceUntilIdle()
         assertEquals(1, undone)
         assertEquals(1, voiceUsed)
+    }
+
+    @Test
+    fun theTaskGetsTheDefaultsOfTheListItWasSaidIn() = runTest {
+        val voice = session()
+        val work = TaskDefaults(projectId = 2, dueDate = "2026-10-20T21:59:59Z")
+        voice.begin(format, defaults = work)
+        assertEquals(work, voice.state.value?.defaults)
+        voice.release()
+        speech.final("call mom")
+        advanceUntilIdle()
+        assertEquals(listOf(work), addedDefaults)
     }
 
     @Test

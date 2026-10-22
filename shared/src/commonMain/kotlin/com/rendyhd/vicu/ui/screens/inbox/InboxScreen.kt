@@ -2,6 +2,7 @@
 
 package com.rendyhd.vicu.ui.screens.inbox
 
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.ui.navigation.ScreenReady
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.foundation.layout.PaddingValues
@@ -127,7 +128,11 @@ fun InboxScreen(
             // Only a standing notice (no usable Inbox) hides it; a failed refresh or completion
             // is a passing message and the user can still add a task.
             if (!selectionActive && state.notice == null) {
-                ScreenFab(onClick = { onShowTaskEntry(state.inboxProjectId, null) }, expanded = !listState.canScrollBackward)
+                ScreenFab(
+                    onClick = { onShowTaskEntry(state.inboxProjectId, null) },
+                    expanded = !listState.canScrollBackward,
+                    taskDefaults = TaskDefaults(projectId = state.inboxProjectId),
+                )
             }
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,

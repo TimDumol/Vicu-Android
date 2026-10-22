@@ -2,6 +2,7 @@
 
 package com.rendyhd.vicu.ui.screens.project
 
+import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.ui.components.fab.FabDropTarget
 import com.rendyhd.vicu.ui.components.fab.fabDropTarget
 import com.rendyhd.vicu.ui.navigation.ScreenReady
@@ -184,7 +185,11 @@ fun ProjectScreen(
         },
         floatingActionButton = {
             if (!selectionActive) {
-                ScreenFab(onClick = { onShowTaskEntry(projectId, null) }, expanded = !listState.canScrollBackward)
+                ScreenFab(
+                    onClick = { onShowTaskEntry(projectId, null) },
+                    expanded = !listState.canScrollBackward,
+                    taskDefaults = TaskDefaults(projectId = projectId),
+                )
             }
         },
         floatingActionButtonPosition = if (LocalFabAlignStart.current) FabPosition.Start else FabPosition.End,

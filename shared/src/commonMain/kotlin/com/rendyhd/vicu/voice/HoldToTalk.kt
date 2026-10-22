@@ -30,6 +30,8 @@ data class VoiceCapture(
     val cancelArmed: Boolean = false,
     /** Started without a hold (a screen reader's "Say a task"): the card has Add and Cancel buttons. */
     val handsFree: Boolean = false,
+    /** What the list the + was held in gives the task (its project, Today's date). */
+    val defaults: TaskDefaults = TaskDefaults(),
 )
 
 /** What [HoldToTalk.begin] did. */
@@ -56,8 +58,8 @@ class VoiceAddResult(val message: String, val undo: (suspend () -> Unit)? = null
 /**
  * The session behind holding the + button: listens while the finger is down and shows the words
  * ([state], drawn by the voice card), adds the task when it lifts ([release]) through the same path
- * as the other voice adds ([addTask], `TextTaskCreator`), and says what was added on the app
- * snackbar, with Undo.
+ * as the other voice adds ([addTask], `TextTaskCreator`) with the defaults of the list it was held
+ * in, and says what was added on the app snackbar, with Undo.
  *
  * Android's recognizer ends an utterance at a pause. While the finger is still down the next
  * utterance is heard too and joined to the words so far, so a pause does not cut the task short.
@@ -66,7 +68,7 @@ class HoldToTalk(
     private val speech: SpeechInput,
     private val messages: AppMessages,
     private val scope: CoroutineScope,
-    private val addTask: suspend (text: String, format: DateDisplayFormat) -> VoiceAddResult,
+    private val addTask: suspend (text: String, format: DateDisplayFormat, defaults: TaskDefaults) -> VoiceAddResult,
     /** A task was added by voice (the + hint is then never needed). */
     private val onVoiceAdded: () -> Unit = {},
 ) {
@@ -87,14 +89,14 @@ class HoldToTalk(
 
     val isActive: Boolean get() = _state.value != null
 
-    fun begin(format: DateDisplayFormat, handsFree: Boolean = false): VoiceBegin {
+    fun begin(format: DateDisplayFormat, handsFree: Boolean = false, defaults: TaskDefaults = TaskDefaults()): VoiceBegin {
         if (isActive) return VoiceBegin.STARTED
         this.format = format
         return when (speech.availability()) {
             SpeechAvailability.READY -> {
                 committed = ""
                 partial = ""
-                _state.value = VoiceCapture(handsFree = handsFree)
+                _state.value = VoiceCapture(handsFree = handsFree, defaults = defaults)
                 listen()
                 VoiceBegin.STARTED
             }
@@ -240,6 +242,7 @@ class HoldToTalk(
         run++
         finishWait?.cancel()
         val text = words().trim()
+        val defaults = _state.value?.defaults ?: TaskDefaults()
         _state.value = null
         if (text.isBlank()) {
             messages.post(NOTHING_HEARD)
@@ -247,7 +250,7 @@ class HoldToTalk(
         }
         val format = format
         scope.launch {
-            val result = addTask(text, format)
+            val result = addTask(text, format, defaults)
             val undo = result.undo
             if (undo != null) {
                 onVoiceAdded()

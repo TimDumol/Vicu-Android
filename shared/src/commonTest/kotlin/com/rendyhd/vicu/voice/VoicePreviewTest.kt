@@ -3,6 +3,7 @@ package com.rendyhd.vicu.voice
 import com.rendyhd.vicu.domain.model.Project
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.DateDisplayFormat
+import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.parser.ParserConfig
 import com.rendyhd.vicu.util.parser.TokenType
 import kotlinx.datetime.LocalDate
@@ -21,8 +22,8 @@ class VoicePreviewTest {
     private val projects = listOf(Project(id = 1, title = "Inbox"), Project(id = 2, title = "Work"))
     private val format = DateDisplayFormat.system(is24Hour = true)
 
-    private fun preview(text: String, config: ParserConfig = ParserConfig()) =
-        voicePreview(text, config, now, day, projects, inboxId = 1, format = format)
+    private fun preview(text: String, config: ParserConfig = ParserConfig(), defaults: TaskDefaults = TaskDefaults()) =
+        voicePreview(text, config, now, day, projects, inboxId = 1, format = format, defaults = defaults)
 
     @Test
     fun theDateAndProjectBecomePills() {
@@ -44,5 +45,19 @@ class VoicePreviewTest {
         assertEquals(VoicePreview.EMPTY, preview("water the plants"))
         assertEquals(VoicePreview.EMPTY, preview("call mom tomorrow", ParserConfig(enabled = false)))
         assertEquals(VoicePreview.EMPTY, preview("  "))
+    }
+
+    @Test
+    fun theListsProjectAndDateShowBeforeAnythingIsSaid() {
+        val today = DueDates.today(LocalDate(2026, 10, 20), zone).toString()
+        val result = preview("", defaults = TaskDefaults(projectId = 2, dueDate = today))
+        assertEquals(listOf(TokenType.DATE, TokenType.PROJECT), result.pills.map { it.type })
+        assertEquals("Work", result.pills[1].label)
+        assertTrue(result.tokens.isEmpty())
+    }
+
+    @Test
+    fun theInboxNeedsNoPill() {
+        assertTrue(preview("", defaults = TaskDefaults(projectId = 1)).pills.isEmpty())
     }
 }

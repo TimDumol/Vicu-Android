@@ -28,6 +28,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -93,10 +104,11 @@ import com.rendyhd.vicu.util.parser.TokenType
 import com.rendyhd.vicu.util.parser.getPrefixes
 
 /**
- * The new-task sheet (design review 3.6): a compact sheet on the keyboard with the title (its
- * parsed words highlighted), chips (When, Project, Tags, Priority) that say the value in words, and
- * "Details", which saves the task and opens it in the editor ([onOpenDetails]) for notes, subtasks
- * and the rest. A chip shows what the parser read from the title unless the user set that chip with
+ * The new-task sheet (design review 3.6, design concept 3): a compact sheet on the keyboard with the
+ * title (its parsed words highlighted), a Notes line that opens the notes before the task exists,
+ * chips (When, Project, Tags, Priority) that say the value in words, and the expand button (or a drag
+ * up on the handle), which saves the task and grows it into the editor ([onOpenDetails]) for
+ * subtasks and the rest. A chip shows what the parser read from the title unless the user set that chip with
  * its picker, in which case the chip wins and its token loses the highlight ([resolveEntryFields]);
  * the date shows once.
  */
@@ -216,6 +228,14 @@ fun TaskEntrySheet(
         viewModel.save()
     }
 
+    // Saves like Send and then opens the new task in the editor, which rises where this sheet was.
+    val openFullEditor = {
+        if (canSave) {
+            openDetailsAfterSave = true
+            save()
+        }
+    }
+
     // Closing a sheet that has no title drops what was picked on its chips: a draft is the text,
     // and a pick without one would otherwise stop the next title from being read.
     val dismiss = {
@@ -230,7 +250,34 @@ fun TaskEntrySheet(
         // disable anchored-sheet gestures so the two nested scroll systems do not
         // fight over the same drag
         sheetGesturesEnabled = !descriptionEditorController.isEditorFocused,
-        dragHandle = { VicuDragHandle() },
+        // Dragging the handle up grows the sheet into the full editor; a drag down still closes it.
+        dragHandle = {
+            val growPx = with(LocalDensity.current) { GROW_DRAG_DP.dp.toPx() }
+            VicuDragHandle(
+                modifier = Modifier
+                    .semantics {
+                        customActions = listOf(
+                            CustomAccessibilityAction("Open in the full editor") {
+                                openFullEditor()
+                                canSave
+                            },
+                        )
+                    }
+                    .pointerInput(canSave) {
+                        var pulled = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { pulled = 0f },
+                            onVerticalDrag = { change, dragAmount ->
+                                if (dragAmount < 0f || pulled < 0f) {
+                                    pulled += dragAmount
+                                    change.consume()
+                                }
+                            },
+                            onDragEnd = { if (pulled < -growPx) openFullEditor() },
+                        )
+                    },
+            )
+        },
     ) {
         Column(
             modifier = Modifier
@@ -301,6 +348,36 @@ fun TaskEntrySheet(
                 }
             }
 
+            // Notes can be written before the task exists: a quiet Notes line opens them under the
+            // title. Shared text arrives as notes, so they show at once then.
+            if (showNotes) {
+                val entryImagePickerLauncher = rememberImagePicker(viewModel::stagePendingImage)
+
+                DescriptionField(
+                    value = state.description,
+                    onValueChange = viewModel::setDescription,
+                    taskId = 0L,
+                    isUploadingImage = false,
+                    onAddImageClick = entryImagePickerLauncher,
+                    onRemoveImageAttachment = {},
+                    onImagePasted = viewModel::stagePendingImage,
+                    pendingImages = state.pendingImages,
+                    onRemovePending = viewModel::removePendingImage,
+                    editorController = descriptionEditorController,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            } else {
+                TextButton(
+                    onClick = { notesShown = true },
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Notes", style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
             // The chips. A chip says its value in words; the colour of a value read from the title is
@@ -313,6 +390,7 @@ fun TaskEntrySheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 // When: the one place the date is shown.
                 val hasDate = fields.dueDate.isNotBlank()
@@ -369,33 +447,16 @@ fun TaskEntrySheet(
                     ReminderChip(state.reminders.size) { showReminderPicker = true }
                 }
 
-                TaskEntryChip(
-                    label = "Details",
-                    onClick = {
-                        openDetailsAfterSave = true
-                        save()
-                    },
+                // The sheet grows into the full editor (design concept 3): the task is saved and its
+                // editor opens over the list, rising from where this sheet was. Dragging the handle up
+                // does the same.
+                FilledTonalIconButton(
+                    onClick = openFullEditor,
                     enabled = canSave,
-                )
-            }
-
-            if (showNotes) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val entryImagePickerLauncher = rememberImagePicker(viewModel::stagePendingImage)
-
-                DescriptionField(
-                    value = state.description,
-                    onValueChange = viewModel::setDescription,
-                    taskId = 0L,
-                    isUploadingImage = false,
-                    onAddImageClick = entryImagePickerLauncher,
-                    onRemoveImageAttachment = {},
-                    onImagePasted = viewModel::stagePendingImage,
-                    pendingImages = state.pendingImages,
-                    onRemovePending = viewModel::removePendingImage,
-                    editorController = descriptionEditorController,
-                )
+                    modifier = Modifier.size(width = 48.dp, height = 32.dp),
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Open in the full editor")
+                }
             }
 
             // Pending attachment previews
@@ -568,3 +629,6 @@ private fun AttachmentPreviewRow(
         }
     }
 }
+
+/** How far the handle must be dragged up to grow the sheet into the full editor. */
+private const val GROW_DRAG_DP = 40

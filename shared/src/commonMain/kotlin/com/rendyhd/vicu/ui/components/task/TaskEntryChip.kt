@@ -14,7 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +82,9 @@ internal fun TaskEntryChip(
 
 private val MIN_CLEAR_TARGET = 48.dp
 
+/** The fill of a chip whose value was read from the title: its token colour at this alpha. */
+private const val TINT_FILL_ALPHA = 0.14f
+
 @Composable
 private fun EntryChip(
     label: String,
@@ -88,19 +93,20 @@ private fun EntryChip(
     tint: Color?,
     enabled: Boolean,
 ) {
+    // Tonal, never outlined (design concept 3): a value read from the title is tinted with its
+    // token's colour, anything else sits on the sheet's container colour.
+    val scheme = MaterialTheme.colorScheme
     AssistChip(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
         label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        colors = if (tint != null) {
-            AssistChipDefaults.assistChipColors(labelColor = tint, trailingIconContentColor = tint)
-        } else {
-            AssistChipDefaults.assistChipColors()
-        },
-        border = AssistChipDefaults.assistChipBorder(
-            enabled = enabled,
-            borderColor = tint?.copy(alpha = 0.5f) ?: MaterialTheme.colorScheme.outlineVariant,
+        shape = CircleShape,
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = tint?.copy(alpha = TINT_FILL_ALPHA)?.compositeOver(scheme.surfaceContainerLow) ?: scheme.surfaceContainerHighest,
+            labelColor = tint ?: scheme.onSurface,
+            trailingIconContentColor = tint ?: scheme.onSurfaceVariant,
         ),
+        border = null,
     )
 }

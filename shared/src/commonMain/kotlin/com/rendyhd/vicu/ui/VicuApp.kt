@@ -249,6 +249,8 @@ fun VicuApp(
     var showTaskEntrySheet by rememberSaveable { mutableStateOf(false) }
     var taskEntryDefaultProjectId by rememberSaveable { mutableStateOf<Long?>(null) }
     var showTaskDetailSheet by rememberSaveable { mutableStateOf(false) }
+    // The editor about to open was asked for by quick add's expand: it rises where that sheet was.
+    var editorFromEntry by remember { mutableStateOf(false) }
     var taskDetailTaskId by rememberSaveable { mutableLongStateOf(0L) }
     var showNewListDialog by rememberSaveable { mutableStateOf(false) }
     // The task whose Comments screen is open over everything (0 when none); saved like the editor.
@@ -704,7 +706,10 @@ fun VicuApp(
                 onTaskCreated = {
                     pendingSharedContent = null
                 },
-                onOpenDetails = onTaskClick,
+                onOpenDetails = { taskId ->
+                    editorFromEntry = true
+                    onTaskClick(taskId)
+                },
                 sharedContent = pendingSharedContent,
             )
         }
@@ -718,11 +723,16 @@ fun VicuApp(
                     (taskDetailUiState.followedFromTaskId == taskDetailTaskId && taskDetailUiState.task != null)
                 )
         val editorBackState = remember { EditorBackState() }
+        // Once the editor shows (or the open was given up), the next one opens the usual way.
+        LaunchedEffect(taskDetailVisible, showTaskDetailSheet) {
+            if (taskDetailVisible || !showTaskDetailSheet) editorFromEntry = false
+        }
         EditorOverlay(
             taskId = if (taskDetailVisible) taskDetailTaskId else null,
             backState = editorBackState,
             // Still open while it loads another task (a subtask): that change is instant.
             stayOpen = { showTaskDetailSheet },
+            risesFromSheet = { editorFromEntry },
         ) { editorTaskId, backEnabled ->
             TaskDetailScreen(
                 taskId = editorTaskId,

@@ -27,6 +27,8 @@ import com.rendyhd.vicu.util.ImageTokens
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.util.unfinishedDescendants
 import com.rendyhd.vicu.util.RecurrenceValue
+import com.rendyhd.vicu.util.WhenQuickChoice
+import com.rendyhd.vicu.util.postIfRefused
 import com.rendyhd.vicu.util.parser.ParseResult
 import com.rendyhd.vicu.util.parser.ParserConfig
 import com.rendyhd.vicu.util.parser.TaskParser
@@ -404,6 +406,29 @@ class TaskDetailViewModel(
             )
         }
         scheduleAutosave()
+    }
+
+    /**
+     * A quick move of the editor: the due date goes to [choice]'s day with its time of day kept, and
+     * the app snackbar offers Undo. Undo puts the previous due date back, in the stored task when the
+     * editor has moved on to another task or closed.
+     */
+    fun moveDue(choice: WhenQuickChoice) {
+        val task = _uiState.value.task ?: return
+        val previous = task.dueDate
+        setDueDate(movedDue(previous, choice.date, dayClock.day.value.zone))
+        appMessages.post(quickMoveMessage(choice), "Undo") { restoreDue(task.id, previous) }
+    }
+
+    private fun restoreDue(taskId: Long, previous: String) {
+        if (_uiState.value.task?.id == taskId) {
+            setDueDate(previous)
+            return
+        }
+        viewModelScope.launch {
+            val stored = taskRepository.getById(taskId).first() ?: return@launch
+            appMessages.postIfRefused(taskRepository.update(stored.copy(dueDate = previous)), "undo the move")
+        }
     }
 
     fun clearDueDate() {

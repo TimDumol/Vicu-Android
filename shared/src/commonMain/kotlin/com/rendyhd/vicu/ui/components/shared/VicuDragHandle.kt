@@ -22,9 +22,9 @@ import androidx.compose.ui.unit.dp
  * so dragging the sheet never surfaces a "Drag handle" tooltip popup.
  */
 @Composable
-fun VicuDragHandle() {
+fun VicuDragHandle(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             // A target of at least 48 dp, named for a screen reader (the sheet makes it an action).
             .heightIn(min = 48.dp)

@@ -3,27 +3,60 @@
 package com.rendyhd.vicu.ui.screens.taskdetail
 
 import androidx.compose.ui.backhandler.PredictiveBackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.automirrored.outlined.Label
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material.icons.outlined.Weekend
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import com.rendyhd.vicu.location.LocationReminder
+import com.rendyhd.vicu.ui.components.location.LocationDisclosureSheet
+import com.rendyhd.vicu.ui.components.task.PriorityMark
+import com.rendyhd.vicu.util.RecurrencePreset
+import com.rendyhd.vicu.util.RecurrenceValue
+import com.rendyhd.vicu.util.SystemTimeSource
+import com.rendyhd.vicu.util.WhenLogic
+import com.rendyhd.vicu.util.WhenQuickChoice
+import com.rendyhd.vicu.util.detectRecurrencePreset
+import com.rendyhd.vicu.util.recurrenceForPreset
 import kotlin.coroutines.cancellation.CancellationException
 import com.rendyhd.vicu.ui.rememberImagePicker
 import com.rendyhd.vicu.ui.rememberFilePicker
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.LocalMinimumInteractiveComponentSize
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.runtime.CompositionLocalProvider
-import com.rendyhd.vicu.ui.components.task.MIN_TOUCH_TARGET
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -77,11 +110,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -180,6 +211,9 @@ fun TaskDetailScreen(
     var subtaskInput by remember { mutableStateOf("") }
     var showSubtaskInput by remember { mutableStateOf(false) }
     var showRelationPicker by remember { mutableStateOf(false) }
+    // The property whose presets are open in place ("date", "priority", "reminder", "repeat").
+    var openRow by rememberSaveable(taskId) { mutableStateOf<String?>(null) }
+    var titleFocused by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val relationSearchResults by viewModel.relationSearchResults.collectAsStateWithLifecycle()
@@ -266,39 +300,60 @@ fun TaskDetailScreen(
         if (conflict) backState?.let { scope.launch { it.springBack() } }
     }
 
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .clearDescriptionEditorFocusOnHostTap(descriptionEditorController),
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {},
-                    navigationIcon = {
-                        IconButton(onClick = dismissEditor) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        // Edits are saved as you type; Done only leaves.
-                        TextButton(onClick = dismissEditor) { Text("Done") }
-                    },
-                )
-            },
-        ) { innerPadding ->
+    // A sheet over the list (design concept 4): the list stays in view above it, under a scrim that
+    // closes the editor when tapped. Not a ModalBottomSheet: its anchored drag has a nested-scroll
+    // bug (issuetracker.google.com/issues/486562294, fixed only in alpha Compose) that made a
+    // scrollable child shake on drag, so the sheet has no drag-to-dismiss. It closes with the
+    // chevron, the scrim or back (predictive: EditorOverlay scales and fades it by
+    // backState.progress).
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = EDITOR_SCRIM_ALPHA))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClickLabel = "Close",
+                    onClick = dismissEditor,
+                ),
+        )
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(top = EDITOR_SHEET_TOP_GAP)
+                .clearDescriptionEditorFocusOnHostTap(descriptionEditorController),
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .imePadding(),
+            ) {
+            EditorHeader(
+                onClose = dismissEditor,
+                onAddRelation = {
+                    viewModel.setRelationSearchQuery("")
+                    showRelationPicker = true
+                },
+                onDelete = viewModel::requestDeleteTask,
+                menuEnabled = state.task != null,
+            )
             val task = state.task
 
             if (state.isLoading || task == null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator()
                 }
-                return@Scaffold
+                return@Column
             }
 
             val imageTokenIds = remember(task.description) {
@@ -313,12 +368,6 @@ fun TaskDetailScreen(
 
             // The notes' toolbar (Hide keyboard among it) sits under the list, on top of the keyboard,
             // while the notes are being edited: under a tall note it would be behind the keyboard.
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .imePadding(),
-            ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -362,10 +411,9 @@ fun TaskDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 8.dp, vertical = 8.dp)
-                                    .onSizeChanged { fieldSize = it },
-                                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                ),
+                                    .onSizeChanged { fieldSize = it }
+                                    .onFocusChanged { titleFocused = it.isFocused },
+                                textStyle = editorTitleStyle(),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 maxLines = 3,
                                 keyboardOptions = KeyboardOptions(
@@ -382,7 +430,7 @@ fun TaskDetailScreen(
                                         if (titleFieldValue.text.isEmpty()) {
                                             Text(
                                                 text = "Task title",
-                                                style = MaterialTheme.typography.headlineSmall,
+                                                style = editorTitleStyle(),
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
@@ -420,6 +468,17 @@ fun TaskDetailScreen(
                             onDismiss = viewModel::suppressType,
                         )
                     }
+                }
+            }
+
+            // The likely next move as buttons: Today, Tomorrow, This weekend, Next week, without the
+            // day the task is already due (quickMoves). Always an item, so the indexes after it stay put.
+            item(key = "quick_moves") {
+                val clockDay = LocalClockDay.current
+                val moves = remember(task.dueDate, clockDay) { quickMoves(task.dueDate, clockDay.date, clockDay.zone) }
+                if (!task.done && moves.isNotEmpty()) {
+                    QuickMoveRow(moves = moves, onMove = viewModel::moveDue)
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
@@ -472,10 +531,11 @@ fun TaskDetailScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // One row of property chips, in the order of the desktop card bar: date, priority,
-            // labels, checklist, reminders, repeat, project, assign, attachments, comments, More
-            // (design-system-v1.md section 4.1; assign and comments only on shared projects). A
-            // property that is not set is a quiet "+ Name" that opens the same picker.
+            // The properties as rows, in the order of the desktop card bar (design-system-v1.md
+            // section 4.1): date, priority, labels, subtasks, reminders, repeat, project, assign,
+            // attachments, comments (assign and comments only on shared projects). A set property is
+            // a row; an unset one waits in the Add row, in the same order. When, Priority, Remind and
+            // Repeat open their presets in place; the others open their picker.
             item(key = "task_actions") {
                 val clockDay = LocalClockDay.current
                 val dateFormat = LocalDateFormat.current
@@ -487,157 +547,326 @@ fun TaskDetailScreen(
                 }
                 val overdue = hasDueDate && DateUtils.isOverdue(task.dueDate, clockDay.date, clockDay.zone)
                 val priorityLabel = priorityName(task.priority)
+                val recurrence = RecurrenceValue(task.repeatAfter, task.repeatMode)
                 val recurrenceLabel = DateUtils.formatRecurrence(task.repeatAfter, task.repeatMode)
                 val locationLabel = locationReminder?.label()
                 val hasReminder = task.reminders.isNotEmpty() || locationLabel != null
                 val reminderText = if (!hasReminder) "" else ReminderFormat.summary(task.reminders, dateFormat, locationLabel)
                 val projectName = state.allProjects.find { it.id == task.projectId }?.title ?: "No project"
                 val (doneSubtasks, totalSubtasks) = remember(task.relatedTasks) { task.subtaskProgress() }
-                var showMore by remember { mutableStateOf(false) }
+                val collab = LocalCollab.current
+                val access = collab.access(task.projectId)
+                val assignees = if (access.shared) collab.assignees(task) else emptyList()
+                val signal = collab.signals[task.id] ?: TaskSignal()
+                val places by placesViewModel.places.collectAsStateWithLifecycle()
 
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                ) {
-                    PropertyChip(
-                        set = hasDueDate,
-                        emphasis = overdue,
-                        text = dueDateLabel ?: "Date",
-                        description = dueDateLabel?.let { "Due date: $it" } ?: "Add due date",
-                        onClick = { showDatePicker = true },
-                    )
-                    PropertyChip(
-                        set = priorityLabel != null,
-                        text = priorityLabel ?: "Priority",
-                        description = priorityLabel?.let { "Priority: $it" } ?: "Set priority",
-                        onClick = { showPriorityPicker = true },
-                    )
-                    PropertyChip(
-                        set = task.labels.isNotEmpty(),
-                        text = "Label",
-                        description = if (task.labels.isEmpty()) {
-                            "Add label"
-                        } else {
-                            "Labels: ${task.labels.joinToString(", ") { it.title }}"
-                        },
-                        onClick = { showLabelPicker = true },
-                    ) {
-                        task.labels.forEach { label ->
-                            LabelChip(title = label.title, hexColor = label.hexColor, modifier = Modifier.widthIn(max = 140.dp))
+                fun toggle(key: String) {
+                    openRow = if (openRow == key) null else key
+                }
+                val openSubtasks: () -> Unit = {
+                    showSubtaskInput = true
+                    scope.launch { listState.animateScrollToItem(SUBTASKS_ITEM_INDEX) }
+                }
+
+                val entries = listOf(
+                    EditorEntry("date", set = hasDueDate, addLabel = "When", addIcon = Icons.Outlined.CalendarMonth, onAdd = { toggle("date") }) {
+                        PropertyRow(
+                            icon = Icons.Outlined.CalendarMonth,
+                            name = "When",
+                            value = dueDateLabel,
+                            description = "When: ${dueDateLabel ?: "none"}",
+                            onClick = { toggle("date") },
+                            expandable = true,
+                            open = openRow == "date",
+                            emphasis = overdue,
+                        )
+                        RowPresets(visible = openRow == "date") {
+                            val dueDay = WhenLogic.valueOfDue(task.dueDate, clockDay.zone).date
+                            WhenLogic.quickChoices(clockDay.date).distinctBy { it.date }.forEach { choice ->
+                                PresetChip(
+                                    label = choice.label,
+                                    selected = dueDay == choice.date,
+                                    onClick = {
+                                        viewModel.setDueDate(movedDue(task.dueDate, choice.date, clockDay.zone))
+                                        openRow = null
+                                    },
+                                )
+                            }
+                            PresetChip(label = "Pick a date…", onClick = { showDatePicker = true })
+                            if (hasDueDate) {
+                                PresetChip(label = "Clear", danger = true, onClick = {
+                                    viewModel.clearDueDate()
+                                    openRow = null
+                                })
+                            }
                         }
-                    }
-                    PropertyChip(
-                        set = totalSubtasks > 0,
-                        text = if (totalSubtasks > 0) subtaskProgressLabel(doneSubtasks, totalSubtasks) else "Subtasks",
-                        description = if (totalSubtasks > 0) {
-                            "Subtasks: $doneSubtasks of $totalSubtasks completed"
-                        } else {
-                            "Add subtask"
-                        },
-                        onClick = {
-                            showSubtaskInput = true
-                            scope.launch { listState.animateScrollToItem(SUBTASKS_ITEM_INDEX) }
-                        },
-                    )
-                    PropertyChip(
-                        set = hasReminder,
-                        text = if (!hasReminder) "Reminder" else reminderText,
-                        description = if (!hasReminder) "Add reminder" else "Reminders: $reminderText",
-                        onClick = { showReminderPicker = true },
-                    )
-                    PropertyChip(
-                        set = recurrenceLabel.isNotBlank(),
-                        text = if (recurrenceLabel.isBlank()) "Repeat" else recurrenceLabel,
-                        description = if (recurrenceLabel.isBlank()) "Set recurrence" else "Recurrence: $recurrenceLabel",
-                        onClick = { showRecurrencePicker = true },
-                    )
-                    // A task always has a project, so this one is always a chip.
-                    PropertyChip(
-                        set = true,
-                        text = projectName,
-                        description = "Project: $projectName",
-                        onClick = { showProjectPicker = true },
-                    )
-                    val collab = LocalCollab.current
-                    val access = collab.access(task.projectId)
-                    if (access.shared) {
-                        val assignees = collab.assignees(task)
-                        // With read-only access the chip shows the assignees and does not open.
-                        PropertyChip(
-                            set = assignees.isNotEmpty(),
-                            text = "Assign",
+                    },
+                    EditorEntry("priority", set = priorityLabel != null, addLabel = "Priority", addIcon = Icons.Outlined.Flag, onAdd = { toggle("priority") }) {
+                        PropertyRow(
+                            icon = Icons.Outlined.Flag,
+                            name = "Priority",
+                            value = priorityLabel,
+                            description = "Priority: ${priorityLabel ?: "none"}",
+                            onClick = { toggle("priority") },
+                            expandable = true,
+                            open = openRow == "priority",
+                            trailing = {
+                                PriorityMark(task.priority)
+                                Text(priorityLabel.orEmpty(), style = MaterialTheme.typography.bodyMedium)
+                            },
+                        )
+                        RowPresets(visible = openRow == "priority") {
+                            (1..4).forEach { level ->
+                                PresetChip(
+                                    label = priorityName(level).orEmpty(),
+                                    selected = task.priority == level,
+                                    onClick = {
+                                        viewModel.setPriority(level)
+                                        openRow = null
+                                    },
+                                )
+                            }
+                            if (priorityLabel != null) {
+                                PresetChip(label = "None", onClick = {
+                                    viewModel.setPriority(0)
+                                    openRow = null
+                                })
+                            }
+                        }
+                    },
+                    EditorEntry("label", set = task.labels.isNotEmpty(), addLabel = "Tags", addIcon = Icons.AutoMirrored.Outlined.Label, onAdd = { showLabelPicker = true }) {
+                        PropertyRow(
+                            icon = Icons.AutoMirrored.Outlined.Label,
+                            name = "Tags",
+                            value = task.labels.joinToString(", ") { it.title }.ifEmpty { null },
+                            description = "Tags: ${task.labels.joinToString(", ") { it.title }}",
+                            onClick = { showLabelPicker = true },
+                            trailing = {
+                                task.labels.take(MAX_ROW_LABELS).forEach { label ->
+                                    LabelChip(title = label.title, hexColor = label.hexColor, modifier = Modifier.widthIn(max = 110.dp))
+                                }
+                                if (task.labels.size > MAX_ROW_LABELS) {
+                                    Text(
+                                        "+${task.labels.size - MAX_ROW_LABELS}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            },
+                        )
+                    },
+                    EditorEntry("subtasks", set = totalSubtasks > 0, addLabel = "Subtasks", addIcon = Icons.Outlined.Checklist, onAdd = openSubtasks) {
+                        PropertyRow(
+                            icon = Icons.Outlined.Checklist,
+                            name = "Subtasks",
+                            value = subtaskProgressLabel(doneSubtasks, totalSubtasks),
+                            description = "Subtasks: $doneSubtasks of $totalSubtasks completed",
+                            onClick = openSubtasks,
+                        )
+                    },
+                    EditorEntry("reminder", set = hasReminder, addLabel = "Remind", addIcon = Icons.Outlined.Notifications, onAdd = { toggle("reminder") }) {
+                        PropertyRow(
+                            icon = Icons.Outlined.Notifications,
+                            name = "Remind",
+                            value = reminderText.ifEmpty { null },
+                            description = "Reminders: ${reminderText.ifEmpty { "none" }}",
+                            onClick = { toggle("reminder") },
+                            expandable = true,
+                            open = openRow == "reminder",
+                        )
+                        RowPresets(visible = openRow == "reminder") {
+                            task.reminders.forEachIndexed { index, reminder ->
+                                val text = ReminderFormat.format(reminder, dateFormat)
+                                PresetChip(
+                                    label = text,
+                                    selected = true,
+                                    icon = Icons.Outlined.Notifications,
+                                    onClick = { showReminderPicker = true },
+                                    onRemove = { viewModel.removeReminder(index) },
+                                    removeDescription = "Remove reminder $text",
+                                )
+                            }
+                            locationReminder?.let { location ->
+                                PresetChip(
+                                    label = location.label(),
+                                    selected = true,
+                                    icon = Icons.Outlined.Place,
+                                    onClick = { showLocationDialog = true },
+                                    onRemove = { placesViewModel.removeReminder(editorTaskId) },
+                                    removeDescription = "Remove location reminder",
+                                )
+                            }
+                            // The times are read when the row opens, so "In 1 hour" means from now.
+                            val presets = remember(openRow, task.dueDate, dateFormat) {
+                                reminderPresets(task.dueDate, SystemTimeSource.now(), clockDay.zone, dateFormat)
+                            }
+                            presets.forEach { preset ->
+                                PresetChip(label = preset.label, onClick = {
+                                    viewModel.addReminder(preset.reminder)
+                                    // A reminder needs notifications: ask now if the permission is missing.
+                                    notificationPermission.onFeatureEnabled()
+                                    openRow = null
+                                })
+                            }
+                            if (locationReminder == null) {
+                                places.take(MAX_PLACE_PRESETS).forEach { place ->
+                                    PresetChip(label = "Arrive: ${place.name}", icon = Icons.Outlined.Place, onClick = {
+                                        placesViewModel.saveReminder(
+                                            LocationReminder(
+                                                taskId = editorTaskId,
+                                                placeId = place.id,
+                                                placeName = place.name,
+                                                latitude = place.latitude,
+                                                longitude = place.longitude,
+                                            ),
+                                        )
+                                        // Explains and asks for Always when the app does not have it yet.
+                                        placesViewModel.askForAccess()
+                                        notificationPermission.onFeatureEnabled()
+                                        openRow = null
+                                    })
+                                }
+                                PresetChip(label = "Place…", icon = Icons.Outlined.Place, onClick = { showLocationDialog = true })
+                            }
+                            PresetChip(label = "Pick a time…", onClick = { showReminderPicker = true })
+                        }
+                    },
+                    EditorEntry("repeat", set = recurrence.isRecurring, addLabel = "Repeat", addIcon = Icons.Outlined.Repeat, onAdd = { toggle("repeat") }) {
+                        PropertyRow(
+                            icon = Icons.Outlined.Repeat,
+                            name = "Repeat",
+                            value = recurrenceLabel.ifBlank { null },
+                            description = "Repeat: ${recurrenceLabel.ifBlank { "never" }}",
+                            onClick = { toggle("repeat") },
+                            expandable = true,
+                            open = openRow == "repeat",
+                        )
+                        RowPresets(visible = openRow == "repeat") {
+                            val current = detectRecurrencePreset(recurrence)
+                            listOf(
+                                RecurrencePreset.DAILY to "Daily",
+                                RecurrencePreset.WEEKLY to "Weekly",
+                                RecurrencePreset.MONTHLY to "Monthly",
+                            ).forEach { (preset, label) ->
+                                PresetChip(label = label, selected = current == preset, onClick = {
+                                    viewModel.setRecurrence(recurrenceForPreset(preset, recurrence.fromCompletion))
+                                    openRow = null
+                                })
+                            }
+                            PresetChip(label = "Custom…", selected = current == RecurrencePreset.CUSTOM, onClick = { showRecurrencePicker = true })
+                            if (recurrence.isRecurring) {
+                                PresetChip(label = "Don't repeat", danger = true, onClick = {
+                                    viewModel.setRecurrence(RecurrenceValue.NONE)
+                                    openRow = null
+                                })
+                            }
+                        }
+                    },
+                    // A task always has a project, so this one is always a row.
+                    EditorEntry("project", set = true) {
+                        PropertyRow(
+                            icon = Icons.Outlined.Folder,
+                            name = "Project",
+                            value = projectName,
+                            description = "Project: $projectName",
+                            onClick = { showProjectPicker = true },
+                        )
+                    },
+                    EditorEntry(
+                        "assign",
+                        set = assignees.isNotEmpty(),
+                        present = access.shared,
+                        addLabel = "Assign",
+                        addIcon = Icons.Outlined.Person,
+                        addable = access.canWrite,
+                        onAdd = { showAssignSheet = true },
+                    ) {
+                        // With read-only access the row shows the assignees and does not open.
+                        PropertyRow(
+                            icon = Icons.Outlined.Person,
+                            name = "Assign",
+                            value = collab.nameList(assignees),
                             description = Collaboration.assignChipLabel(assignees.map { it.toCollabUser() }, collab.state.me),
                             onClick = { showAssignSheet = true },
                             enabled = access.canWrite,
-                        ) {
-                            AvatarStack(people = assignees, size = 20.dp, ringColor = MaterialTheme.colorScheme.surface, max = 3)
-                            Text(
-                                text = collab.nameList(assignees),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.widthIn(max = 180.dp),
-                            )
-                        }
-                    }
-                    PropertyChip(
-                        set = state.attachments.isNotEmpty(),
-                        text = if (state.attachments.isEmpty()) "" else state.attachments.size.toString(),
-                        description = if (state.attachments.isEmpty()) {
-                            "Add attachment"
-                        } else {
-                            "Add attachment, ${state.attachments.size} attached"
-                        },
-                        onClick = filePickerLauncher,
-                        icon = Icons.Default.AttachFile,
-                    )
-                    if (access.shared) {
-                        val signal = collab.signals[task.id] ?: TaskSignal()
-                        val count = signal.commentCount
-                        PropertyChip(
-                            set = count > 0,
-                            text = "",
-                            description = when {
-                                count == 0 -> "Comments"
-                                signal.isUnread -> "Comments, $count, new"
-                                else -> "Comments, $count"
+                            trailing = {
+                                AvatarStack(people = assignees, size = 20.dp, ringColor = MaterialTheme.colorScheme.surfaceContainer, max = 3)
+                                Text(
+                                    text = collab.nameList(assignees),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             },
+                        )
+                    },
+                    EditorEntry("attachments", set = state.attachments.isNotEmpty(), addLabel = "File", addIcon = Icons.Outlined.AttachFile, onAdd = filePickerLauncher) {
+                        val count = state.attachments.size
+                        PropertyRow(
+                            icon = Icons.Outlined.AttachFile,
+                            name = "Attachments",
+                            value = if (count == 1) "1 file" else "$count files",
+                            description = "Add attachment, $count attached",
+                            onClick = filePickerLauncher,
+                        )
+                    },
+                    EditorEntry(
+                        "comments",
+                        set = signal.commentCount > 0,
+                        present = access.shared,
+                        addLabel = "Comments",
+                        addIcon = Icons.Outlined.ChatBubbleOutline,
+                        onAdd = { collab.openComments(task.id) },
+                    ) {
+                        val count = signal.commentCount
+                        PropertyRow(
+                            icon = Icons.Outlined.ChatBubbleOutline,
+                            name = "Comments",
+                            value = count.toString(),
+                            description = if (signal.isUnread) "Comments, $count, new" else "Comments, $count",
                             onClick = { collab.openComments(task.id) },
-                            icon = if (count == 0) Icons.Outlined.ChatBubbleOutline else null,
-                        ) {
-                            CommentIcon(
-                                unread = signal.isUnread,
-                                iconSize = 18.dp,
-                                tint = LocalContentColor.current,
-                                ringColor = MaterialTheme.colorScheme.surface,
-                            )
-                            Text(text = count.toString(), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            trailing = {
+                                CommentIcon(
+                                    unread = signal.isUnread,
+                                    iconSize = 18.dp,
+                                    tint = LocalContentColor.current,
+                                    ringColor = MaterialTheme.colorScheme.surfaceContainer,
+                                )
+                                Text(text = count.toString(), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                            },
+                        )
+                    },
+                ).filter { it.present }
+
+                val rows = entries.filter { it.set || it.key == openRow }
+                val unset = entries.filter { !it.set && it.key != openRow && it.addable }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PropertyGroup {
+                        rows.forEachIndexed { index, entry ->
+                            if (index > 0) PropertyDivider()
+                            entry.row()
                         }
                     }
-                    Box {
-                        PropertyChip(
-                            set = false,
-                            text = "",
-                            description = "More",
-                            onClick = { showMore = true },
-                            icon = Icons.Default.MoreHoriz,
-                        )
-                        DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Add relation") },
-                                onClick = {
-                                    showMore = false
-                                    viewModel.setRelationSearchQuery("")
-                                    showRelationPicker = true
-                                },
+                    if (unset.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Add",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp, end = 2.dp),
                             )
-                            DropdownMenuItem(
-                                text = { Text("Delete task", color = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showMore = false
-                                    viewModel.requestDeleteTask()
-                                },
-                            )
+                            unset.forEach { entry ->
+                                AddPropertyChip(
+                                    label = entry.addLabel,
+                                    icon = entry.addIcon,
+                                    description = "Add ${entry.addLabel.lowercase()}",
+                                    onClick = entry.onAdd,
+                                )
+                            }
                         }
                     }
                 }
@@ -868,6 +1097,19 @@ fun TaskDetailScreen(
                 descriptionEditorController.hostedToolbar?.invoke(
                     Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                 )
+            } else if (!titleFocused) {
+                // Complete (or Reopen) in thumb reach; it steps aside while the keyboard types.
+                FilledTonalButton(
+                    onClick = viewModel::requestToggleDone,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (task.done) "Reopen" else "Complete")
+                }
             }
             }
         }
@@ -1031,6 +1273,9 @@ fun TaskDetailScreen(
         )
     }
 
+    // The permission explanation for the "Arrive: Home" presets; the location dialog hosts its own.
+    if (!showLocationDialog) LocationDisclosureSheet(placesViewModel)
+
     if (showLocationDialog) {
         LocationReminderDialog(
             taskId = editorTaskId,
@@ -1077,64 +1322,106 @@ fun TaskDetailScreen(
     }
 }
 
-/** Where the subtasks section starts in the editor's list: after the headline, the notes and the chips. */
-private const val SUBTASKS_ITEM_INDEX = 3
+/** Where the subtasks section starts in the editor's list: after the headline, the quick moves, the notes and the properties. */
+private const val SUBTASKS_ITEM_INDEX = 4
+
+/** How many label chips a Tags row shows before "+N". */
+private const val MAX_ROW_LABELS = 2
+
+/** How many saved places the Remind row offers as "Arrive: Home" presets. */
+private const val MAX_PLACE_PRESETS = 3
+
+/** The scrim over the list behind the editor. */
+private const val EDITOR_SCRIM_ALPHA = 0.32f
+
+/** The gap between the status bar and the editor sheet, where the list stays in view. */
+private val EDITOR_SHEET_TOP_GAP = 12.dp
+
+/** The headline: the title reads as the task, semibold, a step under the page title. */
+@Composable
+private fun editorTitleStyle(): TextStyle =
+    MaterialTheme.typography.titleLarge.copy(
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 
 /**
- * A property chip of the editor's one row (design review 3.7): the value in words when [set], a
- * quiet "+ Name" when not. [content] replaces the text (the labels draw their own chips); [icon]
- * is for the icon-only chips (attachments, More). The touch target is 48 dp whatever the chip's size.
+ * A property of the editor: [row] draws it when [set] (or while its presets are open); otherwise it
+ * waits in the Add row as [addLabel]. [present] is false where the property does not exist (assign
+ * and comments outside shared projects); [addable] false keeps it out of the Add row.
  */
+private class EditorEntry(
+    val key: String,
+    val set: Boolean,
+    val present: Boolean = true,
+    val addLabel: String = "",
+    val addIcon: ImageVector = Icons.Outlined.Add,
+    val addable: Boolean = true,
+    val onAdd: () -> Unit = {},
+    val row: @Composable () -> Unit,
+)
+
+/** The top of the editor sheet: close on the left, the task menu (relation, delete) on the right. */
 @Composable
-private fun PropertyChip(
-    set: Boolean,
-    text: String,
-    description: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    emphasis: Boolean = false,
-    icon: ImageVector? = null,
-    enabled: Boolean = true,
-    content: (@Composable RowScope.() -> Unit)? = null,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val color = when {
-        emphasis -> scheme.error
-        set -> scheme.onSurface
-        else -> scheme.onSurfaceVariant
-    }
-    // The chip is drawn 32 dp tall and its target is 48 dp: stated here (MIN_TOUCH_TARGET) rather
-    // than left to whatever minimum the theme provides.
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides MIN_TOUCH_TARGET) {
-        Surface(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier
-                .minimumInteractiveComponentSize()
-                .semantics { contentDescription = description },
-            shape = MaterialTheme.shapes.small,
-            color = Color.Transparent,
-            contentColor = color,
-            border = if (set) BorderStroke(1.dp, if (emphasis) scheme.error.copy(alpha = 0.5f) else scheme.outlineVariant) else null,
-        ) {
-            Row(
-                modifier = Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                if (content != null && set) {
-                    content()
-                } else if (text.isNotEmpty()) {
-                    Text(
-                        text = if (set) text else "+ $text",
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 220.dp),
-                    )
-                }
+private fun EditorHeader(onClose: () -> Unit, onAddRelation: () -> Unit, onDelete: () -> Unit, menuEnabled: Boolean) {
+    var showMore by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClose) {
+            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "Close")
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Box {
+            IconButton(onClick = { showMore = true }, enabled = menuEnabled) {
+                Icon(Icons.Default.MoreHoriz, contentDescription = "More")
+            }
+            DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                DropdownMenuItem(
+                    text = { Text("Add relation") },
+                    onClick = {
+                        showMore = false
+                        onAddRelation()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete task", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMore = false
+                        onDelete()
+                    },
+                )
             }
         }
     }
+}
+
+/** The quick moves: tonal buttons that scroll sideways when they do not fit. */
+@Composable
+private fun QuickMoveRow(moves: List<WhenQuickChoice>, onMove: (WhenQuickChoice) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        moves.forEach { move ->
+            FilledTonalButton(
+                onClick = { onMove(move) },
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
+            ) {
+                Icon(quickMoveIcon(move.id), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(move.label)
+            }
+        }
+    }
+}
+
+private fun quickMoveIcon(id: WhenQuickChoice.Id): ImageVector = when (id) {
+    WhenQuickChoice.Id.TODAY -> Icons.Outlined.WbSunny
+    WhenQuickChoice.Id.TOMORROW -> Icons.Outlined.Today
+    WhenQuickChoice.Id.WEEKEND -> Icons.Outlined.Weekend
+    WhenQuickChoice.Id.NEXT_WEEK -> Icons.Outlined.DateRange
 }

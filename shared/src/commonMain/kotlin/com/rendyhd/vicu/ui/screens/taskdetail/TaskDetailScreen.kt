@@ -716,8 +716,10 @@ fun TaskDetailScreen(
                                                 taskId = editorTaskId,
                                                 placeId = place.id,
                                                 placeName = place.name,
-                                                latitude = place.latitude,
-                                                longitude = place.longitude,
+                                                // A place saved on another phone has no position here yet;
+                                                // the reminder syncs by place id and is watched once it is located.
+                                                latitude = place.position?.latitude ?: 0.0,
+                                                longitude = place.position?.longitude ?: 0.0,
                                             ),
                                         )
                                         // Explains and asks for Always when the app does not have it yet.

@@ -25,7 +25,7 @@ class EditorPresetsTest {
     private fun ids(due: String?, today: LocalDate = wednesday) = quickMoves(due, today, zone).map { it.id }
 
     @Test
-    fun `an overdue task is offered today, tomorrow and the weekend`() {
+    fun `an overdue task is offered today and tomorrow and the weekend`() {
         assertEquals(
             listOf(WhenQuickChoice.Id.TODAY, WhenQuickChoice.Id.TOMORROW, WhenQuickChoice.Id.WEEKEND),
             ids(due("2026-10-20T14:00")),

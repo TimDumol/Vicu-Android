@@ -8,10 +8,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.Foundation.NSNotification
@@ -25,10 +25,15 @@ import platform.UIKit.UIKeyboardWillChangeFrameNotification
 /**
  * Compose on iOS has no `imeAnimationTarget`, so the target comes from UIKit: it announces the
  * keyboard's end frame before the keyboard moves (also when it hides, with a frame off the screen).
+ * Until it announces one, the keyboard stays where it is now (read once, not followed).
  */
 @Composable
 actual fun keyboardTargetHeight(): Dp {
-    var target by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    var target by remember {
+        mutableStateOf(Snapshot.withoutReadObservation { with(density) { ime.getBottom(density).toDp() } })
+    }
     DisposableEffect(Unit) {
         val center = NSNotificationCenter.defaultCenter
         val observer = center.addObserverForName(
@@ -38,9 +43,7 @@ actual fun keyboardTargetHeight(): Dp {
         ) { notification -> target = keyboardOverlap(notification) }
         onDispose { center.removeObserver(observer) }
     }
-    val density = LocalDensity.current
-    val now = with(density) { WindowInsets.ime.getBottom(density).toDp() }
-    return max(now, target)
+    return target
 }
 
 /** How far the keyboard's end frame covers the app's window from below (points are dp on iOS). */

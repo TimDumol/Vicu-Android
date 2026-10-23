@@ -4,13 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 
 /**
- * How much of the window the keyboard takes from below, at the keyboard's full height as soon as
- * it starts to open, and following it down while it closes (`imePadding` follows it frame by
- * frame both ways). Zero without a keyboard.
+ * Where the keyboard is going: how much of the window it takes from below at its full height, as
+ * soon as it starts to open, and zero as soon as it starts to close. Zero without a keyboard.
  *
- * For a sheet that opens together with the keyboard: padded by `imePadding`, the sheet grew on
- * every frame of the keyboard's slide, so it climbed after the keyboard instead of with it. Sized
- * by this, it is resized once when the keyboard starts and the two slide up together.
+ * It changes once per opening or closing, never during the slide, so reading it in composition does
+ * not recompose every frame of the keyboard's animation (on Android that animation runs on the UI
+ * thread, so a heavy recomposition per frame made the keyboard itself stutter). Something that
+ * follows the keyboard frame by frame reads `WindowInsets.ime` while laying out instead.
  */
 @Composable
 expect fun keyboardTargetHeight(): Dp

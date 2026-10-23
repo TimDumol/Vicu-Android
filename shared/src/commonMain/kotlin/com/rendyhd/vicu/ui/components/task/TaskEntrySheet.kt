@@ -6,11 +6,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -27,11 +27,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -78,6 +78,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -92,6 +93,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -108,6 +110,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -147,6 +151,7 @@ import com.rendyhd.vicu.util.WhenLogic
 import com.rendyhd.vicu.util.WhenValue
 import com.rendyhd.vicu.util.parser.TokenType
 import com.rendyhd.vicu.util.parser.getPrefixes
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toLocalDateTime
@@ -168,9 +173,9 @@ import org.koin.compose.viewmodel.koinViewModel
  * the notes, a checklist and a row per property, each opening the same tray content in place.
  * Nothing is saved until Send or Add, and collapsing keeps everything.
  *
- * The sheet opens at its final height: it makes room for the keyboard as soon as the keyboard
- * starts to open ([keyboardTargetHeight]), and before that for the keyboard's last known height,
- * so the sheet and the keyboard slide up together.
+ * The sheet rides on the keyboard: the room at its foot follows the keyboard frame by frame
+ * ([SheetLayout]), so it opens with the keyboard, appearing on the navigation bar and going up with
+ * it, and its title has the focus from the first frame.
  */
 @Composable
 fun TaskEntrySheet(
@@ -231,50 +236,60 @@ fun TaskEntrySheet(
         initializedBeforeRecreation = true
     }
 
-    // Open and close: the sheet rises from the bottom over a fading scrim and leaves the same way;
-    // [onDismiss] runs once it has left.
-    val visibility = remember { MutableTransitionState(false) }
+    // Open and close: the sheet appears over a fading scrim (composed, and its title focused, in the
+    // first frame) and leaves sliding down; [onDismiss] runs once it has left.
+    val visibility = remember { MutableTransitionState(false).apply { targetState = true } }
     var closing by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visibility.targetState = true }
     LaunchedEffect(visibility.isIdle, visibility.currentState, closing) {
         if (closing && visibility.isIdle && !visibility.currentState) onDismiss()
     }
 
-    // Room for the keyboard. Until the keyboard has started to open, the sheet keeps room for the
-    // height it had last time, so it does not first settle low and then jump up.
+    // The room for the keyboard at the sheet's foot, read while laying out ([SheetLayout]): the
+    // sheet rides on the keyboard as it slides, so it opens with it, starting on the navigation bar.
+    val ime = WindowInsets.ime
+    val navigationBars = WindowInsets.navigationBars
     val keyboard = keyboardTargetHeight()
-    val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    // Set in the same event that brings the keyboard back (a tray closing), so not even one frame is
-    // drawn without the room; the request only times out.
-    var expectingKeyboard by remember { mutableStateOf(true) }
+    val currentKeyboard by rememberUpdatedState(keyboard)
+    // When the keyboard comes back in a tray's place, the room is its full height from the start, so
+    // the sheet does not move: the height it had last time until it starts to open, then the height
+    // it opens to. Set in the same event that brings the keyboard back (a tray closing), so not even
+    // one frame is drawn without the room; it ends when the keyboard closes, or when it has not
+    // started to open after a while. A keyboard that is already up needs no room kept for it.
+    var expectingKeyboard by remember { mutableStateOf(false) }
+    // Once the expected keyboard has started to open, a target of zero is the keyboard closing
+    // again, and the room goes down with it at once.
+    var expectedKeyboardStarted by remember { mutableStateOf(false) }
     var keyboardRequests by remember { mutableIntStateOf(0) }
     LaunchedEffect(keyboardRequests) {
         delay(KEYBOARD_WAIT_MS)
-        expectingKeyboard = false
+        if (currentKeyboard == 0.dp) expectingKeyboard = false
     }
     fun expectKeyboard() {
+        if (currentKeyboard > 0.dp) return
         expectingKeyboard = true
+        expectedKeyboardStarted = false
         keyboardRequests++
     }
-    var keyboardWasDown by remember { mutableStateOf(true) }
     LaunchedEffect(keyboard) {
         if (keyboard == 0.dp) {
-            keyboardWasDown = true
-        } else if (keyboardWasDown) {
-            // The first height of an opening keyboard is its full height (its target).
-            keyboardWasDown = false
             expectingKeyboard = false
+        } else {
+            expectedKeyboardStarted = true
             lastKeyboardHeight = keyboard
         }
+    }
+    val heldRoom = when {
+        !expectingKeyboard -> 0.dp
+        keyboard > 0.dp -> keyboard
+        expectedKeyboardStarted -> 0.dp
+        else -> lastKeyboardHeight
+    }
+    val keyboardRoom: Density.() -> Int = {
+        maxOf(ime.getBottom(this), navigationBars.getBottom(this), heldRoom.roundToPx())
     }
     // Exactly the keyboard's height (which counts the navigation bar under it), so swapping one for
     // the other never moves the sheet; a tray scrolls when its content is taller.
     val trayHeight = max(lastKeyboardHeight, MIN_TRAY_HEIGHT)
-    val bottomRoom = when {
-        keyboard > 0.dp -> max(keyboard, navigationBar)
-        expectingKeyboard -> max(lastKeyboardHeight, navigationBar)
-        else -> navigationBar
-    }
 
     fun focusTitle() {
         expectKeyboard()
@@ -480,25 +495,40 @@ fun TaskEntrySheet(
             )
         }
 
+        // Compact, an open tray takes the keyboard's place at the keyboard's height.
+        val openTray = tray.takeIf { !expanded }
         AnimatedVisibility(
             visibleState = visibility,
             modifier = Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(VicuMotion.defaultSpatialSpec<IntOffset>()) { it },
+            // It appears where it starts, on the navigation bar, and goes up with the keyboard. Also
+            // sliding in from below, it fell behind the keyboard and came out over it only after the
+            // keyboard had stopped.
+            enter = fadeIn(VicuMotion.fastEffectsSpec()),
             exit = slideOutVertically(VicuMotion.defaultSpatialSpec<IntOffset>()) { it } +
                 fadeOut(VicuMotion.fastEffectsSpec()),
         ) {
-            Surface(
+            SheetLayout(
+                expanded = expanded,
+                keyboardRoom = keyboardRoom,
+                tray = openTray?.let { shown ->
+                    @Composable {
+                        TrayPanel(height = trayHeight) {
+                            AnimatedContent(
+                                targetState = shown,
+                                transitionSpec = {
+                                    fadeIn(VicuMotion.fastEffectsSpec()) togetherWith fadeOut(VicuMotion.fastEffectsSpec())
+                                },
+                                label = "entryTray",
+                            ) { which -> TrayContent(which) }
+                        }
+                    }
+                },
                 modifier = Modifier
                     .widthIn(max = MAX_SHEET_WIDTH)
                     .fillMaxWidth()
-                    // Growing to full height, and making room for the keyboard or a tray, are one
-                    // movement of the sheet's top edge.
-                    .animateContentSize(VicuMotion.defaultSpatialSpec())
-                    .then(
-                        if (expanded) Modifier.statusBarsPadding().padding(top = 12.dp).fillMaxHeight() else Modifier,
-                    ),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    // At full height the sheet ends 12 dp under the status bar.
+                    .statusBarsPadding()
+                    .padding(top = 12.dp),
             ) {
                 Column(modifier = Modifier.clearDescriptionEditorFocusOnHostTap(descriptionEditorController)) {
                     if (expanded) {
@@ -759,22 +789,6 @@ fun TaskEntrySheet(
                             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
-
-                    // Compact, an open tray takes the keyboard's place at the keyboard's height.
-                    val openTray = tray.takeIf { !expanded }
-                    if (openTray != null) {
-                        TrayPanel(height = trayHeight) {
-                            AnimatedContent(
-                                targetState = openTray,
-                                transitionSpec = {
-                                    fadeIn(VicuMotion.fastEffectsSpec()) togetherWith fadeOut(VicuMotion.fastEffectsSpec())
-                                },
-                                label = "entryTray",
-                            ) { which -> TrayContent(which) }
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.height(bottomRoom))
-                    }
                 }
             }
         }
@@ -921,6 +935,67 @@ private fun EntryRow(
     }
 }
 
+/**
+ * The sheet: [content] (the handle or header, the title and the rest) over the room at its foot,
+ * which the keyboard fills, or [tray] in the keyboard's place.
+ *
+ * The room ([keyboardRoom]) is read while laying out, so it follows the keyboard on every frame of
+ * its slide and the content rides on the keyboard's top edge without anything recomposing. Animated
+ * as part of the sheet's size, the room made the sheet climb after the keyboard. Only the sheet's
+ * own changes animate: compact, the content's height (a line of chips growing); growing to full
+ * height, the top edge from where the compact sheet had it to the top, where it then stays whatever
+ * the keyboard does.
+ */
+@Composable
+private fun SheetLayout(
+    expanded: Boolean,
+    keyboardRoom: Density.() -> Int,
+    tray: (@Composable () -> Unit)?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val growth = animateFloatAsState(if (expanded) 1f else 0f, VicuMotion.defaultSpatialSpec(), label = "sheetGrowth")
+    // The compact sheet's height when it was last compact, where growing to full height starts.
+    val lastCompactHeight = remember { IntArray(1) }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Layout(
+            contents = listOf(
+                {
+                    // At full height the content fills what the room leaves.
+                    Box(
+                        modifier = if (expanded) Modifier else Modifier.animateContentSize(VicuMotion.defaultSpatialSpec()),
+                        propagateMinConstraints = true,
+                    ) { content() }
+                },
+                { tray?.invoke() },
+            ),
+        ) { (contentMeasurables, trayMeasurables), constraints ->
+            val width = constraints.maxWidth
+            val trayPlaceable = trayMeasurables.firstOrNull()?.measure(Constraints(width, width, 0, constraints.maxHeight))
+            val room = trayPlaceable?.height ?: keyboardRoom()
+            val contentHeight = (constraints.maxHeight - room).coerceAtLeast(0)
+            val contentPlaceable = contentMeasurables.first().measure(
+                if (expanded) Constraints.fixed(width, contentHeight) else Constraints(width, width, 0, contentHeight),
+            )
+            val compactHeight = if (expanded) {
+                lastCompactHeight[0]
+            } else {
+                (contentPlaceable.height + room).also { lastCompactHeight[0] = it }
+            }
+            val height = (compactHeight + (constraints.maxHeight - compactHeight) * growth.value).roundToInt()
+                .coerceIn(constraints.minHeight, constraints.maxHeight)
+            layout(width, height) {
+                contentPlaceable.place(0, 0)
+                trayPlaceable?.place(0, height - room)
+            }
+        }
+    }
+}
+
 /** Where the keyboard was: a tray of the compact sheet, scrolling when its content is taller. */
 @Composable
 private fun TrayPanel(height: Dp, content: @Composable () -> Unit) {
@@ -1043,8 +1118,8 @@ private fun AttachmentPreviewRow(
 
 /**
  * The keyboard's height the last time it opened, for this process (a phone keyboard's usual height
- * before that). The sheet keeps this much room until the keyboard has started to open, and its
- * trays are this tall.
+ * before that). The sheet keeps this much room for a keyboard coming back in a tray's place until
+ * it starts to open, and its trays are this tall.
  */
 private var lastKeyboardHeight by mutableStateOf(320.dp)
 

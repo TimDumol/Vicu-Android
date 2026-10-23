@@ -29,6 +29,8 @@ import com.rendyhd.vicu.util.ReviewMetadata
 import com.rendyhd.vicu.util.ReviewState
 import com.rendyhd.vicu.util.projectProgress
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -96,6 +98,7 @@ data class DrawerUiState(
         }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class DrawerViewModel(
     projectRepository: ProjectRepository,
     labelRepository: LabelRepository,

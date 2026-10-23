@@ -134,7 +134,7 @@ class TextTaskCreator(
                 val created = result.data
                 for (labelId in labelIds) labelRepository.addToTask(created.id, labelId)
                 placePhrase?.let { phrase ->
-                    locations?.setReminder(locations.reminderAt(created.id, phrase.place, phrase.trigger))
+                    locations.setReminder(locations.reminderAt(created.id, phrase.place, phrase.trigger))
                 }
                 val projectName = projects.find { it.id == created.projectId }
                     ?.takeIf { it.id != inboxId }?.title

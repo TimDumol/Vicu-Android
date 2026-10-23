@@ -3,6 +3,7 @@ package com.rendyhd.vicu.util
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atTime
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
 
@@ -155,10 +156,10 @@ object DateDisplay {
         return template
             .replace("{EEEE}", names.weekdaysLong[value.dayOfWeek.ordinal])
             .replace("{EEE}", names.weekdaysShort[value.dayOfWeek.ordinal])
-            .replace("{MMMM}", names.monthsLong[value.monthNumber - 1])
-            .replace("{MMM}", names.monthsShort[value.monthNumber - 1])
+            .replace("{MMMM}", names.monthsLong[value.month.ordinal])
+            .replace("{MMM}", names.monthsShort[value.month.ordinal])
             .replace("{yyyy}", value.year.toString())
-            .replace("{d}", value.dayOfMonth.toString())
+            .replace("{d}", value.day.toString())
             .replace("{HH}", pad2(hour))
             .replace("{h}", (if (hour % 12 == 0) 12 else hour % 12).toString())
             .replace("{mm}", pad2(value.minute))
@@ -254,7 +255,7 @@ object DateDisplay {
 
     /** [format] for a whole day, such as an Upcoming day header or the subtitle of Today. */
     fun formatDay(context: DateContext, date: LocalDate, today: LocalDate, fmt: DateDisplayFormat): String =
-        format(context, LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0), today, true, fmt)
+        format(context, date.atTime(0, 0), today, true, fmt)
 
     /**
      * [format] for a stored due date or completion time (an ISO instant string). The value is read
@@ -273,22 +274,22 @@ object DateDisplay {
 
     /** The short weekday of a day ("Wed"); the hint of a quick choice in the When sheet. */
     fun formatWeekdayShort(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.localeTag).weekdayShort(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+        phrasesFor(fmt.localeTag).weekdayShort(date.atTime(0, 0))
 
     /** The short weekday and day of the month of a day ("Mon 12"). */
     fun formatWeekdayDay(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.localeTag).weekdayDay(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+        phrasesFor(fmt.localeTag).weekdayDay(date.atTime(0, 0))
 
     // The month calendar's labels (When sheet, reminder picker). Not contract contexts; built from
     // the same patterns so the names match the rest of the app, as on the desktop.
 
     /** The month with its year ("October 2026"); the title of the month calendar. */
     fun formatMonthYear(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.localeTag).monthYear(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0))
+        phrasesFor(fmt.localeTag).monthYear(date.atTime(0, 0))
 
     /** The long date with its year ("Monday, October 12, 2026", "Monday 12 October 2026"); a calendar day read aloud. */
     fun formatFullDateWithYear(date: LocalDate, fmt: DateDisplayFormat): String =
-        phrasesFor(fmt.localeTag).fullDate(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0), withYear = true)
+        phrasesFor(fmt.localeTag).fullDate(date.atTime(0, 0), withYear = true)
 
     /** The clock text of a time of day ("3:00 PM", "15:00"). */
     fun formatTime(time: kotlinx.datetime.LocalTime, fmt: DateDisplayFormat): String =
@@ -303,7 +304,7 @@ object DateDisplay {
     /** The short date with its year ("Mar 1, 2026", "1 Mar 2026"), for details such as Created. */
     fun formatDayMonthYear(date: LocalDate, fmt: DateDisplayFormat): String {
         val p = phrasesFor(fmt.localeTag)
-        return p.dayMonth(LocalDateTime(date.year, date.monthNumber, date.dayOfMonth, 0, 0), true)
+        return p.dayMonth(date.atTime(0, 0), true)
     }
 
     /** The year, the short date and the time ("Jan 1, 2030, 9:00 AM", "1 Jan 2030, 09:00"); nothing relative. */

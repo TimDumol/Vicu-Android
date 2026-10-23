@@ -3,6 +3,7 @@ package com.rendyhd.vicu.voice
 import com.rendyhd.vicu.util.AppMessage
 import com.rendyhd.vicu.util.AppMessages
 import com.rendyhd.vicu.util.DateDisplayFormat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -51,6 +52,7 @@ private class FakeSpeech(var available: SpeechAvailability = SpeechAvailability.
 }
 
 /** Holding the + listens, shows the words, and adds them when the finger lifts. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class HoldToTalkTest {
     private val format = DateDisplayFormat.system(is24Hour = true)
     private val speech = FakeSpeech()

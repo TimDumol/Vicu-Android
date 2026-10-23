@@ -8,6 +8,7 @@ import com.rendyhd.vicu.util.AppMessages
 import com.rendyhd.vicu.util.NetworkMonitor
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.worker.SyncRequester
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -25,6 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class IosShareInboxTest {
     private val folder = NSTemporaryDirectory() + "share-inbox-test-" + NSUUID().UUIDString
     private val storage = InMemoryTokenStorage()

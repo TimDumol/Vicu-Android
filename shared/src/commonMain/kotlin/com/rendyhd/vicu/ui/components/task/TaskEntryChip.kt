@@ -65,8 +65,8 @@ internal fun TaskEntryChip(
             onClick = onClick,
             modifier = travelling.semantics {
                 customActions = listOf(
-                    CustomAccessibilityAction(clearDescription!!) {
-                        onClear!!.invoke()
+                    CustomAccessibilityAction(clearDescription) {
+                        onClear()
                         true
                     },
                 )
@@ -76,7 +76,7 @@ internal fun TaskEntryChip(
             selected = selected,
             icon = icon,
         )
-        IconButton(onClick = onClear!!, modifier = Modifier.size(MIN_CLEAR_TARGET)) {
+        IconButton(onClick = onClear, modifier = Modifier.size(MIN_CLEAR_TARGET)) {
             Icon(
                 Icons.Default.Close,
                 contentDescription = clearDescription,

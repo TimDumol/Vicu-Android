@@ -13,9 +13,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -23,7 +26,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.NavigationEventTransitionState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import com.rendyhd.vicu.ui.theme.VicuMotion
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 
 /** How far the editor shrinks when the back gesture is held all the way (progress 1). */
 internal const val EDITOR_BACK_MIN_SCALE = 0.9f
@@ -41,8 +50,8 @@ internal fun editorBackAlpha(progress: Float): Float =
 
 /**
  * The predictive back gesture of the editor: [progress] is what the finger has done (0 to 1),
- * written by the editor's `PredictiveBackHandler` and read by [EditorOverlay]'s graphics layer
- * (a draw-phase read, so a gesture frame recomposes nothing).
+ * written by [EditorBackHandler] and read by [EditorOverlay]'s graphics layer (a draw-phase read,
+ * so a gesture frame recomposes nothing).
  */
 class EditorBackState {
     var progress by mutableFloatStateOf(0f)
@@ -58,6 +67,30 @@ class EditorBackState {
             animationSpec = VicuMotion.defaultSpatialSpec(),
         ) { value, _ -> progress = value }
     }
+}
+
+/**
+ * Back for the editor and the screens over it: while the predictive back gesture runs,
+ * [backState] follows it, and a cancelled gesture springs back. A completed gesture, or back
+ * without one (a button press, three-button navigation), calls [onBack].
+ */
+@Composable
+internal fun EditorBackHandler(enabled: Boolean, backState: EditorBackState?, onBack: () -> Unit) {
+    val navigation = rememberNavigationEventState(NavigationEventInfo.None)
+    val scope = rememberCoroutineScope()
+    // The gesture is read in an effect, not in composition, so its frames recompose nothing.
+    LaunchedEffect(navigation, backState) {
+        if (backState == null) return@LaunchedEffect
+        snapshotFlow { (navigation.transitionState as? NavigationEventTransitionState.InProgress)?.latestEvent?.progress }
+            .filterNotNull()
+            .collect { backState.progress = it }
+    }
+    NavigationBackHandler(
+        state = navigation,
+        isBackEnabled = enabled,
+        onBackCancelled = { backState?.let { scope.launch { it.springBack() } } },
+        onBackCompleted = onBack,
+    )
 }
 
 /**

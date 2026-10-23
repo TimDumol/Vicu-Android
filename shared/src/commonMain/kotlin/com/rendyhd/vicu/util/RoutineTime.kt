@@ -2,6 +2,7 @@ package com.rendyhd.vicu.util
 
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 
 /**
@@ -19,8 +20,8 @@ object RoutineTime {
         val millis = instant.nanosecondsOfSecond / 1_000_000
         return buildString {
             append(t.year.toString().padStart(4, '0'))
-            append('-').append(t.monthNumber.toString().padStart(2, '0'))
-            append('-').append(t.dayOfMonth.toString().padStart(2, '0'))
+            append('-').append(t.month.number.toString().padStart(2, '0'))
+            append('-').append(t.day.toString().padStart(2, '0'))
             append('T').append(t.hour.toString().padStart(2, '0'))
             append(':').append(t.minute.toString().padStart(2, '0'))
             append(':').append(t.second.toString().padStart(2, '0'))

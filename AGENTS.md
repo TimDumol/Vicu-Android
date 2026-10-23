@@ -38,10 +38,11 @@ Lint runs on `:app` (the shared module uses the AGP Kotlin Multiplatform library
 | UI | Compose Multiplatform (runtime, foundation) + Material 3 | 1.11.1 / 1.9.0 |
 | App-only UI | Jetpack Compose BOM (widgets, tooling) | 2026.01.01 |
 | Navigation | Navigation Compose (JetBrains), type-safe `@Serializable` routes | 2.9.2 |
+| Back handling | Navigation Event (JetBrains), `NavigationBackHandler` | 1.1.0 |
 | DI | Koin (core, android, androidx-workmanager, compose) | 4.0.2 |
 | Networking | Ktor client (OkHttp engine on Android, Darwin on iOS) | 3.0.1 |
 | Serialization | kotlinx-serialization-json | 1.11.0 |
-| Dates | kotlinx-datetime | 0.6.2 |
+| Dates | kotlinx-datetime | 0.7.1 |
 | Local DB | Room (KMP, bundled SQLite, KSP) | 2.7.1 |
 | Preferences | DataStore Preferences | 1.1.4 |
 | Background | WorkManager | 2.11.0 |

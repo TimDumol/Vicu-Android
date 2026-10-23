@@ -6,6 +6,7 @@ import com.rendyhd.vicu.util.CrossAppFixture
 import com.rendyhd.vicu.util.DueDates
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -58,7 +59,7 @@ object NlpCorpusFixture {
 /** A local date and time as `YYYY-MM-DDTHH:mm:ss`, the notation of the corpus. */
 internal fun wallOf(value: LocalDateTime): String {
     fun p(n: Int) = n.toString().padStart(2, '0')
-    return "${value.year}-${p(value.monthNumber)}-${p(value.dayOfMonth)}T${p(value.hour)}:${p(value.minute)}:${p(value.second)}"
+    return "${value.year}-${p(value.month.number)}-${p(value.day)}T${p(value.hour)}:${p(value.minute)}:${p(value.second)}"
 }
 
 class NlpCorpusTest {

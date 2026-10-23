@@ -1,8 +1,5 @@
-@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-
 package com.rendyhd.vicu.ui.screens.comments
 
-import androidx.compose.ui.backhandler.PredictiveBackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,7 +58,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -91,6 +87,7 @@ import com.rendyhd.vicu.ui.components.collab.LocalCollab
 import com.rendyhd.vicu.ui.components.collab.PersonAvatar
 import com.rendyhd.vicu.ui.components.shared.LocalClockDay
 import com.rendyhd.vicu.ui.components.shared.LocalDateFormat
+import com.rendyhd.vicu.ui.screens.taskdetail.EditorBackHandler
 import com.rendyhd.vicu.ui.screens.taskdetail.EditorBackState
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.Collaboration
@@ -100,10 +97,8 @@ import com.rendyhd.vicu.util.DateDisplay
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.DueDates
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.launch
 
 /** What the thread lists, in reading order (oldest first). */
 private sealed interface ThreadEntry {
@@ -171,7 +166,6 @@ fun TaskCommentsScreen(
 ) {
     LaunchedEffect(taskId) { viewModel.open(taskId) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val collab = LocalCollab.current
     val day = LocalClockDay.current
     val fmt = LocalDateFormat.current
@@ -181,15 +175,7 @@ fun TaskCommentsScreen(
     val members = access.members
     val collabMembers = remember(members) { members.map { it.toCollabUser() } }
 
-    PredictiveBackHandler(enabled = backEnabled) { progress ->
-        try {
-            progress.collect { backState?.progress = it.progress }
-        } catch (e: CancellationException) {
-            backState?.let { scope.launch { it.springBack() } }
-            throw e
-        }
-        onClose()
-    }
+    EditorBackHandler(enabled = backEnabled, backState = backState, onBack = onClose)
 
     // A project that stops being shared takes its comments with it; a task that is gone too.
     var wasShared by remember(taskId) { mutableStateOf(false) }

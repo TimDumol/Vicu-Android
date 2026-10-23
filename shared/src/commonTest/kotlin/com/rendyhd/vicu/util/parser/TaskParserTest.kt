@@ -201,7 +201,7 @@ class TaskParserTest {
         val r = TaskParser.parse("buy groceries tomorrow", todoist)
         assertNotNull(r.dueDate)
         val tomorrow = Clock.System.todayIn(TimeZone.currentSystemDefault()).plus(1, DateTimeUnit.DAY)
-        assertEquals(tomorrow.dayOfMonth, r.dueDate!!.dayOfMonth)
+        assertEquals(tomorrow.day, r.dueDate.day)
         assertEquals("buy groceries", r.title)
     }
 
@@ -209,7 +209,7 @@ class TaskParserTest {
     fun `extracts tomorrow 3pm`() {
         val r = TaskParser.parse("buy groceries tomorrow 3pm", todoist)
         assertNotNull(r.dueDate)
-        assertEquals(15, r.dueDate!!.hour)
+        assertEquals(15, r.dueDate.hour)
         assertEquals("buy groceries", r.title)
     }
 
@@ -229,7 +229,7 @@ class TaskParserTest {
         val r = extractBangToday("call dentist !")
         assertNotNull(r.dueDate)
         // Date-only: the "!" shortcut is today at 23:59:59, like every other "today".
-        assertEquals(23, r.dueDate!!.hour)
+        assertEquals(23, r.dueDate.hour)
         assertEquals(59, r.dueDate.minute)
         assertEquals(59, r.dueDate.second)
         assertEquals("call dentist", r.title)
@@ -455,7 +455,7 @@ class TaskParserTest {
         val r = TaskParser.parse(input, todoist)
         assertNotNull(r.dueDate, "'$input' should have a date")
         assertEquals(false, r.dueDateHasTime, "'$input' has no time of day")
-        assertEquals(23, r.dueDate!!.hour, "'$input' is carried at 23:59:59")
+        assertEquals(23, r.dueDate.hour, "'$input' is carried at 23:59:59")
         assertEquals(59, r.dueDate.minute)
         assertEquals(59, r.dueDate.second)
     }

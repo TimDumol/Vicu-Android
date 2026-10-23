@@ -2,6 +2,7 @@ package com.rendyhd.vicu.ui.components.fab
 
 import com.rendyhd.vicu.data.local.FabHintStore
 import com.rendyhd.vicu.data.repository.InMemoryPreferencesDataStore
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -11,6 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** "Hold + to say a task" shows once, after the fifth task added with +. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FabHintTest {
     @Test
     fun theFifthAddMakesItDue() {

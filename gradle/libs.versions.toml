@@ -12,6 +12,7 @@ room = "2.7.1"
 okhttp = "4.12.0"
 kotlinxSerialization = "1.11.0"
 navigationCompose = "2.9.2"
+navigationEvent = "1.1.0"
 datastore = "1.1.4"
 workmanager = "2.11.0"
 glance = "1.1.1"
@@ -54,8 +55,8 @@ cascade-editor = { group = "io.github.linreal", name = "cascade-editor", version
 compose-runtime = { group = "org.jetbrains.compose.runtime", name = "runtime", version.ref = "compose-multiplatform" }
 compose-foundation = { group = "org.jetbrains.compose.foundation", name = "foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "compose-material3" }
-# Multiplatform BackHandler and PredictiveBackHandler (the androidx.activity ones are Android only).
-compose-ui-backhandler = { group = "org.jetbrains.compose.ui", name = "ui-backhandler", version.ref = "compose-multiplatform" }
+# NavigationBackHandler for Android and iOS (the androidx artifact has no iOS variants).
+navigationevent-compose = { group = "org.jetbrains.androidx.navigationevent", name = "navigationevent-compose", version.ref = "navigationEvent" }
 # The last release of the multiplatform icon set. JetBrains stopped publishing it, and the AndroidX
 # artifact (1.7.8) has no iOS variants, so the shared module cannot move to it.
 compose-material-icons-extended = { group = "org.jetbrains.compose.material", name = "material-icons-extended", version = "1.7.3" }

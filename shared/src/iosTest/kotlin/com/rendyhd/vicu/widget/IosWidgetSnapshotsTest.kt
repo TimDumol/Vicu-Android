@@ -26,6 +26,7 @@ import com.rendyhd.vicu.util.DayClock
 import com.rendyhd.vicu.util.FixedTimeSource
 import com.rendyhd.vicu.util.NetworkResult
 import com.rendyhd.vicu.worker.SyncRequester
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
@@ -48,6 +49,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class IosWidgetSnapshotsTest {
     private val zone = TimeZone.of("Europe/Amsterdam")
     private val time = FixedTimeSource(Instant.parse("2026-10-12T08:00:00Z"), zone)

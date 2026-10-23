@@ -50,8 +50,8 @@ import com.rendyhd.vicu.util.DueDates
 import com.rendyhd.vicu.util.ReminderFormat
 import com.rendyhd.vicu.util.ReminderPickerStart
 import kotlin.time.Clock
-import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
 
 private data class RelativeOption(val label: String, val seconds: Long, val relativeTo: String)
@@ -311,10 +311,7 @@ fun ReminderPickerDialog(
                         // The picked day, kept as its UTC midnight
                         val pickedDate = DueDates.dateFromDatePickerMillis(pickedMillis)
                         // Combine with user's picked local time, then convert to UTC for storage
-                        val localDateTime = LocalDateTime(
-                            pickedDate.year, pickedDate.monthNumber, pickedDate.dayOfMonth,
-                            timePickerState.hour, timePickerState.minute
-                        )
+                        val localDateTime = pickedDate.atTime(timePickerState.hour, timePickerState.minute)
                         val iso = localDateTime.toInstant(TimeZone.currentSystemDefault()).toString()
                         val reminder = TaskReminder(reminder = iso)
 

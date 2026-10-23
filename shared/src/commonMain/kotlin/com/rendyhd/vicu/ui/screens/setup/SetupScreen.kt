@@ -1,9 +1,9 @@
-@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-
 package com.rendyhd.vicu.ui.screens.setup
 
 import com.rendyhd.vicu.ui.rememberOidcLauncher
-import androidx.compose.ui.backhandler.BackHandler
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -94,7 +94,10 @@ fun SetupScreen(
 
     // Back steps through the setup instead of leaving the app mid-way; on the first step, and
     // once signed in (only the Inbox choice is left), it is the system's.
-    BackHandler(enabled = state.canGoBack) { viewModel.goBack() }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.canGoBack,
+    ) { viewModel.goBack() }
 
     Column(
         modifier = Modifier

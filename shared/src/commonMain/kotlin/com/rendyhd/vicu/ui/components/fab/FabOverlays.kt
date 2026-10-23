@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-
 package com.rendyhd.vicu.ui.components.fab
 
 import androidx.compose.animation.AnimatedVisibility
@@ -53,7 +51,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.backhandler.BackHandler
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.luminance
@@ -105,7 +105,10 @@ fun BoxScope.FabOverlays(controller: FabController, fabAlignStart: Boolean) {
     // A session outlives no screen: a recreated activity (rotation) starts without one.
     DisposableEffect(controller) { onDispose { controller.holdToTalk.cancel() } }
     // Hands-free, back closes the card (while held, the finger is on the +).
-    BackHandler(enabled = capture?.handsFree == true) { controller.holdToTalk.cancel() }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = capture?.handsFree == true,
+    ) { controller.holdToTalk.cancel() }
 
     // The hint sits above the + until it is used or closed.
     AnimatedVisibility(

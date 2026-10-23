@@ -1,8 +1,5 @@
-@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
-
 package com.rendyhd.vicu.ui.screens.taskdetail
 
-import androidx.compose.ui.backhandler.PredictiveBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -44,7 +41,6 @@ import com.rendyhd.vicu.util.WhenLogic
 import com.rendyhd.vicu.util.WhenQuickChoice
 import com.rendyhd.vicu.util.detectRecurrencePreset
 import com.rendyhd.vicu.util.recurrenceForPreset
-import kotlin.coroutines.cancellation.CancellationException
 import com.rendyhd.vicu.ui.rememberImagePicker
 import com.rendyhd.vicu.ui.rememberFilePicker
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -286,14 +282,8 @@ fun TaskDetailScreen(
     // the whole class of bugs is gone. Dismiss via the close icon or system back.
     // Predictive back: the editor follows the gesture (EditorOverlay scales and fades it by
     // backState.progress); a cancelled gesture springs back. Without a gesture (a button press,
-    // three-button navigation) the flow ends at once and the editor just closes.
-    PredictiveBackHandler(enabled = backEnabled) { progress ->
-        try {
-            progress.collect { backState?.progress = it.progress }
-        } catch (e: CancellationException) {
-            backState?.let { scope.launch { it.springBack() } }
-            throw e
-        }
+    // three-button navigation) the editor just closes.
+    EditorBackHandler(enabled = backEnabled, backState = backState) {
         // With a description conflict the dialog opens instead of closing: back to rest.
         val conflict = state.descriptionConflict != null
         dismissEditor()

@@ -5,6 +5,7 @@ import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
@@ -156,7 +157,7 @@ object CrossAppFixture {
     fun wall(instant: Instant, zone: TimeZone): String {
         val t = instant.toLocalDateTime(zone)
         fun p(n: Int) = n.toString().padStart(2, '0')
-        return "${t.year}-${p(t.monthNumber)}-${p(t.dayOfMonth)}T${p(t.hour)}:${p(t.minute)}:${p(t.second)}"
+        return "${t.year}-${p(t.month.number)}-${p(t.day)}T${p(t.hour)}:${p(t.minute)}:${p(t.second)}"
     }
 
     fun date(value: String): LocalDate = LocalDate.parse(value)

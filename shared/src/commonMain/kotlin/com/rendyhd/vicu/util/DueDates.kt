@@ -74,7 +74,7 @@ object DueDates {
 
     /** The last day of the month [date] is in. */
     fun endOfMonth(date: LocalDate): LocalDate =
-        LocalDate(date.year, date.monthNumber, 1).plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
+        LocalDate(date.year, date.month, 1).plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY)
 
     // --- Setters ------------------------------------------------------------------------
 

@@ -21,7 +21,7 @@ class HarmonizeVectorsTest {
     private fun hex(argb: Int): String = "#" + (argb and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
 
     private val vectors by lazy {
-        val text = checkNotNull(javaClass.classLoader.getResourceAsStream("harmonize-vectors-v1.json")) {
+        val text = checkNotNull(javaClass.getResourceAsStream("/harmonize-vectors-v1.json")) {
             "harmonize-vectors-v1.json is not on the test classpath"
         }.use { it.readBytes().toString(Charsets.UTF_8) }
         Json.parseToJsonElement(text).jsonObject.getValue("vectors").jsonArray.map { it.jsonObject }

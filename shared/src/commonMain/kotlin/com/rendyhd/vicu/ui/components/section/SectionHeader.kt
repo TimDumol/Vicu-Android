@@ -87,7 +87,7 @@ fun SectionHeader(
             .clickable(
                 onClickLabel = if (isExpanded == true) "Collapse" else "Expand",
                 role = Role.Button,
-                onClick = onToggle!!,
+                onClick = onToggle,
             )
             .heightIn(min = 48.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp)

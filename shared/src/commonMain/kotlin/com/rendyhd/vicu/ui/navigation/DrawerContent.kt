@@ -62,10 +62,12 @@ import com.rendyhd.vicu.domain.model.BottomBarSlotType
 import com.rendyhd.vicu.domain.model.CustomList
 import com.rendyhd.vicu.domain.model.Label
 import com.rendyhd.vicu.ui.components.section.sectionStateDescription
+import com.rendyhd.vicu.ui.components.shared.DragClickGuard
 import com.rendyhd.vicu.ui.components.shared.IconRegistry
 import com.rendyhd.vicu.ui.components.shared.ProgressRing
 import com.rendyhd.vicu.ui.components.shared.RollingCount
 import com.rendyhd.vicu.ui.components.shared.SmartListIdentity
+import com.rendyhd.vicu.ui.components.shared.dragClickGuardPresses
 import com.rendyhd.vicu.ui.components.task.moveCustomActions
 import com.rendyhd.vicu.ui.theme.LocalVicuColors
 import com.rendyhd.vicu.util.countOf
@@ -296,15 +298,15 @@ fun DrawerContent(
                                 liveProjects?.let { onReorderProject(projectId, siblingIds(it, projectId)) }
                                 liveProjects = null
                             },
-                        ) {
+                        ) { clickGuard ->
                             ProjectItem(
                                 row = row,
                                 progress = projectProgress[projectId],
                                 openCount = projectOpenCounts[projectId],
                                 countColumn = projectOpenCounts.isNotEmpty(),
                                 selected = currentRoute == "ProjectRoute/$projectId",
-                                onClick = { onNavigate(ProjectRoute(projectId)) },
-                                onToggleCollapsed = { onToggleProjectCollapsed(projectId) },
+                                onClick = clickGuard.guarded { onNavigate(ProjectRoute(projectId)) },
+                                onToggleCollapsed = clickGuard.guarded { onToggleProjectCollapsed(projectId) },
                                 onMoveUp = moveIdBy(siblings, projectId, -1)
                                     ?.let { order -> { onReorderProject(projectId, order) } },
                                 onMoveDown = moveIdBy(siblings, projectId, 1)
@@ -338,7 +340,7 @@ fun DrawerContent(
                                 liveLists?.let { onReorderList(list.id, it.map { moved -> moved.id }) }
                                 liveLists = null
                             },
-                        ) {
+                        ) { clickGuard ->
                             NavigationDrawerItem(
                                 label = { Text(list.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 icon = {
@@ -350,7 +352,7 @@ fun DrawerContent(
                                     )
                                 },
                                 selected = currentRoute == "CustomListRoute/${list.id}",
-                                onClick = { onNavigate(CustomListRoute(list.id)) },
+                                onClick = clickGuard.guarded { onNavigate(CustomListRoute(list.id)) },
                                 modifier = Modifier
                                     .padding(NavigationDrawerItemDefaults.ItemPadding)
                                     .moveCustomActions(
@@ -410,7 +412,7 @@ fun DrawerContent(
                                     liveLabels?.let { onReorderLabel(label.id, it.map { moved -> moved.id }) }
                                     liveLabels = null
                                 },
-                            ) {
+                            ) { clickGuard ->
                                 NavigationDrawerItem(
                                     label = { Text(label.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     icon = {
@@ -425,7 +427,7 @@ fun DrawerContent(
                                         )
                                     },
                                     selected = currentRoute == "TagRoute/${label.id}",
-                                    onClick = { onNavigate(TagRoute(label.id)) },
+                                    onClick = clickGuard.guarded { onNavigate(TagRoute(label.id)) },
                                     modifier = Modifier
                                         .padding(NavigationDrawerItemDefaults.ItemPadding)
                                         .moveCustomActions(
@@ -473,26 +475,34 @@ fun DrawerContent(
 /**
  * A row that can be dragged among the rows of its own group (the drawer's, the Projects tab of
  * Settings): a long press picks it up, [onDragStopped] fires when it is let go. The Surface stays
- * in the tree when idle, so picking the row up does not reset what is inside it.
+ * in the tree when idle, so picking the row up does not reset what is inside it. [content] wraps
+ * its clicks in the [DragClickGuard] it is given, so letting go of a row that was picked up does
+ * not also open it.
  */
 @Composable
 internal fun LazyItemScope.LongPressReorderableRow(
     reorderState: ReorderableLazyListState,
     key: String,
     onDragStopped: () -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (clickGuard: DragClickGuard) -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
+    val clickGuard = remember { DragClickGuard() }
     ReorderableItem(reorderState, key = key) { isDragging ->
         val elevation by animateDpAsState(
             if (isDragging) 4.dp else 0.dp,
             label = "dragElevation",
         )
         Surface(
-            modifier = Modifier.longPressDraggableHandle(
-                onDragStarted = { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
-                onDragStopped = onDragStopped,
-            ),
+            modifier = Modifier
+                .dragClickGuardPresses(clickGuard)
+                .longPressDraggableHandle(
+                    onDragStarted = {
+                        clickGuard.dragStarted()
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    onDragStopped = onDragStopped,
+                ),
             shadowElevation = elevation,
             color = if (isDragging) {
                 MaterialTheme.colorScheme.surfaceContainerHigh
@@ -500,7 +510,7 @@ internal fun LazyItemScope.LongPressReorderableRow(
                 Color.Transparent
             },
         ) {
-            content()
+            content(clickGuard)
         }
     }
 }

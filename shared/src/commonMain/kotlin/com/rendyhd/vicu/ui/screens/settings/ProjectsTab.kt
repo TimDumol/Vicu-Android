@@ -182,12 +182,12 @@ private fun LazyListScope.projectsSection(
             reorderState = reorderState,
             key = settingsProjectKey(project.id),
             onDragStopped = { onDragStopped(project.id) },
-        ) {
+        ) { clickGuard ->
             SettingsProjectRow(
                 project = project,
                 depth = row.depth,
                 isInbox = isInbox,
-                onEdit = { openDialog(SettingsDialog.ProjectEditor(project.id)) },
+                onEdit = clickGuard.guarded { openDialog(SettingsDialog.ProjectEditor(project.id)) },
                 menuItems = projectMenuItems(
                     project = project,
                     isInbox = isInbox,

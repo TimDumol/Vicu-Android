@@ -212,6 +212,93 @@ class TaskEntryPlaceTest {
     }
 
     @Test
+    fun `a place picked in the Remind tray is the task's reminder`() = runTest {
+        val rig = rig()
+        addHome(rig)
+        rig.vm.setTitle("Water the plants")
+        val home = rig.vm.uiState.value.places.single { it.name == "Home" }
+
+        rig.vm.setPlaceReminder(home, LocationTrigger.ARRIVE)
+        rig.vm.togglePlaceTrigger()
+        assertEquals(PlacePick(home, LocationTrigger.LEAVE), rig.vm.uiState.value.placeReminder)
+        rig.vm.save()
+        runCurrent()
+
+        val reminder = rig.locations.reminderFor(500).first()!!
+        assertEquals("Home", reminder.placeName)
+        assertEquals(LocationTrigger.LEAVE, reminder.trigger)
+        rig.authScope.cancel()
+    }
+
+    @Test
+    fun `a picked place wins over the title's and leaves its words as text`() = runTest {
+        val rig = rig()
+        addHome(rig)
+        val work = rig.vm.uiState.value.places.single { it.name == "Work" }
+        rig.vm.setTitle("Call mom when I get home")
+
+        rig.vm.setPlaceReminder(work, LocationTrigger.LEAVE)
+
+        assertEquals("Call mom when I get home", rig.vm.effectiveTitle())
+        assertEquals(PlacePick(work, LocationTrigger.LEAVE), rig.vm.uiState.value.placeReminder)
+        rig.authScope.cancel()
+    }
+
+    @Test
+    fun `removing the place reminder sets none`() = runTest {
+        val rig = rig()
+        addHome(rig)
+        rig.vm.setTitle("Call mom when I get home")
+
+        rig.vm.clearPlaceReminder()
+        rig.vm.save()
+        runCurrent()
+
+        assertEquals("Call mom when I get home", rig.tasks.created.single().title)
+        assertNull(rig.locations.reminderFor(500).first())
+        rig.authScope.cancel()
+    }
+
+    @Test
+    fun `the checklist becomes the task's subtasks in its order`() = runTest {
+        val rig = rig()
+        rig.tasks.createSubtaskHandler = { _, subtask -> NetworkResult.Success(subtask) }
+        rig.vm.setTitle("Pack for the trip")
+        rig.vm.addSubtask("Passport")
+        rig.vm.addSubtask("  ")
+        rig.vm.addSubtask("Charger")
+        rig.vm.addSubtask("Socks")
+        rig.vm.removeSubtask(2)
+
+        rig.vm.save()
+        runCurrent()
+
+        assertEquals(listOf(500L, 500L), rig.tasks.createdSubtasks.map { it.first })
+        assertEquals(listOf("Passport", "Charger"), rig.tasks.createdSubtasks.map { it.second.title })
+        assertEquals(listOf(1L, 1L), rig.tasks.createdSubtasks.map { it.second.projectId })
+        rig.authScope.cancel()
+    }
+
+    @Test
+    fun `a subtask that fails is reported and the rest still go`() = runTest {
+        val rig = rig()
+        rig.tasks.createSubtaskHandler = { _, subtask ->
+            if (subtask.title == "Passport") NetworkResult.Error("Could not add Passport") else NetworkResult.Success(subtask)
+        }
+        rig.vm.setTitle("Pack for the trip")
+        rig.vm.addSubtask("Passport")
+        rig.vm.addSubtask("Charger")
+
+        rig.vm.save()
+        runCurrent()
+
+        assertEquals(listOf("Passport", "Charger"), rig.tasks.createdSubtasks.map { it.second.title })
+        assertEquals("Could not add Passport", rig.messages.single().text)
+        assertEquals(500L, rig.vm.uiState.value.savedTaskId)
+        rig.authScope.cancel()
+    }
+
+    @Test
     fun `a place this phone has not located still gets the reminder and a word`() = runTest {
         val rig = rig()
         rig.vm.setTitle("Print the report when I arrive at work")

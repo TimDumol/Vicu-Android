@@ -37,8 +37,9 @@ server id. Only phones remind; the desktop never fires one.
 1. The editor's Reminder chip opens the reminder list; **At a location...** opens the location
    dialog (only in the task editor). Voice add and the typed quick add set one too, from "when I
    get home" or "when I leave work" for a saved place (`docs/voice-input.md`; in quick add the
-   phrase is highlighted and a place chip shows "Arrive: Home", tap to switch to leave, clear to
-   keep the words in the title). Saving goes through `LocationRepository.setReminder`: one at a
+   phrase is highlighted and the Remind chip shows "Arrive: Home"). Quick add's Remind tray also
+   offers each saved place to arrive at or leave; a place picked there wins over the title's, whose
+   words then stay in the title, and a second tap on it removes the reminder. Saving goes through `LocationRepository.setReminder`: one at a
    saved place on a task the server knows is written to the synced preferences, any other to
    `LocationReminderStore`, keyed by the task id (a temporary id for a task made offline; it moves
    to the server's id once the task is sent, through `TempIdGenerator.realIdFor`, and then syncs).

@@ -259,7 +259,7 @@ private fun QuickChoiceButton(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CustomTimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
+internal fun CustomTimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
     val state = rememberTimePickerState(
         initialHour = initial.hour,
         initialMinute = initial.minute,

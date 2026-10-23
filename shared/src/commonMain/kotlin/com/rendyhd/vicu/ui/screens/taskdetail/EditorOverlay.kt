@@ -31,9 +31,6 @@ internal const val EDITOR_BACK_MIN_SCALE = 0.9f
 /** How much of its opacity the editor loses at progress 1; the exit fade finishes the rest. */
 internal const val EDITOR_BACK_FADE = 0.5f
 
-/** Opening from quick add, the editor starts this fraction of its height lower (1/3). */
-private const val SHEET_RISE_FRACTION = 3
-
 /** Scale of the editor at back-gesture [progress] (0 at rest, 1 held fully). Out of range is clamped. */
 internal fun editorBackScale(progress: Float): Float =
     1f - (1f - EDITOR_BACK_MIN_SCALE) * progress.coerceIn(0f, 1f)
@@ -77,11 +74,6 @@ internal fun EditorOverlay(
     taskId: Long?,
     backState: EditorBackState,
     stayOpen: () -> Boolean,
-    /**
-     * True when the editor opens from the quick add sheet (design concept 3): it then rises from the
-     * bottom, where that sheet was, so the sheet reads as growing into the editor.
-     */
-    risesFromSheet: () -> Boolean = { false },
     content: @Composable (taskId: Long, backEnabled: Boolean) -> Unit,
 ) {
     val risePx = with(LocalDensity.current) { VicuMotion.pageRisePx.dp.roundToPx() }
@@ -91,10 +83,6 @@ internal fun EditorOverlay(
             val opening = initialState == null && targetState != null
             val closing = initialState != null && targetState == null && !stayOpen()
             when {
-                opening && risesFromSheet() -> (
-                    fadeIn(VicuMotion.fastEffectsSpec()) +
-                        slideInVertically(VicuMotion.defaultSpatialSpec<IntOffset>()) { it / SHEET_RISE_FRACTION }
-                    ) togetherWith ExitTransition.None
                 opening -> (
                     fadeIn(VicuMotion.defaultEffectsSpec()) +
                         slideInVertically(VicuMotion.defaultSpatialSpec<IntOffset>()) { risePx }

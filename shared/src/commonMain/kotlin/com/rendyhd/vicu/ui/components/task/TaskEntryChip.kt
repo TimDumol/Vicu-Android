@@ -17,8 +17,10 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,9 @@ internal fun TaskEntryChip(
     /** The rectangle of the word in the title this chip's value was read from, in root coordinates; the chip travels out of it. */
     tokenRect: (() -> Rect?)? = null,
     enabled: Boolean = true,
+    /** The chip's tray is open: drawn in the secondary container, as a pressed toggle. */
+    selected: Boolean = false,
+    icon: ImageVector? = null,
 ) {
     val canClear = onClear != null && clearDescription != null
     // A tint means the value was read from the title: then the chip travels out of that word.
@@ -49,7 +54,7 @@ internal fun TaskEntryChip(
         modifier
     }
     if (!canClear) {
-        EntryChip(label, onClick, travelling, tint, enabled)
+        EntryChip(label, onClick, travelling, tint, enabled, selected, icon)
         return
     }
     // The clear button sits beside the chip, not inside it: a button of 48 dp (its touch target)
@@ -68,6 +73,8 @@ internal fun TaskEntryChip(
             },
             tint = tint,
             enabled = enabled,
+            selected = selected,
+            icon = icon,
         )
         IconButton(onClick = onClear!!, modifier = Modifier.size(MIN_CLEAR_TARGET)) {
             Icon(
@@ -92,19 +99,32 @@ private fun EntryChip(
     modifier: Modifier,
     tint: Color?,
     enabled: Boolean,
+    selected: Boolean,
+    icon: ImageVector?,
 ) {
     // Tonal, never outlined (design concept 3): a value read from the title is tinted with its
-    // token's colour, anything else sits on the sheet's container colour.
+    // token's colour, the chip whose tray is open is in the secondary container, anything else
+    // sits on the sheet's container colour.
     val scheme = MaterialTheme.colorScheme
+    val labelColor = when {
+        selected -> scheme.onSecondaryContainer
+        else -> tint ?: scheme.onSurface
+    }
     AssistChip(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics { this.selected = selected },
         enabled = enabled,
         label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize)) } },
         shape = CircleShape,
         colors = AssistChipDefaults.assistChipColors(
-            containerColor = tint?.copy(alpha = TINT_FILL_ALPHA)?.compositeOver(scheme.surfaceContainerLow) ?: scheme.surfaceContainerHighest,
-            labelColor = tint ?: scheme.onSurface,
+            containerColor = when {
+                selected -> scheme.secondaryContainer
+                tint != null -> tint.copy(alpha = TINT_FILL_ALPHA).compositeOver(scheme.surfaceContainerLow)
+                else -> scheme.surfaceContainerHighest
+            },
+            labelColor = labelColor,
+            leadingIconContentColor = if (selected) labelColor else tint ?: scheme.onSurfaceVariant,
             trailingIconContentColor = tint ?: scheme.onSurfaceVariant,
         ),
         border = null,

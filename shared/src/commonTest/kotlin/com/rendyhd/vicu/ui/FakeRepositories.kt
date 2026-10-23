@@ -209,8 +209,14 @@ class FakeTaskRepository : TaskRepository {
         return NetworkResult.Success(stored)
     }
 
-    override suspend fun createSubtask(parentTaskId: Long, subtask: Task): NetworkResult<Task> =
-        NetworkResult.Error("not faked")
+    /** Subtasks passed to [createSubtask], with their parent; [createSubtaskHandler] decides the outcome. */
+    val createdSubtasks = mutableListOf<Pair<Long, Task>>()
+    var createSubtaskHandler: (Long, Task) -> NetworkResult<Task> = { _, _ -> NetworkResult.Error("not faked") }
+
+    override suspend fun createSubtask(parentTaskId: Long, subtask: Task): NetworkResult<Task> {
+        createdSubtasks += parentTaskId to subtask
+        return createSubtaskHandler(parentTaskId, subtask)
+    }
 
     override suspend fun toggleSubtaskDone(parentTaskId: Long, subtask: Task): NetworkResult<Task> =
         NetworkResult.Error("not faked")

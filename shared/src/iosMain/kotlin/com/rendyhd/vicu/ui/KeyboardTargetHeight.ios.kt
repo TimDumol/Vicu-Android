@@ -2,17 +2,16 @@ package com.rendyhd.vicu.ui
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.Foundation.NSNotification
@@ -28,7 +27,7 @@ import platform.UIKit.UIKeyboardWillChangeFrameNotification
  * keyboard's end frame before the keyboard moves (also when it hides, with a frame off the screen).
  */
 @Composable
-actual fun Modifier.keyboardTargetPadding(): Modifier {
+actual fun keyboardTargetHeight(): Dp {
     var target by remember { mutableStateOf(0.dp) }
     DisposableEffect(Unit) {
         val center = NSNotificationCenter.defaultCenter
@@ -39,7 +38,9 @@ actual fun Modifier.keyboardTargetPadding(): Modifier {
         ) { notification -> target = keyboardOverlap(notification) }
         onDispose { center.removeObserver(observer) }
     }
-    return windowInsetsPadding(WindowInsets.ime.union(WindowInsets(bottom = target)))
+    val density = LocalDensity.current
+    val now = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+    return max(now, target)
 }
 
 /** How far the keyboard's end frame covers the app's window from below (points are dp on iOS). */

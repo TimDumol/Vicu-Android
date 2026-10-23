@@ -89,6 +89,10 @@ data class TaskEntryUiState(
     val places: List<SavedPlace> = emptyList(),
     /** Arrive or leave, set by tapping the place chip: wins over the words of the title. */
     val placeTrigger: LocationTrigger? = null,
+    /** A place picked in the Remind tray: wins over a place the title names. */
+    val pickedPlace: PlacePick? = null,
+    /** The checklist of the full-height sheet: created as subtasks once the task exists. */
+    val subtasks: List<String> = emptyList(),
 ) {
     /** The location reminder the title asks for ("when I get home"), or null. */
     val placeMatch: PlaceMatch?
@@ -96,7 +100,14 @@ data class TaskEntryUiState(
             val match = parseResult?.place?.takeIf { parserConfig.enabled } ?: return null
             return if (placeTrigger != null) match.copy(trigger = placeTrigger) else match
         }
+
+    /** The location reminder the task gets: the picked place, else the place the title names. */
+    val placeReminder: PlacePick?
+        get() = pickedPlace ?: placeMatch?.let { PlacePick(it.place, it.trigger) }
 }
+
+/** "Remind me when I arrive at (or leave) [place]", before the task exists. */
+data class PlacePick(val place: SavedPlace, val trigger: LocationTrigger)
 
 class TaskEntryViewModel(
     private val taskRepository: TaskRepository,
@@ -372,9 +383,37 @@ class TaskEntryViewModel(
     /** The place chip: "when I get home" becomes "when I leave home", and back. */
     fun togglePlaceTrigger() {
         _uiState.update { state ->
+            state.pickedPlace?.let { picked ->
+                val flipped = if (picked.trigger == LocationTrigger.ARRIVE) LocationTrigger.LEAVE else LocationTrigger.ARRIVE
+                return@update state.copy(pickedPlace = picked.copy(trigger = flipped))
+            }
             val match = state.placeMatch ?: return@update state
             val flipped = if (match.trigger == LocationTrigger.ARRIVE) LocationTrigger.LEAVE else LocationTrigger.ARRIVE
             state.copy(placeTrigger = flipped)
+        }
+    }
+
+    /** The Remind tray's place: the task will remind there; the title's own place words stay text. */
+    fun setPlaceReminder(place: SavedPlace, trigger: LocationTrigger) {
+        _uiState.update { it.copy(pickedPlace = PlacePick(place, trigger)) }
+        pin(TokenType.PLACE)
+    }
+
+    /** No location reminder, picked or read from the title. */
+    fun clearPlaceReminder() {
+        _uiState.update { it.copy(pickedPlace = null) }
+        pin(TokenType.PLACE)
+    }
+
+    fun addSubtask(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        _uiState.update { it.copy(subtasks = it.subtasks + trimmed) }
+    }
+
+    fun removeSubtask(index: Int) {
+        _uiState.update { state ->
+            state.copy(subtasks = state.subtasks.filterIndexed { i, _ -> i != index })
         }
     }
 
@@ -479,7 +518,8 @@ class TaskEntryViewModel(
 
         _uiState.update { it.copy(isSaving = true, error = null) }
 
-        val placeMatch = state.placeMatch
+        val placeReminder = state.placeReminder
+        val subtasks = state.subtasks
         val pendingUris = state.pendingAttachmentUris
         val pendingImages = state.pendingImages
         val descriptionAtSave = state.description
@@ -526,7 +566,15 @@ class TaskEntryViewModel(
                         for (labelId in resolvedLabelIds) {
                             labelRepository.addToTask(createdTask.id, labelId)
                         }
-                        if (placeMatch != null) setLocationReminder(createdTask.id, placeMatch)
+                        if (placeReminder != null) setLocationReminder(createdTask.id, placeReminder)
+                        // The checklist, in its order; one that fails is reported and the rest go on.
+                        for (subtask in subtasks) {
+                            val made = taskRepository.createSubtask(
+                                createdTask.id,
+                                Task(id = 0, title = subtask, projectId = createdTask.projectId),
+                            )
+                            if (made is NetworkResult.Error) appMessages.post(made.message)
+                        }
                         if (pendingUris.isNotEmpty()) {
                             uploadPendingAttachments(createdTask.id, pendingUris)
                         }
@@ -562,7 +610,7 @@ class TaskEntryViewModel(
      * "When I get home" in the title: the reminder, and a word when this phone cannot remind there
      * (the place was saved on another device, or location access is not Always).
      */
-    private suspend fun setLocationReminder(taskId: Long, match: PlaceMatch) {
+    private suspend fun setLocationReminder(taskId: Long, match: PlacePick) {
         locations.setReminder(locations.reminderAt(taskId, match.place, match.trigger))
         locationPermission.refresh()
         when {
@@ -617,6 +665,8 @@ class TaskEntryViewModel(
                 reminders = emptyList(),
                 manualRecurrence = null,
                 placeTrigger = null,
+                pickedPlace = null,
+                subtasks = emptyList(),
                 isSaving = false,
                 savedTaskId = null,
                 error = null,

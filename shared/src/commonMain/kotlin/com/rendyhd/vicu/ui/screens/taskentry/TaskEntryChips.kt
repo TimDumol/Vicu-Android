@@ -1,6 +1,5 @@
 package com.rendyhd.vicu.ui.screens.taskentry
 
-import com.rendyhd.vicu.location.LocationTrigger
 import com.rendyhd.vicu.location.PlaceMatch
 import com.rendyhd.vicu.util.parser.ParseResult
 import com.rendyhd.vicu.util.parser.TokenType
@@ -53,7 +52,4 @@ internal fun entryLabelsWords(pickedTitles: List<String>, parsedNames: List<Stri
 }
 
 /** The place chip: "Arrive: Home" or "Leave: Work", as the reminder shows everywhere else. */
-internal fun entryPlaceChipLabel(match: PlaceMatch): String = when (match.trigger) {
-    LocationTrigger.ARRIVE -> "Arrive: ${match.place.name}"
-    LocationTrigger.LEAVE -> "Leave: ${match.place.name}"
-}
+internal fun entryPlaceChipLabel(match: PlaceMatch): String = entryPlaceLabel(match.place.name, match.trigger)

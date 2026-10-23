@@ -1341,7 +1341,7 @@ private val EDITOR_SHEET_TOP_GAP = 12.dp
 
 /** The headline: the title reads as the task, semibold, a step under the page title. */
 @Composable
-private fun editorTitleStyle(): TextStyle =
+internal fun editorTitleStyle(): TextStyle =
     MaterialTheme.typography.titleLarge.copy(
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,

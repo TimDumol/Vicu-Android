@@ -877,12 +877,13 @@ async function a2Swipe(ctx) {
 }
 
 /**
- * A7: scrolling Today. At the top the title is large with the date under it and the FAB reads
- * "New task"; after scrolling the title has folded into the bar (the date is gone) and the FAB is
- * only its icon (still named "New task"); back at the top both are back.
+ * A7: scrolling Today. The title sits in the bar next to the menu button with the date under it,
+ * at the top and after scrolling, in the same place (there is no large title to fold); the FAB reads
+ * "New task" at the top and is only its icon (still named "New task") after scrolling; back at the
+ * top it is extended again.
  */
-async function a7LargeTitle(ctx) {
-  // The seeded Today can fit on one screen (plus the large title), and a drag on a list that cannot
+async function a7CompactTitle(ctx) {
+  // The seeded Today can fit on one screen, and a drag on a list that cannot
   // scroll is a tap on the row under it. Four throwaway tasks due now make it overflow.
   const token = resolveToken(opt('token', DEFAULT_TOKEN_PATH))
   const made = []
@@ -922,6 +923,14 @@ async function a7Steps(ctx) {
   const fab = (nodes) => nodes.find((n) => n['content-desc'] === 'New task')
   const fabWidthDp = (nodes) => { const f = fab(nodes); return f ? v.dp(f.x2 - f.x1) : 0 }
   const subtitle = (nodes) => nodes.some((n) => /^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day, [A-Z][a-z]+ \d+/.test(label(n)))
+  // The title in the bar: beside the menu button (to its right, within the bar's height).
+  const barTitle = (nodes) => {
+    const menu = nodes.find((n) => n['content-desc'] === 'Open menu')
+    const title = nodes.find((n) => n.text === 'Today' && n.y1 < v.px(260))
+    if (!menu || !title) return null
+    return title.x1 >= menu.x2 - v.px(4) && title.y1 < menu.y2 && title.y2 > menu.y1 ? title : null
+  }
+  let topTitle = null
   await step('top', async () => {
     await v.nav('Today')
     await d.sleep(1200) // no drag down here: on a list already at its top it ends as a tap on the row under it
@@ -930,10 +939,10 @@ async function a7Steps(ctx) {
     shot('top')
     const nodes = d.dump()
     if (fabWidthDp(nodes) < 100) throw new Error(`the FAB is not extended at the top (${fabWidthDp(nodes)} dp wide)`)
-    if (!subtitle(nodes)) throw new Error('the date is not under the large title at the top')
-    const title = nodes.find((n) => n.text === 'Today' && n.y1 < v.px(260))
-    if (!title) throw new Error('no title "Today" in the bar')
-    console.log(`  large title at ${v.dp(title.y1).toFixed(0)} to ${v.dp(title.y2).toFixed(0)} dp`)
+    if (!subtitle(nodes)) throw new Error('the date is not under the title at the top')
+    topTitle = barTitle(nodes)
+    if (!topTitle) throw new Error('no title "Today" in the bar next to the menu button')
+    console.log(`  title at ${v.dp(topTitle.y1).toFixed(0)} to ${v.dp(topTitle.y2).toFixed(0)} dp`)
   })
   await step('scrolled', async () => {
     for (let i = 0; i < 3; i++) await d.swipe(540, 1700, 540, 500, 350, 700)
@@ -944,10 +953,13 @@ async function a7Steps(ctx) {
     if (!fab(nodes)) throw new Error('the FAB has lost its name after scrolling')
     if (w > 80) throw new Error(`the FAB is still extended after scrolling (${w} dp wide)`)
     console.log(`  FAB ${w.toFixed(0)} dp wide`)
-    if (subtitle(nodes)) throw new Error('the date is still in the bar after the title folded')
-    const title = nodes.find((n) => n.text === 'Today' && n.y1 < v.px(260))
-    if (!title) throw new Error('no title "Today" in the folded bar')
-    console.log(`  folded title at ${v.dp(title.y1).toFixed(0)} to ${v.dp(title.y2).toFixed(0)} dp`)
+    if (!subtitle(nodes)) throw new Error('the date has left the bar after scrolling')
+    const title = barTitle(nodes)
+    if (!title) throw new Error('no title "Today" in the bar next to the menu button after scrolling')
+    if (topTitle && (Math.abs(title.y1 - topTitle.y1) > v.px(2) || Math.abs(title.x1 - topTitle.x1) > v.px(2))) {
+      throw new Error(`the title moved on scrolling (${v.dp(topTitle.y1).toFixed(0)} dp to ${v.dp(title.y1).toFixed(0)} dp)`)
+    }
+    console.log(`  title at ${v.dp(title.y1).toFixed(0)} to ${v.dp(title.y2).toFixed(0)} dp`)
   })
   await step('back-to-top', async () => {
     // Stop at the top: one more drag down there is a tap on the row under the finger.
@@ -955,7 +967,11 @@ async function a7Steps(ctx) {
     await d.sleep(3500) // a pull to refresh may have started
     await d.sleep(1000)
     shot('back-to-top')
-    if (fabWidthDp(d.dump()) < 100) throw new Error('the FAB did not extend again at the top')
+    const nodes = d.dump()
+    if (fabWidthDp(nodes) < 100) throw new Error('the FAB did not extend again at the top')
+    const title = barTitle(nodes)
+    if (!title) throw new Error('no title "Today" in the bar next to the menu button back at the top')
+    if (topTitle && Math.abs(title.y1 - topTitle.y1) > v.px(2)) throw new Error('the title is not where it was at the top')
   })
 }
 
@@ -1434,7 +1450,7 @@ const SCENARIOS = {
   a6: { wave: 3, run: a6WhenSheet, about: 'WhenSheet: tomorrow 9am, a calendar day, Next week (throwaway tasks, read back from the server)' },
   clock24: { wave: 3, run: clock24, about: 'device on the 24-hour clock: editor, When sheet and quick add show 15:00, never PM' },
   editor: { wave: 3, run: editor37, about: 'the task editor: back and Done, headline, one row of property chips in the desktop order, footer' },
-  a7: { wave: 4, run: a7LargeTitle, about: 'scroll Today: large title folds, FAB shrinks' },
+  a7: { wave: 4, run: a7CompactTitle, about: 'scroll Today: title stays in the bar, FAB shrinks' },
   moments: { wave: 4, run: momentsSignature, about: '4.11b: a count rolls, a token travels into its chip, Today All clear (when empty)' },
   a8: { wave: 1, run: a8Colours, about: 'light, dark, device colours off and on' },
   a9: { wave: 2, run: a9A11y, about: 'a11y report on Today, Upcoming, editor, quick add, drawer' },

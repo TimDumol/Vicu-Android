@@ -111,7 +111,7 @@ fun ProjectScreen(
     // Rows kept on screen after completing them are let go when the screen is left.
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
-    val topBarScroll = rememberVicuTopBarScroll(listState)
+    val topBarScroll = rememberVicuTopBarScroll()
 
     val haptic = LocalHapticFeedback.current
     // True once the current long-press drag has actually displaced the row. A lift that

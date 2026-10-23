@@ -76,7 +76,7 @@ fun CustomListScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
-    val topBarScroll = rememberVicuTopBarScroll(listState)
+    val topBarScroll = rememberVicuTopBarScroll()
 
     val selectionVm: SelectionViewModel = koinViewModel()
     val selectedIds by selectionVm.selectedIds.collectAsStateWithLifecycle()

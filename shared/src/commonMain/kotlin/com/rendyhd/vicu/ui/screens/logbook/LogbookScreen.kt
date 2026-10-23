@@ -64,7 +64,7 @@ fun LogbookScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val listState = rememberLazyListState()
-    val topBarScroll = rememberVicuTopBarScroll(listState)
+    val topBarScroll = rememberVicuTopBarScroll()
 
     Scaffold(
 

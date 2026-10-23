@@ -67,7 +67,7 @@ fun AnytimeScreen(
     // Rows kept on screen after completing them are let go when the screen is left.
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
-    val topBarScroll = rememberVicuTopBarScroll(listState)
+    val topBarScroll = rememberVicuTopBarScroll()
 
     val selectionVm: SelectionViewModel = koinViewModel()
     val selectedIds by selectionVm.selectedIds.collectAsStateWithLifecycle()

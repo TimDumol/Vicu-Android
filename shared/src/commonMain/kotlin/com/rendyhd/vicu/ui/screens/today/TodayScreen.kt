@@ -87,7 +87,7 @@ fun TodayScreen(
     // Rows kept on screen after completing them are let go when the screen is left.
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
-    val topBarScroll = rememberVicuTopBarScroll(listState)
+    val topBarScroll = rememberVicuTopBarScroll()
 
     // The routines are read apart from the tasks and can come in after them. LazyColumn keeps the
     // first visible row where it is, so a list still at its top would then start at the first
@@ -133,14 +133,12 @@ fun TodayScreen(
                     title = {
                         Column {
                             Text("Today")
-                            // The date shows under the large title and goes once the title has folded into the bar.
-                            if (topBarScroll.collapsedFraction < 0.5f) {
-                                Text(
-                                    text = DateDisplay.formatDay(DateContext.HEADER_FULL, LocalToday.current, LocalToday.current, LocalDateFormat.current),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            // The date is a small line under the title in the bar.
+                            Text(
+                                text = DateDisplay.formatDay(DateContext.HEADER_FULL, LocalToday.current, LocalToday.current, LocalDateFormat.current),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     },
                     onOpenDrawer = onOpenDrawer,

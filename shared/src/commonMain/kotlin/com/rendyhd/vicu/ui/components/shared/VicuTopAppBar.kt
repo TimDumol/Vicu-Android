@@ -1,7 +1,6 @@
 package com.rendyhd.vicu.ui.components.shared
 
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
@@ -10,89 +9,41 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Velocity
 
 /**
- * The scroll of a list screen's large title: the title folds into the bar as the list scrolls.
- * Give [modifier] to the screen's Scaffold (it carries the nested scroll) and the object itself to
- * [VicuTopAppBar]. Keeps the experimental Material 3 scroll behaviour out of the screens.
- *
- * At the top of [listState] a pull down opens a folded title before anything else: Material's
- * behaviour opens it only with the scroll the list leaves over, which the screen's pull to refresh
- * (nearer the list) takes first, so a slow pull refreshed instead and only a fling opened the
- * title. Once the title is open, the pull refreshes.
+ * The scroll of a list screen's top bar: the bar stays put with its title next to the menu button
+ * (there is no large title to fold, it took space and folded back inconsistently) and its container
+ * turns to the surface container colour while the list is scrolled under it. Give [modifier] to the
+ * screen's Scaffold (it carries the nested scroll) and the object itself to [VicuTopAppBar]. Keeps
+ * the experimental Material 3 scroll behaviour out of the screens.
  */
 class VicuTopBarScroll @OptIn(ExperimentalMaterial3Api::class) internal constructor(
     internal val behavior: TopAppBarScrollBehavior,
-    private val listState: LazyListState?,
 ) {
     @OptIn(ExperimentalMaterial3Api::class)
-    private val connection = object : NestedScrollConnection {
-        private val material = behavior.nestedScrollConnection
-
-        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-            val state = behavior.state
-            if (available.y > 0f && listState?.canScrollBackward == false && state.heightOffset < 0f) {
-                val before = state.heightOffset
-                state.heightOffset = before + available.y // kept within the bar's range by the state
-                return Offset(0f, state.heightOffset - before)
-            }
-            return material.onPreScroll(available, source)
-        }
-
-        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
-            material.onPostScroll(consumed, available, source)
-
-        override suspend fun onPreFling(available: Velocity): Velocity = material.onPreFling(available)
-
-        override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
-            material.onPostFling(consumed, available)
-    }
-
-    val modifier: Modifier = Modifier.nestedScroll(connection)
-
-    /** 0 while the title is fully expanded, 1 once it has folded into the bar. */
-    @OptIn(ExperimentalMaterial3Api::class)
-    val collapsedFraction: Float get() = behavior.state.collapsedFraction
+    val modifier: Modifier = Modifier.nestedScroll(behavior.nestedScrollConnection)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun rememberVicuTopBarScroll(listState: LazyListState? = null): VicuTopBarScroll {
-    val behavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    if (listState != null) {
-        // A list that fits on the screen cannot be scrolled back, so a title folded earlier (the list was
-        // longer, rows were completed) would stay folded with nothing to open it again: open it.
-        val fits = !listState.canScrollBackward && !listState.canScrollForward
-        LaunchedEffect(fits) {
-            if (fits) {
-                behavior.state.heightOffset = 0f
-                behavior.state.contentOffset = 0f
-            }
-        }
-    }
-    return remember(behavior, listState) { VicuTopBarScroll(behavior, listState) }
+fun rememberVicuTopBarScroll(): VicuTopBarScroll {
+    val behavior = TopAppBarDefaults.pinnedScrollBehavior()
+    return remember(behavior) { VicuTopBarScroll(behavior) }
 }
 
 /**
- * The top bar of a screen. With [scroll] it is a large bar (bold 28 sp title that folds into the bar
- * on scroll, its container turning to the surface container colour once scrolled); without it, the
- * plain small bar (settings, review, routines). [extraActions] come before Search, [trailingActions]
- * after it (a screen's own "more" menu).
+ * The top bar of a screen. With [scroll] it is a list screen's bar (bold title, its container turning
+ * to the surface container colour once scrolled); without it, the plain bar (settings, review,
+ * routines). [extraActions] come before Search, [trailingActions] after it (a screen's own "more" menu).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +76,7 @@ fun VicuTopAppBar(
     val boldTitle: @Composable () -> Unit = {
         ProvideTextStyle(LocalTextStyle.current.copy(fontWeight = FontWeight.Bold)) { title() }
     }
-    LargeTopAppBar(
+    TopAppBar(
         title = boldTitle,
         navigationIcon = navigationIcon,
         actions = actions,

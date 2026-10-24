@@ -11,6 +11,7 @@ import com.rendyhd.vicu.data.remote.createApiJson
 import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
+import com.rendyhd.vicu.data.remote.api.isBrokenSearch
 import com.rendyhd.vicu.data.repository.RoutineCarrierWriter
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
@@ -97,6 +98,9 @@ class TaskRefresher(
 
         /** Routine carriers are found by their marker name; the server searches descriptions too. */
         const val ROUTINE_CARRIER_QUERY = "vicu-routine"
+
+        /** Page size when every done task is listed; a smaller server maximum just means more pages. */
+        private const val SCAN_PAGE_SIZE = "1000"
 
         /** At most this many cached carriers the search did not return are asked for one by one. */
         private const val MAX_CARRIER_CHECKS = 20
@@ -208,10 +212,7 @@ class TaskRefresher(
         ).items.firstOrNull()?.updated?.let { DateUtils.parseIsoDate(it) }
 
         val open = api.getAllTasks(mapOf("filter" to "done = false"), expandSubtasks = false)
-        val carriers = api.getAllTasks(
-            mapOf("q" to ROUTINE_CARRIER_QUERY, "filter" to "done = true"),
-            expandSubtasks = false,
-        ).filter { RoutineEnvelope.hasCarrierMarker(it.description) }
+        val carriers = doneRoutineCarriers()
 
         val acc = Accumulator()
         merge(open + carriers, acc)
@@ -251,6 +252,22 @@ class TaskRefresher(
         cursorStore.commit(ticket, newest?.toString(), fullReconcileAtMs = now.toEpochMilliseconds())
         Logger.d(TAG, "Full reconcile: ${open.size} open tasks, ${carriers.size} routine carriers, ${acc.changed} changed, ${acc.removed} removed")
         return Outcome(full = true, changed = acc.changed, removed = acc.removed, carriersAuthoritative = carriersAuthoritative)
+    }
+
+    /**
+     * The done routine carriers, found by a search for the marker name. When the server answers the
+     * search with an error ([isBrokenSearch]), every done task is listed instead: a longer download
+     * per full reconcile, where otherwise no full reconcile could finish and the cache would stay empty.
+     */
+    private suspend fun doneRoutineCarriers(): List<TaskDto> {
+        val listing = try {
+            api.getAllTasks(mapOf("q" to ROUTINE_CARRIER_QUERY, "filter" to "done = true"), expandSubtasks = false)
+        } catch (e: VikunjaApiException) {
+            if (!e.isBrokenSearch) throw e
+            Logger.w(TAG, "Routine carrier search failed; listing the done tasks instead: ${e.message}")
+            api.getAllTasks(mapOf("filter" to "done = true", "per_page" to SCAN_PAGE_SIZE), expandSubtasks = false)
+        }
+        return listing.filter { RoutineEnvelope.hasCarrierMarker(it.description) }
     }
 
     private suspend fun verifyCarriers(candidates: List<TaskEntity>, acc: Accumulator) {

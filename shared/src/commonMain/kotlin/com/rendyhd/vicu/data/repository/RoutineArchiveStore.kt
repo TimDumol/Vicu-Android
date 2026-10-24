@@ -7,6 +7,7 @@ import com.rendyhd.vicu.data.remote.api.MergePatches
 import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
+import com.rendyhd.vicu.data.remote.api.isBrokenSearch
 import com.rendyhd.vicu.domain.model.RoutineArchivePart
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.util.Logger
@@ -108,12 +109,22 @@ class RoutineArchiveStore(
     /**
      * Every archive part on the server. The marker search comes first. When a routine that is
      * known to have archived history ([expectedRoutineIds]) shows no part in it, one scan of all
-     * done tasks double-checks before the caller concludes the archive is empty. Parts this
-     * process knew about that the search missed are fetched by id.
+     * done tasks double-checks before the caller concludes the archive is empty; a search the
+     * server answers with an error is replaced by that scan. Parts this process knew about that
+     * the search missed are fetched by id.
      */
     suspend fun loadParts(expectedRoutineIds: Collection<String> = emptyList()): List<RoutineArchive.PartRef> {
-        var parts = fetchParts(fullScan = false)
-        if (expectedRoutineIds.any { id -> parts.none { it.part.routineId == id } }) {
+        var scanned = false
+        var parts = try {
+            fetchParts(fullScan = false)
+        } catch (e: VikunjaApiException) {
+            // The server answered the search with an error: the scan finds the parts without it.
+            if (!e.isBrokenSearch) throw e
+            Logger.w(TAG, "Archive part search failed; scanning the done tasks instead: ${e.message}")
+            scanned = true
+            fetchParts(fullScan = true)
+        }
+        if (!scanned && expectedRoutineIds.any { id -> parts.none { it.part.routineId == id } }) {
             parts = fetchParts(fullScan = true)
         }
         val byTask = LinkedHashMap<Long, RoutineArchive.PartRef>().apply { parts.forEach { put(it.taskId, it) } }

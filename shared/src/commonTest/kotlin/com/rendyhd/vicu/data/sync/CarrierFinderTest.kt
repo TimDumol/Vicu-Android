@@ -248,6 +248,62 @@ class CarrierFinderTest {
         assertFailsWith<VikunjaApiException> { rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me) }
     }
 
+    /** Every `q` search answered the way Vikunja does when its ParadeDB extension is older than the library. */
+    private fun Rig.breakSearch() {
+        tasks.override = { req ->
+            if (req.method == "GET" && req.path == "/tasks" && req.query != null) {
+                respond(
+                    """{"title":"Internal Server Error","status":500,"detail":"unexpected error occurred"}""",
+                    HttpStatusCode.InternalServerError,
+                    authTestJsonHeaders,
+                )
+            } else {
+                null
+            }
+        }
+    }
+
+    @Test
+    fun `a search the server answers with an error leaves the first load to the scan`() = runTest {
+        val rig = rig()
+        rig.carrier(900)
+        rig.breakSearch()
+
+        val found = rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me)
+
+        assertEquals(listOf(900L), found.map { it.id })
+        assertEquals(1, rig.scans().size)
+        assertEquals(listOf(900L), rig.store.get(server, "custom-lists").ids)
+    }
+
+    @Test
+    fun `with no carriers anywhere a broken search goes by the scan of the last day`() = runTest {
+        val rig = rig()
+        assertEquals(emptyList(), rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me))
+        rig.breakSearch()
+        rig.tasks.requests.clear()
+        rig.time.advance(DISCOVERY_MS)
+
+        assertEquals(emptyList(), rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me), "no error, and nothing to find")
+        assertEquals(emptyList(), rig.scans(), "the scan of the last day still stands")
+
+        rig.carrier(901)
+        rig.time.advance(25.hours)
+        assertEquals(listOf(901L), rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me).map { it.id }, "the daily scan finds it")
+    }
+
+    @Test
+    fun `a search that needs sign-in is still an error`() = runTest {
+        val rig = rig()
+        rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me)
+        rig.tasks.override = { req ->
+            if (req.method == "GET" && req.path == "/tasks" && req.query != null) respond("", HttpStatusCode.Unauthorized) else null
+        }
+        rig.time.advance(DISCOVERY_MS)
+
+        assertFailsWith<VikunjaApiException> { rig.finder.find(CarrierSpec.CUSTOM_LISTS, server, me) }
+    }
+
     @Test
     fun `a carrier someone reopened is still the carrier`() = runTest {
         val rig = rig()

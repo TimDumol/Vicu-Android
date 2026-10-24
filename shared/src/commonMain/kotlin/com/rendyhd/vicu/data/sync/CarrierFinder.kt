@@ -4,6 +4,7 @@ import com.rendyhd.vicu.data.local.CarrierIdStore
 import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
+import com.rendyhd.vicu.data.remote.api.isBrokenSearch
 import com.rendyhd.vicu.util.CustomListEnvelope
 import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.Logger
@@ -53,12 +54,13 @@ class CarrierSpec(
  *   most once per [DISCOVERY_INTERVAL] and whenever none is known yet. Vikunja 2.4 matches the
  *   marker text inside the HTML comment, done and open tasks alike.
  * - A full scan of the completed tasks is only the fallback: when a remembered id is gone (404 or
- *   403), the first time, and once a day for a server whose search does not look into descriptions.
+ *   403), the first time, and once a day for a server whose search does not look into descriptions
+ *   or answers it with an error ([isBrokenSearch]).
  * - Only the signed-in user's carriers count (`created_by`, section 10.3): a shared project shows
  *   other people's, which are never read, written or deleted.
  *
- * A request that fails for any other reason (offline, a server error) is thrown: nothing can be
- * said about the carriers then, and "no carriers" could make the caller create a second one.
+ * Any other request that fails (offline, a server error) is thrown: nothing can be said about the
+ * carriers then, and "no carriers" could make the caller create a second one.
  */
 class CarrierFinder(
     private val api: VikunjaApiService,
@@ -140,7 +142,15 @@ class CarrierFinder(
 
         if (fullScanDue || searchDue) {
             try {
-                suspend fun search() = api.getAllTasks(mapOf("q" to spec.search, "per_page" to SCAN_PAGE_SIZE), expandSubtasks = false)
+                // A search the server answers with an error finds nothing new: the scan below, or
+                // the one within the last day the remembered ids come from, stands in for it.
+                suspend fun search(): List<TaskDto> = try {
+                    api.getAllTasks(mapOf("q" to spec.search, "per_page" to SCAN_PAGE_SIZE), expandSubtasks = false)
+                } catch (e: VikunjaApiException) {
+                    if (!e.isBrokenSearch) throw e
+                    Logger.w(TAG, "Search for ${spec.kind} carriers failed; going by the last full scan: ${e.message}")
+                    emptyList()
+                }
                 val listing = if (fullScanDue) {
                     val scan = api.getAllTasks(
                         mapOf("filter" to "done = true", "sort_by" to "updated", "order_by" to "desc", "per_page" to SCAN_PAGE_SIZE),

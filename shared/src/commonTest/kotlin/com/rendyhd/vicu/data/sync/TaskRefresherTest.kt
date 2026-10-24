@@ -1,5 +1,6 @@
 package com.rendyhd.vicu.data.sync
 
+import com.rendyhd.vicu.auth.authTestJsonHeaders
 import com.rendyhd.vicu.data.local.entity.TaskEntity
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
@@ -408,6 +409,37 @@ class TaskRefresherTest {
 
         assertEquals("Routine", h.taskDao.entity(51)!!.title)
         assertFalse(outcome.carriersAuthoritative, "an empty search proves nothing about the carriers")
+    }
+
+    /** What Vikunja answers every `q` search with when its ParadeDB extension is older than the library. */
+    private val brokenSearch = """{"title":"Internal Server Error","status":500,"detail":"unexpected error occurred"}"""
+
+    @Test
+    fun `a server that answers the carrier search with an error still finishes the full reconcile`() = runTest {
+        val h = harness()
+        h.server.override = { req ->
+            if (req.query != null) respond(brokenSearch, HttpStatusCode.InternalServerError, authTestJsonHeaders) else null
+        }
+
+        val outcome = h.refresher.refresh()
+
+        assertTrue(outcome.full)
+        assertEquals(listOf(1L, 2L, 4L), h.localIds(), "the open tasks, and the carrier from the done tasks")
+        assertTrue(outcome.carriersAuthoritative, "every done task was listed")
+        assertTrue(h.server.lists().any { it.filter == "done = true" && it.query == null }, "listed instead: ${h.server.lists()}")
+        assertNotNull(h.cursorStore.begin().cursor.tasksUpdatedSince)
+        assertFalse(h.refresher.refresh().full, "the next refresh is incremental again")
+    }
+
+    @Test
+    fun `a carrier search that needs sign-in still fails the reconcile`() = runTest {
+        val h = harness()
+        h.server.override = { req -> if (req.query != null) respond("", HttpStatusCode.Unauthorized) else null }
+
+        assertNotNull(runCatching { h.refresher.refresh() }.exceptionOrNull())
+
+        assertTrue(h.server.lists().none { it.filter == "done = true" && it.query == null }, "no scan for a 401")
+        assertNull(h.cursorStore.begin().cursor.tasksUpdatedSince)
     }
 
     @Test

@@ -34,3 +34,12 @@ class VikunjaApiException(
         ?: problem?.title?.takeIf { it.isNotBlank() }
         ?: "Vikunja request failed (HTTP $httpStatus)",
 )
+
+/**
+ * True when this is the server's answer to a `q` search while the session still works: the
+ * server's search is broken, not the connection or the sign-in. A ParadeDB `pg_search` extension
+ * older than the library Postgres loads answers every search with a 500 ("function
+ * paradedb.ctid_is_valid(tid) does not exist") while listings without `q` keep working, so the
+ * sync lists without `q` instead of failing.
+ */
+val VikunjaApiException.isBrokenSearch: Boolean get() = httpStatus != 401

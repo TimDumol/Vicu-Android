@@ -248,6 +248,24 @@ class RoutineRepositoryArchiveTest {
     }
 
     @Test
+    fun `a server that answers the part search with an error is scanned instead`() = runTest {
+        val rig = RoutineRig(backgroundScope).also { it.signIn() }
+        val earlier = record("2024-12-01")
+        rig.seedCarrier(100, payload(old1, edge, recent, prunedBefore = "2024-12-01"))
+        rig.seedPart(200, RoutineArchivePart(routineId = "r1", part = 1, occurrences = mapOf(earlier.key to earlier)))
+        rig.server.failure = {
+            if (it.method == "GET" && it.path == "/tasks" && "q" in it.query) HttpStatusCode.InternalServerError else null
+        }
+
+        rig.repository.setOccurrenceStatus("r1", "2026-10-06", "s1", OccurrenceStatus.COMPLETED)
+
+        assertEquals(listOf(200L), rig.server.archiveRows().map { it.id }, "the scan found the part: no second one")
+        assertEquals(setOf(earlier.key, old1.key), rig.serverPart(200).occurrences.keys)
+        val listings = rig.server.requests.filter { it.method == "GET" && it.path == "/tasks" }
+        assertEquals(listOf(true, false), listings.map { "q" in it.query }, "one failed search, then one scan")
+    }
+
+    @Test
     fun `when the search shows no part for pruned history one scan of all done tasks double checks`() = runTest {
         val rig = RoutineRig(backgroundScope).also { it.signIn() }
         rig.seedCarrier(100, payload(old1, edge, recent, prunedBefore = "2024-12-01"))

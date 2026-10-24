@@ -22,6 +22,7 @@ import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
 import com.rendyhd.vicu.data.remote.BaseUrlHolder
 import com.rendyhd.vicu.data.repository.ListPositioner
+import com.rendyhd.vicu.data.repository.RoutineCarrierWriter
 import com.rendyhd.vicu.data.repository.TaskWriteGate
 import com.rendyhd.vicu.data.local.entity.TaskEntity
 import com.rendyhd.vicu.data.sync.LabelRefresher
@@ -104,6 +105,7 @@ class SyncEngine(
     private val locations: LocationRepository? = null,
 ) {
     private val missing = MissingResourceCheck(api)
+    private val carrierWriter = RoutineCarrierWriter(api, json)
 
     companion object {
         private const val TAG = "SyncEngine"
@@ -598,32 +600,20 @@ class SyncEngine(
             }
             "update", "toggle_done" -> {
                 val taskId = tempIdMap[action.entityId] ?: action.entityId
-                var patch = json.decodeFromString(
+                val patch = json.decodeFromString(
                     JsonObject.serializer(),
                     normalizeQueuedPatchPayload("task", action.payload),
                 )
                 val localEntity = taskDao.getByIdSync(taskId)
-                if (localEntity != null && RoutineEnvelope.hasMarker(localEntity.description)) {
-                    val localTask = with(taskMapper) { localEntity.toDomain() }
-                    val localParsed = RoutineEnvelope.parse(localTask.description, json)
-                    val remoteTask = with(taskMapper) { api.getTask(taskId).toEntity().toDomain() }
-                    val remoteParsed = RoutineEnvelope.parse(remoteTask.description, json)
-                    // Never over a carrier this version cannot read: the action fails visibly instead.
-                    val mergedPayload = RoutineEnvelope.mergeForWrite(localParsed, remoteParsed)
-                    if (mergedPayload != null) {
-                        val mergedTask = remoteTask.copy(
-                            title = mergedPayload.definition.name,
-                            description = RoutineEnvelope.upsert(remoteParsed.body, mergedPayload, json),
-                            done = true,
-                            dueDate = "",
-                            repeatAfter = 0,
-                            repeatMode = 0,
-                            reminders = emptyList(),
-                        )
-                        patch = MergePatches.task(previous = null, current = mergedTask)
-                    }
+                // A routine carrier is merged with the server's copy and written conditionally
+                // (cross-app semantics 6.8). Never over a carrier this version cannot read: the
+                // writer throws and the action fails visibly instead.
+                val carrierWrite = if (localEntity != null && RoutineEnvelope.hasCarrierMarker(localEntity.description)) {
+                    carrierWriter.write(taskId, localEntity.description).task
+                } else {
+                    null
                 }
-                val responseDto = api.updateTask(taskId, patch)
+                val responseDto = carrierWrite ?: api.updateTask(taskId, patch)
                 val responseEntity = with(taskMapper) { responseDto.toEntity() }
                 taskDao.upsert(responseEntity)
                 val updated = with(taskMapper) { responseEntity.toDomain() }

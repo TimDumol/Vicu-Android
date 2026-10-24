@@ -112,7 +112,7 @@ val repositoryModule = module {
     single { ProjectMapper() }
     single { AttachmentMapper() }
 
-    single { TaskRefresher(taskDao = get(), pendingActionDao = get(), api = get(), taskMapper = get(), platformHooks = get(), cursorStore = get(), time = get(), currentUser = get<AuthManager>()) }
+    single { TaskRefresher(taskDao = get(), pendingActionDao = get(), api = get(), taskMapper = get(), platformHooks = get(), cursorStore = get(), time = get(), currentUser = get<AuthManager>(), routineDeviceId = get<RoutinePrefsStore>()::getOrCreateDeviceId) }
     single {
         LabelRefresher(
             labelDao = get(),
@@ -212,6 +212,7 @@ val repositoryModule = module {
     }
     // A change redraws the widgets that show a project in its order (SyncedPreferences.set does).
     single { TaskOrderPreferences(synced = get<SyncedPreferences>()) }
+    single { RoutinePersonalPreferences(synced = get<SyncedPreferences>()) }
     single<CollaborationRepository> {
         CollaborationRepositoryImpl(
             collaborationDao = get(),
@@ -228,7 +229,14 @@ val repositoryModule = module {
         )
     }
     single { CollaborationSync(api = get(), collaborationDao = get(), pendingActionDao = get(), tokenStorage = get()) }
-    single { RoutineArchiveStore(api = get(), json = get(), currentUser = get<AuthManager>()) }
+    single {
+        RoutineArchiveStore(
+            api = get(),
+            json = get(),
+            currentUser = get<AuthManager>(),
+            readRoutines = RoutineArchiveStore.cachedRoutines(taskDao = get(), json = get()),
+        )
+    }
     single<RoutineRepository> {
         RoutineRepositoryImpl(
             taskDao = get(),
@@ -240,6 +248,9 @@ val repositoryModule = module {
             platformHooks = get(),
             json = get(),
             archiveStore = get(),
+            personal = get(),
+            projectDao = get(),
+            refresher = get(),
         )
     }
 }

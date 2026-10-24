@@ -46,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -109,6 +110,17 @@ import com.rendyhd.vicu.ui.theme.routineMarkColor
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.RoutineDefinitionRules
 import kotlinx.datetime.LocalTime
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.VisibilityOff
+import com.rendyhd.vicu.domain.model.CollabState
+import com.rendyhd.vicu.domain.model.Project
+import com.rendyhd.vicu.domain.model.RoutinePersonalSettings
+import com.rendyhd.vicu.domain.model.User
+import com.rendyhd.vicu.domain.model.toCollabUser
+import com.rendyhd.vicu.ui.components.collab.LocalCollab
+import com.rendyhd.vicu.util.Collaboration
 
 @Composable
 fun RoutinesScreen(
@@ -123,6 +135,7 @@ fun RoutinesScreen(
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val remindersEnabled by viewModel.remindersEnabled.collectAsStateWithLifecycle()
+    val collab = LocalCollab.current
     val snackbar = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -229,7 +242,9 @@ fun RoutinesScreen(
                 }
             }
 
-            item(key = "all_header", contentType = "header") { SectionLabel("ALL ROUTINES") }
+            if (state.active.isNotEmpty()) {
+                item(key = "all_header", contentType = "header") { SectionLabel("ALL ROUTINES") }
+            }
             items(state.active, key = { it.definition.id }, contentType = { "routine" }) { routine ->
                 RoutineDefinitionCard(
                     routine = routine,
@@ -240,6 +255,9 @@ fun RoutinesScreen(
                     onArchive = { viewModel.archive(routine, true) },
                     onDelete = { pendingDelete = routine },
                     onOpenHistory = { historyRoutine = routine },
+                    access = RoutineCardAccess.of(routine, collab.state, state.personal),
+                    onSetMyReminders = { viewModel.setRemindersFor(routine, it) },
+                    onHideForMe = { viewModel.setHidden(routine, true) },
                     modifier = Modifier.padding(horizontal = 12.dp).animateItem(),
                 )
             }
@@ -254,6 +272,9 @@ fun RoutinesScreen(
                         onDelete = { pendingDelete = routine },
                         onOpenHistory = { historyRoutine = routine },
                         archived = true,
+                        access = RoutineCardAccess.of(routine, collab.state, state.personal),
+                        onSetMyReminders = { viewModel.setRemindersFor(routine, it) },
+                        onHideForMe = { viewModel.setHidden(routine, true) },
                         modifier = Modifier.padding(horizontal = 12.dp).animateItem(),
                     )
                 }
@@ -298,9 +319,10 @@ fun RoutinesScreen(
         RoutineEditorDialog(
             routine = editorRoutine,
             saving = state.isSaving,
+            projects = state.projects,
             onDismiss = { if (!state.isSaving) showEditor = false },
-            onSave = { draft ->
-                viewModel.save(draft, editorRoutine?.definition?.id) {
+            onSave = { draft, share ->
+                viewModel.save(draft, editorRoutine?.definition?.id, share) {
                     showEditor = false
                 }
             },
@@ -371,8 +393,12 @@ fun RoutineOccurrenceRow(
 ) {
     val complete = occurrence.status == OccurrenceStatus.COMPLETED
     val skipped = occurrence.status == OccurrenceStatus.SKIPPED
+    val collab = LocalCollab.current
+    // A read-only member of a shared routine's project sees it but cannot tick it off (6.9).
+    val canLog = RoutineSharing.canWrite(occurrence.routine, collab.state)
+    val loggedBy = RoutineSharing.loggedText(occurrence.routine, occurrence.status, occurrence.loggedByUserId, collab.state)
     Card(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onToggle),
+        modifier = modifier.fillMaxWidth().then(if (canLog) Modifier.clickable(onClick = onToggle) else Modifier),
         colors = CardDefaults.cardColors(
             containerColor = if (complete) MaterialTheme.colorScheme.primaryContainer.copy(alpha = .45f)
             else MaterialTheme.colorScheme.surfaceContainerLow,
@@ -382,12 +408,16 @@ fun RoutineOccurrenceRow(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onToggle) {
-                Icon(
-                    if (complete) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                    contentDescription = if (complete) "Undo" else "Complete",
-                    tint = if (complete) MaterialTheme.colorScheme.primary else routineTint(occurrence.routine.definition),
-                )
+            val checkIcon = if (complete) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked
+            val checkTint = if (complete) MaterialTheme.colorScheme.primary else routineTint(occurrence.routine.definition)
+            if (canLog) {
+                IconButton(onClick = onToggle) {
+                    Icon(checkIcon, contentDescription = if (complete) "Undo" else "Complete", tint = checkTint)
+                }
+            } else {
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(checkIcon, contentDescription = if (complete) "Done" else "Not done", tint = checkTint)
+                }
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -399,13 +429,43 @@ fun RoutineOccurrenceRow(
                 val detail = buildList {
                     add(timeText(occurrence.slot.reminderMinutes, LocalDateFormat.current))
                     if (occurrence.status == OccurrenceStatus.NOT_LOGGED) add("Not logged")
-                    if (skipped) add("Skipped")
+                    when {
+                        loggedBy != null -> add(loggedBy)
+                        skipped -> add("Skipped")
+                    }
                 }.joinToString(" · ")
                 Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!complete && !skipped) {
+            if (!complete && !skipped && canLog) {
                 TextButton(onClick = onSkip) { Text("Skip") }
             }
+        }
+    }
+}
+
+/** What the user may do with a routine's card, and its shared line (cross-app semantics 6.9). */
+internal data class RoutineCardAccess(
+    /** "Shared with Maya" or "Shared by Maya"; null while private. */
+    val sharedLine: String? = null,
+    /** The user owns it: share, archive and delete are theirs. */
+    val owner: Boolean = true,
+    /** The user can write to its project: edit and tick it off. */
+    val canWrite: Boolean = true,
+    /** Someone else's shared routine: the user's own reminder switch and Hide apply. */
+    val sharedWithMe: Boolean = false,
+    /** This account's reminders of it are on. */
+    val myRemindersOn: Boolean = true,
+) {
+    companion object {
+        fun of(routine: Routine, state: CollabState, personal: RoutinePersonalSettings): RoutineCardAccess {
+            val owner = RoutineSharing.isOwn(routine, state.me)
+            return RoutineCardAccess(
+                sharedLine = RoutineSharing.cardText(routine, state),
+                owner = owner,
+                canWrite = RoutineSharing.canWrite(routine, state),
+                sharedWithMe = !owner && routine.definition.shared,
+                myRemindersOn = routine.definition.id !in personal.remindersOff,
+            )
         }
     }
 }
@@ -418,6 +478,9 @@ private fun RoutineDefinitionCard(
     onDelete: () -> Unit,
     onOpenHistory: () -> Unit,
     archived: Boolean = false,
+    access: RoutineCardAccess = RoutineCardAccess(),
+    onSetMyReminders: (Boolean) -> Unit = {},
+    onHideForMe: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -442,27 +505,63 @@ private fun RoutineDefinitionCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                access.sharedLine?.let { line ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                        Icon(
+                            Icons.Outlined.Group,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            line,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Outlined.MoreVert, "Routine actions") }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    if (!archived) {
+                    if (!archived && access.canWrite) {
                         DropdownMenuItem(
                             text = { Text("Edit") },
                             leadingIcon = { Icon(Icons.Outlined.Edit, null) },
                             onClick = { menuOpen = false; onEdit() },
                         )
                     }
-                    DropdownMenuItem(
-                        text = { Text(if (archived) "Restore" else "Archive") },
-                        leadingIcon = { Icon(if (archived) Icons.Outlined.Restore else Icons.Outlined.Archive, null) },
-                        onClick = { menuOpen = false; onArchive() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
-                        onClick = { menuOpen = false; onDelete() },
-                    )
+                    if (access.sharedWithMe && access.canWrite && !archived) {
+                        DropdownMenuItem(
+                            text = { Text(if (access.myRemindersOn) "Turn off my reminders" else "Turn on my reminders") },
+                            leadingIcon = {
+                                Icon(if (access.myRemindersOn) Icons.Outlined.NotificationsOff else Icons.Outlined.NotificationsActive, null)
+                            },
+                            onClick = { menuOpen = false; onSetMyReminders(!access.myRemindersOn) },
+                        )
+                    }
+                    if (access.sharedWithMe) {
+                        DropdownMenuItem(
+                            text = { Text("Hide for me") },
+                            leadingIcon = { Icon(Icons.Outlined.VisibilityOff, null) },
+                            onClick = { menuOpen = false; onHideForMe() },
+                        )
+                    }
+                    if (access.owner) {
+                        DropdownMenuItem(
+                            text = { Text(if (archived) "Restore" else "Archive") },
+                            leadingIcon = { Icon(if (archived) Icons.Outlined.Restore else Icons.Outlined.Archive, null) },
+                            onClick = { menuOpen = false; onArchive() },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) },
+                            onClick = { menuOpen = false; onDelete() },
+                        )
+                    }
                 }
             }
         }
@@ -488,6 +587,7 @@ private fun RoutineHistoryDialog(
     val adherence = if (logged.isEmpty()) 0 else (completed * 100 / logged.size)
     val historyToday = LocalToday.current
     val dateFormat = LocalDateFormat.current
+    val collab = LocalCollab.current
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp),
@@ -523,7 +623,8 @@ private fun RoutineHistoryDialog(
                                         style = MaterialTheme.typography.bodyMedium,
                                     )
                                     Text(
-                                        record.status.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
+                                        RoutineSharing.loggedText(routine, record.status, record.loggedByUserId, collab.state)
+                                            ?: record.status.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -563,8 +664,9 @@ private fun followUpText(minutes: Int): String =
 private fun RoutineEditorDialog(
     routine: Routine?,
     saving: Boolean,
+    projects: List<Project>,
     onDismiss: () -> Unit,
-    onSave: (RoutineDraft) -> Unit,
+    onSave: (RoutineDraft, ShareChoice) -> Unit,
 ) {
     val definition = routine?.definition
     val dateFormat = LocalDateFormat.current
@@ -592,7 +694,10 @@ private fun RoutineEditorDialog(
         mutableStateOf(existingCalendar?.weekdays?.takeIf { it.size < 7 } ?: emptySet())
     }
     val intervalDays = interval.toIntOrNull()
-    val valid = name.isNotBlank() && times.isNotEmpty() &&
+    var share by remember(routine) { mutableStateOf<ShareChoice>(ShareChoice.Unchanged) }
+    // A person picked who is in several projects waits for the project.
+    var shareComplete by remember(routine) { mutableStateOf(true) }
+    val valid = name.isNotBlank() && times.isNotEmpty() && shareComplete &&
         (!afterCompletion || (intervalDays != null && intervalDays in 1..365))
 
     Dialog(onDismissRequest = onDismiss) {
@@ -745,6 +850,16 @@ private fun RoutineEditorDialog(
                     Spacer(Modifier.height(14.dp))
                     EditorLabel("COLOR")
                     IconColorPicker(selectedHex = color, onSelect = { color = it })
+
+                    Spacer(Modifier.height(14.dp))
+                    ShareWithField(
+                        routine = routine,
+                        projects = projects,
+                        onChange = { choice, complete ->
+                            share = choice
+                            shareComplete = complete
+                        },
+                    )
                 }
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -787,6 +902,7 @@ private fun RoutineEditorDialog(
                                     schedule = schedule,
                                     slots = slots,
                                 ),
+                                share,
                             )
                         },
                     ) { Text(if (saving) "Saving…" else "Save") }
@@ -820,6 +936,194 @@ private fun RoutineEditorDialog(
             )
         }
     }
+}
+
+/**
+ * "Share with" (cross-app semantics 6.9): "Only you" or a person the user already shares a project
+ * with, the "Visible to" line, and the project that will hold it, chosen when the person is in more
+ * than one. The owner changes it; a member sees who shared it. [onChange] gets the choice and
+ * whether it is complete (a project picked).
+ */
+@Composable
+private fun ShareWithField(
+    routine: Routine?,
+    projects: List<Project>,
+    onChange: (ShareChoice, complete: Boolean) -> Unit,
+) {
+    val collab = LocalCollab.current
+    val state = collab.state
+    var explaining by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        EditorLabel("SHARE WITH")
+        IconButton(onClick = { explaining = true }) {
+            Icon(Icons.Outlined.Info, contentDescription = "About sharing a routine", modifier = Modifier.size(18.dp))
+        }
+    }
+    if (explaining) {
+        AlertDialog(
+            onDismissRequest = { explaining = false },
+            title = { Text("Sharing a routine") },
+            text = { Text(RoutineSharing.EXPLANATION) },
+            confirmButton = { TextButton(onClick = { explaining = false }) { Text("OK") } },
+        )
+    }
+
+    if (routine != null && !RoutineSharing.isOwn(routine, state.me)) {
+        // A member: who shared it and who sees it, nothing to change.
+        Text(RoutineSharing.sharedByText(routine, state), style = MaterialTheme.typography.bodyMedium)
+        VisibleToLine(state.access(routine.projectId).members, state.me)
+        return
+    }
+
+    val eligible = remember(state, projects) { RoutineSharing.eligibleProjects(state, projects) }
+    var permissions by remember { mutableStateOf<Map<Long, Map<Long, Int?>>>(emptyMap()) }
+    LaunchedEffect(eligible.map { it.project.id }) {
+        permissions = eligible.associate { it.project.id to runCatching { collab.memberPermissions(it.project.id) }.getOrDefault(emptyMap()) }
+    }
+    val people = remember(eligible, permissions, state.me) { RoutineSharing.people(eligible, state.me, permissions) }
+    val sharedNow = routine?.let { RoutineSharing.isShared(it, state) } == true
+    val currentProject = routine?.projectId ?: 0L
+    // Until the user picks something the routine stays as it is, also while the people of its
+    // project are not known yet: saving then never stops sharing by accident.
+    var touched by remember(routine) { mutableStateOf(false) }
+    var pickedPerson by remember(routine) { mutableStateOf<Long?>(null) }
+    var pickedProject by remember(routine) { mutableStateOf<Long?>(null) }
+    val personId = if (touched) {
+        pickedPerson
+    } else if (sharedNow) {
+        people.firstOrNull { p -> p.projects.any { it.project.id == currentProject } }?.person?.id
+    } else {
+        null
+    }
+    val projectId = if (touched) pickedProject else if (sharedNow) currentProject else null
+    val person = people.firstOrNull { it.person.id == personId }
+    LaunchedEffect(touched, pickedPerson, pickedProject) {
+        when {
+            !touched -> onChange(ShareChoice.Unchanged, true)
+            pickedPerson == null ->
+                onChange(if (routine?.definition?.shared == true) ShareChoice.OnlyYou else ShareChoice.Unchanged, true)
+            pickedProject == null -> onChange(ShareChoice.Unchanged, false)
+            else -> onChange(ShareChoice.Through(pickedProject!!), true)
+        }
+    }
+
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(
+            onClick = { menuOpen = true },
+            modifier = Modifier.fillMaxWidth().semantics {
+                contentDescription = "Share with: ${person?.let { Collaboration.displayName(it.person.toCollabUser()) } ?: "Only you"}"
+            },
+        ) {
+            Text(
+                person?.let { Collaboration.displayName(it.person.toCollabUser()) } ?: "Only you",
+                modifier = Modifier.weight(1f),
+            )
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text("Only you") },
+                onClick = {
+                    menuOpen = false
+                    touched = true
+                    pickedPerson = null
+                    pickedProject = null
+                },
+            )
+            people.forEach { option ->
+                DropdownMenuItem(
+                    enabled = option.canPick,
+                    text = {
+                        Column {
+                            Text(Collaboration.displayName(option.person.toCollabUser()))
+                            if (!option.canPick) {
+                                Text("Can view only", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    },
+                    onClick = {
+                        menuOpen = false
+                        touched = true
+                        pickedPerson = option.person.id
+                        val offered = RoutineSharing.projectsFor(option, currentProject)
+                        pickedProject = RoutineSharing.projectWithoutAsking(option)?.project?.id
+                            ?: offered.firstOrNull { it.project.id == currentProject }?.project?.id
+                    },
+                )
+            }
+        }
+    }
+    if (people.isEmpty()) {
+        Text(
+            "Share a project with someone first; then you can share routines with them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    val picked = person ?: return
+    val offered = RoutineSharing.projectsFor(picked, currentProject)
+    val chosen = offered.firstOrNull { it.project.id == projectId }
+    if (offered.size == 1) {
+        VisibleToLine(offered.single().members, state.me, keptIn = offered.single().project.title)
+    } else {
+        Spacer(Modifier.height(8.dp))
+        EditorLabel("KEEP IN")
+        offered.forEach { option ->
+            val selected = option.project.id == projectId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clickable {
+                        touched = true
+                        pickedPerson = picked.person.id
+                        pickedProject = option.project.id
+                    }
+                    .semantics { contentDescription = keepInLabel(option, state.me, selected) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = selected, onClick = null)
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        if (option.yours) "${option.project.title} · Yours" else option.project.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        Collaboration.visibleToText(option.members.map { it.toCollabUser() }, state.me),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        if (chosen == null) {
+            Text(
+                "Choose the project to keep it in",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+private fun keepInLabel(option: ShareProjectOption, me: Long?, selected: Boolean): String = buildString {
+    append(option.project.title)
+    if (option.yours) append(", yours")
+    append(", ")
+    append(Collaboration.visibleToText(option.members.map { it.toCollabUser() }, me))
+    if (selected) append(", selected")
+}
+
+@Composable
+private fun VisibleToLine(members: List<User>, me: Long?, keptIn: String? = null) {
+    val visible = Collaboration.visibleToText(members.map { it.toCollabUser() }, me)
+    Text(
+        listOfNotNull(visible.takeIf { it.isNotEmpty() }, keptIn?.let { "Kept in $it" }).joinToString(" · "),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

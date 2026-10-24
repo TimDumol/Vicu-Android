@@ -77,6 +77,8 @@ class TaskRepositoryImpl(
     private val mappingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : TaskRepository {
 
+    private val carrierWriter = RoutineCarrierWriter(api, json)
+
     companion object {
         private const val TAG = "TaskRepoImpl"
 
@@ -502,29 +504,14 @@ class TaskRepositoryImpl(
     }
 
     private suspend fun sendUpdate(task: Task, patch: JsonObject): NetworkResult<Task> {
-        val requestPatch = if (RoutineEnvelope.hasMarker(task.description)) {
-            val localParsed = RoutineEnvelope.parse(task.description, json)
-            val remoteTask = with(taskMapper) { api.getTask(task.id).toEntity().toDomain() }
-            val remoteParsed = RoutineEnvelope.parse(remoteTask.description, json)
-            val mergedPayload = RoutineEnvelope.mergeForWrite(localParsed, remoteParsed)
-            if (mergedPayload != null) {
-                val mergedTask = remoteTask.copy(
-                    title = mergedPayload.definition.name,
-                    description = RoutineEnvelope.upsert(remoteParsed.body, mergedPayload, json),
-                    done = true,
-                    dueDate = "",
-                    repeatAfter = 0,
-                    repeatMode = 0,
-                    reminders = emptyList(),
-                )
-                MergePatches.task(previous = null, current = mergedTask)
-            } else {
-                patch
-            }
+        // A routine carrier is merged with the server's copy and written conditionally, so a
+        // change another device or person made meanwhile is kept (cross-app semantics 6.8).
+        val carrierWrite = if (RoutineEnvelope.hasCarrierMarker(task.description)) {
+            carrierWriter.write(task.id, task.description).task
         } else {
-            patch
+            null
         }
-        val responseDto = api.updateTask(task.id, requestPatch)
+        val responseDto = carrierWrite ?: api.updateTask(task.id, patch)
         val responseEntity = with(taskMapper) { responseDto.toEntity() }
         taskDao.upsert(responseEntity)
 

@@ -6,6 +6,12 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** One request a test server saw. */
 data class Req(val method: String, val path: String, val params: Map<String, List<String>>) {
@@ -18,8 +24,8 @@ data class Req(val method: String, val path: String, val params: Map<String, Lis
 /**
  * A small in-memory Vikunja task list: `GET /tasks` with the filters, sorting and paging the
  * refresh code uses (`done = true|false`, `updated >= '...'`, `done_at >= '...'`, `q`, `sort_by`,
- * `order_by`, `page`, `per_page`) and `GET /tasks/{id}`. Everything else is a 404 the test can
- * override with [override].
+ * `order_by`, `page`, `per_page`), `GET /tasks/{id}` and a JSON Patch to `PATCH /tasks/{id}`.
+ * Everything else is a 404 the test can override with [override].
  */
 class TaskListServer {
     class T(
@@ -109,6 +115,24 @@ class TaskListServer {
                     HttpStatusCode.OK,
                     authTestJsonHeaders,
                 )
+            }
+            // A routine carrier write (cross-app semantics 6.8): a JSON Patch whose `test` must hold.
+            req.method == "PATCH" && single != null && tasks[single] != null -> {
+                val task = tasks.getValue(single)
+                val operations = Json.parseToJsonElement((request.body as TextContent).text).jsonArray.map { it.jsonObject }
+                val test = operations.firstOrNull { it["op"]?.jsonPrimitive?.content == "test" }
+                if (test != null && test["value"]?.jsonPrimitive?.content != task.description) {
+                    return respond("""{"title":"Unprocessable","status":422}""", HttpStatusCode.UnprocessableEntity, authTestJsonHeaders)
+                }
+                for (operation in operations.filter { it["op"]?.jsonPrimitive?.content == "replace" }) {
+                    val value = operation["value"] as? JsonPrimitive ?: continue
+                    when (operation["path"]?.jsonPrimitive?.content) {
+                        "/description" -> task.description = value.content
+                        "/title" -> task.title = value.content
+                        "/done" -> task.done = value.content.toBoolean()
+                    }
+                }
+                respond(task.toJson(), HttpStatusCode.OK, authTestJsonHeaders)
             }
             req.method == "GET" && single != null ->
                 tasks[single]?.let { respond(it.toJson(), HttpStatusCode.OK, authTestJsonHeaders) }

@@ -159,6 +159,7 @@ object RoutineScheduleEngine {
                 },
                 loggedAt = record?.loggedAt.orEmpty(),
                 note = record?.note.orEmpty(),
+                loggedByUserId = record?.loggedByUserId,
             )
         }
     }

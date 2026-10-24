@@ -113,6 +113,7 @@ class DayFollowingViewModelsTest {
             prefsStore = RoutinePrefsStore(InMemoryPreferencesDataStore()),
             platformHooks = RecordingRepositoryHooks(),
             dayClock = dayClock("2026-10-06T23:30:00Z"),
+            projectRepository = FakeProjectRepository(),
         )
         backgroundScope.launch { vm.uiState.collect { } }
         runCurrent()
@@ -135,6 +136,7 @@ class DayFollowingViewModelsTest {
             prefsStore = RoutinePrefsStore(InMemoryPreferencesDataStore()),
             platformHooks = RecordingRepositoryHooks(),
             dayClock = dayClock("2026-12-31T08:00:00Z"),
+            projectRepository = FakeProjectRepository(),
         )
 
         assertEquals("2026-12-31", vm.uiState.value.day.date)

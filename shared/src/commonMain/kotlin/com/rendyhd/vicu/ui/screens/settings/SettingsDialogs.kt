@@ -34,6 +34,7 @@ import com.rendyhd.vicu.ui.components.shared.ArchiveProjectDialog
 import com.rendyhd.vicu.ui.components.shared.TaskOrderDialog
 import com.rendyhd.vicu.ui.components.shared.BottomBarSlotEditor
 import com.rendyhd.vicu.ui.components.shared.DeleteProjectDialog
+import com.rendyhd.vicu.ui.screens.routines.rememberSharedRoutineNames
 import com.rendyhd.vicu.ui.components.shared.CustomListDialog
 import com.rendyhd.vicu.ui.components.shared.LabelEditDialog
 import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
@@ -189,6 +190,7 @@ internal fun SettingsDialogHost(
                         dismiss()
                     },
                     onDismiss = dismiss,
+                    sharedRoutineNames = rememberSharedRoutineNames(project.id),
                 )
             }
         }
@@ -202,6 +204,7 @@ internal fun SettingsDialogHost(
                     dismiss()
                 },
                 onDismiss = dismiss,
+                sharedRoutineNames = rememberSharedRoutineNames(project.id),
             )
         }
 

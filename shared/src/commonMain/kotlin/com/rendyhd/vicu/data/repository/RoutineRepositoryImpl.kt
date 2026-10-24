@@ -2,10 +2,12 @@ package com.rendyhd.vicu.data.repository
 
 import com.rendyhd.vicu.auth.AuthManager
 import com.rendyhd.vicu.data.local.RoutinePrefsStore
+import com.rendyhd.vicu.data.local.dao.ProjectDao
 import com.rendyhd.vicu.data.local.dao.RoutineArchiveDao
 import com.rendyhd.vicu.data.local.dao.TaskDao
 import com.rendyhd.vicu.data.local.entity.RoutineOccurrenceArchiveEntity
 import com.rendyhd.vicu.data.mapper.TaskMapper
+import com.rendyhd.vicu.data.sync.TaskRefresher
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.Routine
 import com.rendyhd.vicu.domain.model.RoutineArchivePart
@@ -13,8 +15,10 @@ import com.rendyhd.vicu.domain.model.RoutineDay
 import com.rendyhd.vicu.domain.model.RoutineDefinition
 import com.rendyhd.vicu.domain.model.RoutineDraft
 import com.rendyhd.vicu.domain.model.RoutineKind
+import com.rendyhd.vicu.domain.model.RoutineLoggedBy
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePayload
+import com.rendyhd.vicu.domain.model.RoutinePersonalSettings
 import com.rendyhd.vicu.domain.model.RoutineSchedule
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
@@ -24,12 +28,14 @@ import com.rendyhd.vicu.domain.repository.RoutineRepository
 import com.rendyhd.vicu.domain.repository.TaskRepository
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.NetworkResult
+import com.rendyhd.vicu.util.Permission
 import com.rendyhd.vicu.util.RoutineArchive
 import com.rendyhd.vicu.util.RoutineCsv
 import com.rendyhd.vicu.util.RoutineDefinitionRules
 import com.rendyhd.vicu.util.RoutineEnvelope
 import com.rendyhd.vicu.util.RoutineScheduleEngine
 import com.rendyhd.vicu.util.RoutineTime
+import com.rendyhd.vicu.util.SharedRoutines
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.util.isNetworkFailure
@@ -45,6 +51,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -83,9 +90,18 @@ class RoutineRepositoryImpl(
     private val time: TimeSource = SystemTimeSource,
     /** Where carrier descriptions are parsed and a day is laid out: off the main thread. */
     private val mappingDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /** This account's choices about routines shared with it; none: nothing hidden, every reminder on. */
+    private val personal: RoutinePersonalPreferences? = null,
+    /** Project permissions, for who is reminded; none: every project counts as writable. */
+    private val projectDao: ProjectDao? = null,
+    /** Reads one carrier into the cache before a shared routine's reminder rings; none in tests. */
+    private val refresher: TaskRefresher? = null,
 ) : RoutineRepository {
     private companion object {
         const val TAG = "RoutineRepository"
+        const val OWNER_ONLY = "Only the person who shared this routine can do that."
+        const val READ_ONLY = "You can view this routine, but not tick it off."
+        const val SHARE_NEEDS_SERVER = "Connect to your server to change who this routine is shared with."
     }
 
     private data class ParsedCarriers(
@@ -104,17 +120,21 @@ class RoutineRepositoryImpl(
     private val parsedFlow: Flow<ParsedCarriers> = taskDao.getRoutineCarriersFlow().map { entities ->
         val routines = mutableListOf<Routine>()
         val issues = mutableListOf<RoutineParseIssue>()
-        // Another user's routine (a carrier in a shared project) is theirs, not this account's
-        // (docs/cross-app-semantics-v1.md, section 10.3). A row created offline has no creator yet.
+        // Another user's routine (a carrier in a shared project) is theirs, not this account's,
+        // unless they shared it (docs/cross-app-semantics-v1.md, sections 6.9 and 10.3). A row
+        // created offline has no creator yet.
         val me = authManager.knownId()
-        entities.filter { me == null || it.createdById <= 0L || it.createdById == me }.forEach { entity ->
+        entities.forEach { entity ->
             val parsed = RoutineEnvelope.parse(entity.description, json)
             // An archive part is metadata too, but not a routine and not damaged.
             if (!parsed.isCarrier) return@forEach
             val payload = parsed.payload
+            val own = SharedRoutines.readsCarrier(entity.createdById, me, shared = false)
             if (payload != null) {
-                routines += Routine(entity.id, payload)
-            } else {
+                if (own || payload.definition.shared) {
+                    routines += Routine(entity.id, payload, projectId = entity.projectId, ownerId = entity.createdById)
+                }
+            } else if (own) {
                 issues += RoutineParseIssue(
                     taskId = entity.id,
                     title = entity.title,
@@ -129,22 +149,64 @@ class RoutineRepositoryImpl(
         )
     }.flowOn(mappingDispatcher)
 
+    private val personalFlow: Flow<RoutinePersonalSettings> =
+        personal?.settings ?: flowOf(RoutinePersonalSettings())
+
+    /** True for a routine of this account's, as opposed to one another user shared with it. */
+    private suspend fun isOwn(routine: Routine): Boolean =
+        SharedRoutines.readsCarrier(routine.ownerId, authManager.knownId(), shared = false)
+
+    /** In a project this account can only read (permission 0, or archived). */
+    private suspend fun isReadOnly(routine: Routine): Boolean {
+        val project = projectDao?.getByIdSync(routine.projectId) ?: return false
+        return project.isArchived || project.maxPermission == Permission.READ
+    }
+
+    /** Hiding applies to routines other users shared; an owner cannot hide their own. */
+    private suspend fun isHiddenHere(routine: Routine, settings: RoutinePersonalSettings): Boolean =
+        routine.definition.id in settings.hidden && !isOwn(routine)
+
+    /** The routines this account reads, without the ones it hid. */
+    private val shownFlow: Flow<List<Routine>> = combine(parsedFlow, personalFlow) { parsed, settings ->
+        parsed.routines.filterNot { isHiddenHere(it, settings) }
+    }
+
     override fun observeActive(): Flow<List<Routine>> =
-        parsedFlow.map { parsed -> parsed.routines.filterNot { it.definition.archived } }
+        shownFlow.map { routines -> routines.filterNot { it.definition.archived } }
 
     override fun observeArchived(): Flow<List<Routine>> =
-        parsedFlow.map { parsed -> parsed.routines.filter { it.definition.archived } }
+        shownFlow.map { routines -> routines.filter { it.definition.archived } }
+
+    override fun observeHidden(): Flow<List<Routine>> = combine(parsedFlow, personalFlow) { parsed, settings ->
+        parsed.routines.filter { isHiddenHere(it, settings) }
+    }
+
+    override fun observePersonalSettings(): Flow<RoutinePersonalSettings> = personalFlow
+
+    override fun observeReminderRoutines(): Flow<List<Routine>> {
+        val projects = projectDao?.getAllIncludingArchived() ?: flowOf(emptyList())
+        return combine(observeActive(), personalFlow, projects) { routines, settings, projectList ->
+            val byId = projectList.associateBy { it.id }
+            routines.filter { routine ->
+                val project = byId[routine.projectId]
+                // A read-only member cannot tick it off, so it does not ring for them (section
+                // 6.9). An archived project is read only too; an unknown one counts as writable.
+                val canWrite = project == null || (!project.isArchived && project.maxPermission != Permission.READ)
+                canWrite && (isOwn(routine) || routine.definition.id !in settings.remindersOff)
+            }
+        }
+    }
 
     override fun observeRoutine(routineId: String): Flow<Routine?> =
         parsedFlow.map { parsed -> parsed.routines.firstOrNull { it.definition.id == routineId } }
 
     override fun observeIssues(): Flow<List<RoutineParseIssue>> = parsedFlow.map { it.issues }
 
-    override fun observeDay(date: String): Flow<RoutineDay> = parsedFlow.map { parsed ->
+    override fun observeDay(date: String): Flow<RoutineDay> = shownFlow.map { routines ->
         val localDate = LocalDate.parse(date)
         val today = today()
         val zone = time.zone()
-        val occurrences = parsed.routines
+        val occurrences = routines
             .asSequence()
             .filterNot { it.definition.archived }
             .flatMap { routine ->
@@ -301,6 +363,9 @@ class RoutineRepositoryImpl(
         note: String,
     ): NetworkResult<Routine> {
         val routine = findRoutine(routineId) ?: return NetworkResult.Error("Routine not found")
+        // A read-only member sees a shared routine but cannot tick it off (section 6.9); a widget
+        // or a notification must not queue a change the server will refuse.
+        if (isReadOnly(routine)) return NetworkResult.Error(READ_ONLY)
         val slot = routine.definition.slots.firstOrNull { it.id == slotId }
             ?: return NetworkResult.Error("Routine slot not found")
         val localDate = runCatching { LocalDate.parse(date) }.getOrNull()
@@ -323,7 +388,11 @@ class RoutineRepositoryImpl(
             deviceId = deviceId,
             timeZone = time.zone(),
             note = note,
-        )
+        ).let { record ->
+            // Who did it, on a shared routine (section 6.9).
+            val me = authManager.knownId()
+            if (routine.definition.shared && me != null) record.copy(loggedBy = RoutineLoggedBy(me, deviceId)) else record
+        }
         val updated = routine.copy(
             payload = routine.payload.copy(
                 occurrences = routine.payload.occurrences + (record.key to record),
@@ -334,6 +403,7 @@ class RoutineRepositoryImpl(
 
     override suspend fun archive(routineId: String, archived: Boolean): NetworkResult<Routine> {
         val routine = findRoutine(routineId) ?: return NetworkResult.Error("Routine not found")
+        if (!isOwn(routine)) return NetworkResult.Error(OWNER_ONLY)
         val now = RoutineTime.now(time)
         val deviceId = prefsStore.getOrCreateDeviceId()
         val updated = routine.copy(
@@ -350,6 +420,7 @@ class RoutineRepositoryImpl(
 
     override suspend fun deletePermanently(routineId: String): NetworkResult<Unit> {
         val routine = findRoutine(routineId) ?: return NetworkResult.Error("Routine not found")
+        if (!isOwn(routine)) return NetworkResult.Error(OWNER_ONLY)
         return archiveMutex.withLock {
             // The parts go first: if one cannot be deleted the routine stays and the delete can
             // be retried, instead of leaving parts that nobody can reach. A routine that never
@@ -440,6 +511,78 @@ class RoutineRepositoryImpl(
         return RoutineCsvExport(csv, complete)
     }
 
+    // --- Sharing (docs/cross-app-semantics-v1.md, section 6.9) ------------------------------------
+
+    override suspend fun share(routineId: String, projectId: Long): NetworkResult<Routine> =
+        moveSharing(routineId, shared = true, projectId = { projectId })
+
+    override suspend fun stopSharing(routineId: String): NetworkResult<Routine> =
+        moveSharing(routineId, shared = false, projectId = { authManager.getInboxProjectId() })
+
+    /**
+     * Sets the flag and moves the routine with its history. Sharing moves the archive parts first,
+     * so the people of the project can read the whole history once they see the routine; stopping
+     * moves the carrier first, so nobody keeps writing to it while its parts move.
+     */
+    private suspend fun moveSharing(
+        routineId: String,
+        shared: Boolean,
+        projectId: suspend () -> Long?,
+    ): NetworkResult<Routine> {
+        val routine = findRoutine(routineId) ?: return NetworkResult.Error("Routine not found")
+        if (!isOwn(routine)) return NetworkResult.Error(OWNER_ONLY)
+        // A routine created offline has no carrier on the server yet.
+        if (routine.taskId <= 0L) return NetworkResult.Error(SHARE_NEEDS_SERVER)
+        val target = projectId()?.takeIf { it > 0L }
+            ?: return NetworkResult.Error("Choose an inbox project before you stop sharing routines")
+        val entity = taskDao.getByIdSync(routine.taskId) ?: return NetworkResult.Error("Routine carrier not found")
+        val hasParts = routine.payload.prunedBefore.isNotEmpty()
+        return archiveMutex.withLock {
+            try {
+                if (shared && hasParts) archiveStore.moveParts(routineId, target, expectParts = true)
+                // Read while the routine is still shared: another member's parts move back too.
+                val partsToFollow = if (!shared && hasParts) archiveStore.partTaskIds(routineId, expectParts = true) else emptyList()
+                val now = RoutineTime.now(time)
+                val deviceId = prefsStore.getOrCreateDeviceId()
+                val written = archiveStore.carrierWriter.write(routine.taskId, entity.description, projectId = target) { merged ->
+                    merged.copy(definition = merged.definition.copy(shared = shared, updatedAt = now, updatedBy = deviceId))
+                }.task ?: return@withLock NetworkResult.Error("Routine carrier not found")
+                val stored = with(taskMapper) { written.toEntity() }
+                taskDao.upsert(stored)
+                if (partsToFollow.isNotEmpty()) archiveStore.moveParts(partsToFollow, target)
+                platformHooks.routinesChanged()
+                val payload = RoutineEnvelope.parse(stored.description, json).payload ?: routine.payload
+                NetworkResult.Success(Routine(stored.id, payload, projectId = stored.projectId, ownerId = stored.createdById))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RoutineEnvelope.UnreadableCarrierException) {
+                NetworkResult.Error(e.message ?: "This routine cannot be changed")
+            } catch (e: Exception) {
+                Logger.w(TAG, "Could not change the sharing of routine $routineId: ${e.message}")
+                if (isNetworkFailure(e) || isRetriableNetworkError(e)) {
+                    NetworkResult.Error(SHARE_NEEDS_SERVER)
+                } else {
+                    NetworkResult.Error(e.message ?: "The routine's sharing could not be changed")
+                }
+            }
+        }
+    }
+
+    override suspend fun setRemindersEnabled(routineId: String, enabled: Boolean) {
+        personal?.setRemindersEnabled(routineId, enabled) ?: return
+        platformHooks.routinesChanged()
+    }
+
+    override suspend fun setHidden(routineId: String, hidden: Boolean) {
+        personal?.setHidden(routineId, hidden) ?: return
+        platformHooks.routinesChanged()
+    }
+
+    override suspend fun refreshRoutine(routineId: String): Boolean {
+        val routine = findRoutine(routineId)?.takeIf { it.taskId > 0L } ?: return false
+        return refresher?.refreshCarrier(routine.taskId) ?: false
+    }
+
     // --- Phone-only history from versions before 1.9 -------------------------------------------
 
     override suspend fun migrateLocalArchive(carriersAuthoritative: Boolean): NetworkResult<Unit> =
@@ -480,10 +623,14 @@ class RoutineRepositoryImpl(
 
     // --- Reading carriers --------------------------------------------------------------------
 
-    private suspend fun loadCarrierRoutines(): List<Routine> =
-        taskDao.getRoutineCarriersSync().mapNotNull { entity ->
-            RoutineEnvelope.parse(entity.description, json).payload?.let { Routine(entity.id, it) }
+    private suspend fun loadCarrierRoutines(): List<Routine> {
+        val me = authManager.knownId()
+        return taskDao.getRoutineCarriersSync().mapNotNull { entity ->
+            RoutineEnvelope.parse(entity.description, json).payload
+                ?.takeIf { SharedRoutines.readsCarrier(entity.createdById, me, it.definition.shared) }
+                ?.let { Routine(entity.id, it, projectId = entity.projectId, ownerId = entity.createdById) }
         }
+    }
 
     private suspend fun findRoutine(routineId: String): Routine? =
         loadCarrierRoutines().firstOrNull { it.definition.id == routineId }
@@ -617,7 +764,6 @@ class RoutineRepositoryImpl(
             prunedBefore,
         ).max()
         val deviceId = prefsStore.getOrCreateDeviceId()
-        val now = RoutineTime.now(time)
         var date = oldest
         var occurrences = routine.payload.occurrences
         var changed = false
@@ -629,12 +775,14 @@ class RoutineRepositoryImpl(
                 today,
             ).forEach { occurrence ->
                 if (occurrence.key !in occurrences) {
+                    // A placeholder: any record a person wrote wins against it, also one this
+                    // device has not seen yet (cross-app semantics 6.3).
                     val record = RoutineScheduleEngine.recordFor(
                         routine,
                         date,
                         occurrence.slot,
                         OccurrenceStatus.NOT_LOGGED,
-                        now,
+                        SharedRoutines.PLACEHOLDER_MODIFIED_AT,
                         deviceId,
                         zone,
                     )

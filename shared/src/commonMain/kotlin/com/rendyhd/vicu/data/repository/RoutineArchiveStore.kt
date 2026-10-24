@@ -1,6 +1,7 @@
 package com.rendyhd.vicu.data.repository
 
 import com.rendyhd.vicu.auth.CurrentUser
+import com.rendyhd.vicu.data.local.dao.TaskDao
 import com.rendyhd.vicu.data.remote.api.CreateTaskDto
 import com.rendyhd.vicu.data.remote.api.MergePatches
 import com.rendyhd.vicu.data.remote.api.TaskDto
@@ -13,6 +14,7 @@ import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.RoutineArchive
 import com.rendyhd.vicu.util.RoutineEnvelope
 import com.rendyhd.vicu.util.RoutineScheduleEngine
+import com.rendyhd.vicu.util.SharedRoutines
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -35,12 +37,27 @@ import kotlinx.serialization.json.put
 class RoutineArchiveStore(
     private val api: VikunjaApiService,
     private val json: Json,
-    /** Only the user's own parts count; a shared project can hold another user's. */
+    /** Only the user's own parts count, and other users' parts of a shared routine. */
     private val currentUser: CurrentUser = CurrentUser.fixed(null),
+    /**
+     * The routines this account reads, routine id to whether it is shared (section 6.9), or null
+     * to count every part of the account's own (a store without a routine source, in tests).
+     */
+    private val readRoutines: (suspend () -> Map<String, Boolean>)? = null,
 ) {
-    private companion object {
-        const val TAG = "RoutineArchive"
-        const val NOT_FOUND = 404
+    /** Conditional carrier writes (section 6.8), for the routine repository's sharing. */
+    val carrierWriter = RoutineCarrierWriter(api, json)
+
+    companion object {
+        private const val TAG = "RoutineArchive"
+        private const val NOT_FOUND = 404
+
+        /** The routines in the task cache: the ones this account reads, with whether each is shared. */
+        fun cachedRoutines(taskDao: TaskDao, json: Json): suspend () -> Map<String, Boolean> = {
+            taskDao.getRoutineCarriersSync().mapNotNull { entity ->
+                RoutineEnvelope.parse(entity.description, json).payload?.definition
+            }.associate { it.id to it.shared }
+        }
     }
 
     /**
@@ -61,6 +78,23 @@ class RoutineArchiveStore(
     private fun isMine(task: TaskDto, me: Long?): Boolean =
         me == null || task.createdBy == null || task.createdBy.id <= 0L || task.createdBy.id == me
 
+    /**
+     * The parts this account reads (section 6.9): every part of a routine it reads, whoever
+     * wrote it. Without a routine source, its own only.
+     */
+    private suspend fun counted(tasks: List<TaskDto>, me: Long?): List<RoutineArchive.PartRef> {
+        val routines = readRoutines?.invoke()
+        return tasks.mapNotNull { task ->
+            val part = RoutineEnvelope.parseArchive(task.description, json).part ?: return@mapNotNull null
+            val counts = if (routines == null) {
+                isMine(task, me)
+            } else {
+                SharedRoutines.countsPart(part.routineId, routines)
+            }
+            if (counts) RoutineArchive.PartRef(task.id, part) else null
+        }
+    }
+
     /** The task as the server holds it right now (the freshest copy of a main carrier). */
     suspend fun fetchTask(taskId: Long): TaskDto = api.getTask(taskId)
 
@@ -69,11 +103,7 @@ class RoutineArchiveStore(
             put("filter", "done = true")
             if (!fullScan) put("q", RoutineArchive.SEARCH)
         }
-        val me = currentUser.id()
-        return api.getAllTasks(filters).filter { isMine(it, me) }.mapNotNull { task ->
-            RoutineEnvelope.parseArchive(task.description, json).part
-                ?.let { RoutineArchive.PartRef(task.id, it) }
-        }
+        return counted(api.getAllTasks(filters), currentUser.id())
     }
 
     /**
@@ -102,9 +132,7 @@ class RoutineArchiveStore(
             if (taskId in byTask) continue
             try {
                 val task = api.getTask(taskId)
-                if (!isMine(task, currentUser.knownId())) continue
-                RoutineEnvelope.parseArchive(task.description, json).part
-                    ?.let { byTask[taskId] = RoutineArchive.PartRef(taskId, it) }
+                counted(listOf(task), currentUser.knownId()).firstOrNull()?.let { byTask[taskId] = it }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: VikunjaApiException) {
@@ -137,27 +165,31 @@ class RoutineArchiveStore(
         val stored: TaskDto
         when (op) {
             is RoutineArchive.Op.Update -> {
-                // Read the part again right before writing so an append another device made
-                // since the search is kept.
-                val fresh = api.getTask(op.taskId)
-                val current = RoutineEnvelope.parseArchive(fresh.description, json).part
-                wanted = if (current != null && current.routineId == routineId) {
-                    op.part.copy(
-                        occurrences = RoutineScheduleEngine.mergeOccurrenceMaps(
-                            current.occurrences,
-                            op.part.occurrences,
-                        ),
-                    )
-                } else {
-                    op.part
+                // Read the part again right before writing, and write only if nobody wrote it
+                // since (section 6.8), so an append another device or person made is kept. The
+                // writer reads it back once more; a part that holds the records already is done.
+                var merged = op.part
+                stored = carrierWriter.writeArchivePart(op.taskId) { fresh ->
+                    val current = RoutineEnvelope.parseArchive(fresh.description, json).part
+                    merged = if (current != null && current.routineId == routineId) {
+                        op.part.copy(
+                            occurrences = RoutineScheduleEngine.mergeOccurrenceMaps(
+                                current.occurrences,
+                                op.part.occurrences,
+                            ),
+                        )
+                    } else {
+                        op.part
+                    }
+                    if (current != null && current.routineId == routineId && current.occurrences == merged.occurrences) {
+                        return@writeArchivePart null
+                    }
+                    if (RoutineArchive.partBytes(merged, json) > RoutineArchive.BUDGET_BYTES) {
+                        throw IllegalStateException("The routine archive part is full")
+                    }
+                    RoutineEnvelope.encodeArchive(merged, json)
                 }
-                if (RoutineArchive.partBytes(wanted, json) > RoutineArchive.BUDGET_BYTES) {
-                    throw IllegalStateException("The routine archive part is full")
-                }
-                stored = api.updateTask(
-                    op.taskId,
-                    buildJsonObject { put("description", RoutineEnvelope.encodeArchive(wanted, json)) },
-                )
+                wanted = merged
             }
             is RoutineArchive.Op.Create -> {
                 wanted = op.part
@@ -180,6 +212,33 @@ class RoutineArchiveStore(
             throw IllegalStateException("The routine archive was not stored completely")
         }
         known = known + (stored.id to storedPart)
+    }
+
+    /**
+     * Moves the archive parts of [routineId] into [projectId], for sharing a routine or stopping
+     * (section 6.9). A part already there is left alone. Online only: it throws when a part
+     * cannot be moved, and the caller does not move the carrier then.
+     */
+    suspend fun moveParts(routineId: String, projectId: Long, expectParts: Boolean) {
+        moveParts(partTaskIds(routineId, expectParts), projectId)
+    }
+
+    /** The tasks holding the archive parts of [routineId], whoever wrote them, as this account reads them now. */
+    suspend fun partTaskIds(routineId: String, expectParts: Boolean): List<Long> =
+        loadParts(if (expectParts) listOf(routineId) else emptyList())
+            .filter { it.part.routineId == routineId }
+            .map { it.taskId }
+
+    /**
+     * Moves the part tasks [taskIds] into [projectId]. Stopping to share reads them before the
+     * routine turns private, since another member's parts stop counting then.
+     */
+    suspend fun moveParts(taskIds: List<Long>, projectId: Long) {
+        for (taskId in taskIds) {
+            val task = api.getTask(taskId)
+            if (task.projectId == projectId) continue
+            api.updateTask(taskId, buildJsonObject { put("project_id", projectId) })
+        }
     }
 
     /**

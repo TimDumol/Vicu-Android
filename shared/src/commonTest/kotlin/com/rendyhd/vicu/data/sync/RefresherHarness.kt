@@ -26,6 +26,8 @@ class RefresherHarness(
     val time: MutableTimeSource = MutableTimeSource(Instant.parse("2026-10-06T12:00:00Z")),
     val cursorStore: SyncCursorStore = SyncCursorStore(InMemoryPreferencesDataStore()),
     val currentUser: CurrentUser = CurrentUser.fixed(1),
+    /** This device's id in routine records; with it a refresh writes lost routine changes again. */
+    val routineDeviceId: String? = null,
 ) {
     private val client = HttpClient(MockEngine { request -> server.handle(this, request) }) {
         install(ContentNegotiation) { json(authTestJson) }
@@ -42,6 +44,7 @@ class RefresherHarness(
         cursorStore = cursorStore,
         time = time,
         currentUser = currentUser,
+        routineDeviceId = routineDeviceId?.let { id -> { id } },
     )
 
     suspend fun queueTaskAction(taskId: Long, type: String = "update", status: String = "pending") {

@@ -123,6 +123,21 @@ class RoutineRig(
     )
     val auth: AuthHarness = authHarness(appScope) { respondJson("{}") }
 
+    /** This account's synced choices about shared routines (reminders off, hidden). */
+    val personalEntries = InMemorySyncedEntries()
+    val projectDao = FakeProjectDao()
+
+    val refresher = TaskRefresher(
+        taskDao = taskDao,
+        pendingActionDao = pendingActionDao,
+        api = api,
+        taskMapper = mapper,
+        platformHooks = hooks,
+        cursorStore = SyncCursorStore(InMemoryPreferencesDataStore()),
+        time = time,
+        currentUser = auth.manager,
+    )
+
     val taskRepository = TaskRepositoryImpl(
         taskDao = taskDao,
         api = api,
@@ -135,17 +150,14 @@ class RoutineRig(
         dayClock = DayClock(CoroutineScope(Job()), ticking = false),
         tempIds = TempIdGenerator(InMemoryPreferencesDataStore()),
         positioner = ListPositioner(api, appScope, time),
-        refresher = TaskRefresher(
-            taskDao = taskDao,
-            pendingActionDao = pendingActionDao,
-            api = api,
-            taskMapper = mapper,
-            platformHooks = hooks,
-            cursorStore = SyncCursorStore(InMemoryPreferencesDataStore()),
-            time = time,
-        ),
+        refresher = refresher,
     )
-    val store = RoutineArchiveStore(api, json)
+    val store = RoutineArchiveStore(
+        api,
+        json,
+        currentUser = auth.manager,
+        readRoutines = RoutineArchiveStore.cachedRoutines(taskDao, json),
+    )
     val repository = RoutineRepositoryImpl(
         taskDao = taskDao,
         archiveDao = archiveDao,
@@ -158,16 +170,29 @@ class RoutineRig(
         archiveStore = store,
         time = time,
         mappingDispatcher = Dispatchers.Unconfined,
+        personal = RoutinePersonalPreferences(personalEntries),
+        projectDao = projectDao,
+        refresher = refresher,
     )
 
-    suspend fun signIn() {
+    /** Picks the Inbox and, with [userId], the signed-in user (what tells own routines from shared ones). */
+    suspend fun signIn(userId: Long? = null) {
         auth.storage.storeInboxProjectId(inboxProjectId)
+        if (userId != null) {
+            auth.storage.storeUserId(userId)
+            server.currentUserId = userId
+        }
     }
 
     /** A routine carrier on the server and in Room, the way a sync leaves it. */
-    suspend fun seedCarrier(taskId: Long, payload: RoutinePayload, projectId: Long = inboxProjectId): Routine {
+    suspend fun seedCarrier(
+        taskId: Long,
+        payload: RoutinePayload,
+        projectId: Long = inboxProjectId,
+        createdBy: Long = 0,
+    ): Routine {
         val description = RoutineEnvelope.upsert("", payload, json)
-        server.seed(taskId, payload.definition.name, description, done = true, projectId = projectId)
+        server.seed(taskId, payload.definition.name, description, done = true, projectId = projectId, createdBy = createdBy)
         taskDao.upsert(
             TaskEntity(
                 id = taskId,
@@ -175,19 +200,24 @@ class RoutineRig(
                 description = description,
                 done = true,
                 projectId = projectId,
+                createdById = createdBy,
             ),
         )
-        return Routine(taskId, payload)
+        return Routine(taskId, payload, projectId = projectId, ownerId = createdBy)
     }
 
     /** An archive part task on the server (not in Room: the sync keeps parts out of it). */
-    fun seedPart(taskId: Long, part: RoutineArchivePart, projectId: Long = inboxProjectId) {
-        server.seed(taskId, "Vicu routine archive", RoutineEnvelope.encodeArchive(part, json), true, projectId)
+    fun seedPart(taskId: Long, part: RoutineArchivePart, projectId: Long = inboxProjectId, createdBy: Long = 0) {
+        server.seed(taskId, "Vicu routine archive", RoutineEnvelope.encodeArchive(part, json), true, projectId, createdBy = createdBy)
     }
 
     /** The routine payload the server holds for [taskId] right now. */
     fun serverPayload(taskId: Long): RoutinePayload =
         checkNotNull(RoutineEnvelope.parse(server.row(taskId).description, json).payload)
+
+    /** The routine payload Room holds for [taskId] right now. */
+    suspend fun cachedPayload(taskId: Long): RoutinePayload =
+        checkNotNull(RoutineEnvelope.parse(checkNotNull(taskDao.getByIdSync(taskId)).description, json).payload)
 
     /** The archive part the server holds for [taskId] right now. */
     fun serverPart(taskId: Long): RoutineArchivePart =

@@ -170,13 +170,16 @@ object RoutineEnvelope {
     }
 
     /**
-     * What a write of the routine [local] may send over the server's copy [remote]: their merge, or
+     * What a write of the routine [local] may send over the server's copy [remote]: their merge,
+     * keeping the server's record of an occurrence already in the same state (section 6.8), or
      * null when the server's task holds no routine any more (the plain edit goes then). Throws
      * [UnreadableCarrierException] when either side is a carrier this version cannot read, a newer
      * version's or a damaged one: writing would replace what it holds (section 10.7).
      */
     fun mergeForWrite(local: Parsed, remote: Parsed): RoutinePayload? {
-        if (local.payload != null && remote.payload != null) return mergePayload(local.payload, remote.payload)
+        if (local.payload != null && remote.payload != null) {
+            return SharedRoutines.keepServerRecords(mergePayload(local.payload, remote.payload), remote.payload)
+        }
         if (!remote.isCarrier && local.payload != null) return null
         val newer = local.isNewerVersion || remote.isNewerVersion
         throw UnreadableCarrierException(

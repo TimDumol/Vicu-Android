@@ -156,7 +156,7 @@ class IosNotificationScheduler(
         snoozes.filter { it.triggerAtMillis <= now.toEpochMilliseconds() }.forEach { snoozeStore.remove(it.taskId) }
         val routinesOn = routinePrefs.remindersEnabled.first() && routinePrefs.enabled.first()
         val routineAlarms = if (routinesOn) {
-            RoutineAlarmPlanner.plan(routineRepository.observeActive().first(), now, zone, LocalNotificationPlanner.ROUTINE_HORIZON_DAYS)
+            RoutineAlarmPlanner.plan(routineRepository.observeReminderRoutines().first(), now, zone, LocalNotificationPlanner.ROUTINE_HORIZON_DAYS)
         } else {
             emptyList()
         }

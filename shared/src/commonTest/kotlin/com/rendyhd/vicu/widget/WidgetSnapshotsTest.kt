@@ -1,7 +1,10 @@
 package com.rendyhd.vicu.widget
 
+import com.rendyhd.vicu.domain.model.OccurrenceStatus
+import com.rendyhd.vicu.ui.theme.contrastRatio
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.DateDisplayFormat
+import com.rendyhd.vicu.util.parseHexColor
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
@@ -58,5 +61,23 @@ class WidgetSnapshotsTest {
         assertEquals(5, light.priorities.size)
         assertTrue(Regex("#[0-9A-F]{6}").matches(light.primary))
         assertTrue(light.background != dark.background)
+    }
+
+    @Test
+    fun routineRingsAreWorkedOutForBothBackgrounds() {
+        fun item(key: String, color: String) = RoutineWidgetItem(
+            key = key, routineId = key, routineName = key, scheduledDate = "2026-10-12", slotId = "s",
+            slotLabel = "08:00", status = OccurrenceStatus.PENDING, color = color,
+        )
+        val day = WidgetSnapshots.routineDay(RoutineWidgetState("2026-10-12", listOf(item("blue", "#007AFF"), item("yellow", "#eec300"), item("none", ""))))
+        val (blue, yellow, none) = day.occurrences
+        assertEquals("#007AFF", blue.markLight)
+        assertTrue(Regex("#[0-9A-F]{6}").matches(blue.markDark))
+        // Yellow does not read on the light background as it is, so it is darkened there.
+        val light = WidgetSnapshots.palettes().first
+        assertTrue(contrastRatio(parseHexColor(yellow.markLight)!!, parseHexColor(light.background)!!) >= 3.0)
+        assertTrue(yellow.markLight != "#EEC300")
+        assertEquals("", none.markLight)
+        assertEquals("", none.markDark)
     }
 }

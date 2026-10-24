@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +34,15 @@ internal fun normalizedColorHex(hex: String): String {
     }
 }
 
+/** [hex] (normalized) when it is a colour but none of [PRESET_COLORS]: one picked elsewhere, such as on the desktop. */
+internal fun otherColorHex(hex: String): String? =
+    hex.takeIf { it.isNotEmpty() && it !in PRESET_COLORS && parseHexColor(it) != null }
+
 /**
  * The colour of an icon: none (the surface's own content colour) or one of the project colours.
  * [selectedHex] is empty for none. Each swatch is a 48 dp radio target with the colour's name.
+ * A colour that is none of them (picked on another device) gets a swatch of its own, so it shows
+ * as chosen and stays on offer after another one is tapped.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -45,6 +52,10 @@ fun IconColorPicker(
     modifier: Modifier = Modifier,
 ) {
     val selected = normalizedColorHex(selectedHex)
+    // Kept as given, so choosing it again saves it unchanged.
+    val currentOther = selectedHex.takeIf { otherColorHex(selected) != null }
+    val initialOther = remember { currentOther }
+    val other = currentOther ?: initialOther
     FlowRow(modifier = modifier.selectableGroup()) {
         ColorSwatch(name = "No colour", color = null, selected = selected.isEmpty(), onClick = { onSelect("") })
         PRESET_COLORS.forEach { hex ->
@@ -53,6 +64,14 @@ fun IconColorPicker(
                 color = parseHexColor(hex),
                 selected = selected == hex,
                 onClick = { onSelect(hex) },
+            )
+        }
+        if (other != null) {
+            ColorSwatch(
+                name = "Custom colour",
+                color = parseHexColor(other),
+                selected = selected == normalizedColorHex(other),
+                onClick = { onSelect(other) },
             )
         }
     }

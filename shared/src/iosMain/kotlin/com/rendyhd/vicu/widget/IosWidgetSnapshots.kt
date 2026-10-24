@@ -193,7 +193,7 @@ class IosWidgetSnapshots(
                 enabled = routinePrefs.enabled.first(),
                 openUrl = AppLink.OpenView(ViewTarget.Routines).toUrl(scheme),
                 days = listOf(today, tomorrow).map { day ->
-                    RoutineWidgetState.from(routineRepository.observeDay(day.date.toString()).first(), format)
+                    WidgetSnapshots.routineDay(RoutineWidgetState.from(routineRepository.observeDay(day.date.toString()).first(), format))
                 },
                 nextDayAtMillis = DueDates.startOfDay(tomorrow.date, tomorrow.zone).toEpochMilliseconds(),
             )

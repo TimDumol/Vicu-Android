@@ -2,6 +2,7 @@ package com.rendyhd.vicu.widget
 
 import android.content.Context
 import android.os.Build
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.glance.color.ColorProviders
@@ -22,17 +23,25 @@ import org.koin.core.context.GlobalContext
  * the Vicu scheme, and on some launchers produced secondary text, checkbox outlines and a + glyph
  * with no contrast against the widget background.
  */
-internal fun widgetColors(context: Context, useDeviceColors: Boolean): ColorProviders =
+internal fun widgetSchemes(context: Context, useDeviceColors: Boolean): WidgetSchemes =
     if (useDeviceColors && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        glanceColorProviders(light = dynamicLightColorScheme(context), dark = dynamicDarkColorScheme(context))
+        WidgetSchemes(light = dynamicLightColorScheme(context), dark = dynamicDarkColorScheme(context))
     } else {
-        glanceColorProviders(light = VicuLightColorScheme, dark = VicuDarkColorScheme)
+        WidgetSchemes(light = VicuLightColorScheme, dark = VicuDarkColorScheme)
     }
 
-/** [widgetColors] for the current device-colours setting; the Vicu scheme when the setting cannot be read. */
-internal suspend fun loadWidgetColors(context: Context): ColorProviders {
+/** The light and dark schemes of [widgetSchemes]; a routine widget also works its routines' colours out from them. */
+internal data class WidgetSchemes(val light: ColorScheme, val dark: ColorScheme) {
+    fun toColorProviders(): ColorProviders = glanceColorProviders(light = light, dark = dark)
+}
+
+/** The Glance colours of [loadWidgetSchemes]. */
+internal suspend fun loadWidgetColors(context: Context): ColorProviders = loadWidgetSchemes(context).toColorProviders()
+
+/** [widgetSchemes] for the current device-colours setting; the Vicu scheme when the setting cannot be read. */
+internal suspend fun loadWidgetSchemes(context: Context): WidgetSchemes {
     val useDeviceColors = runCatching {
         GlobalContext.get().get<ThemePrefsStore>().useDeviceColors.first()
     }.getOrDefault(false)
-    return widgetColors(context, useDeviceColors)
+    return widgetSchemes(context, useDeviceColors)
 }

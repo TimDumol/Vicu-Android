@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +78,7 @@ import com.rendyhd.vicu.domain.model.RoutinePeriod
 import com.rendyhd.vicu.domain.model.RoutineSchedule
 import com.rendyhd.vicu.domain.model.RoutineSlot
 import com.rendyhd.vicu.ui.components.shared.EmptyState
+import com.rendyhd.vicu.ui.components.shared.IconColorPicker
 import com.rendyhd.vicu.ui.components.shared.LocalFabAlignStart
 import com.rendyhd.vicu.ui.components.shared.copyPlainText
 import com.rendyhd.vicu.ui.components.shared.LocalToday
@@ -103,6 +105,7 @@ import com.rendyhd.vicu.domain.model.RoutineDefinition
 import com.rendyhd.vicu.ui.components.shared.LocalIs24Hour
 import com.rendyhd.vicu.ui.components.shared.SmartListIdentity
 import com.rendyhd.vicu.ui.theme.LocalVicuColors
+import com.rendyhd.vicu.ui.theme.routineMarkColor
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.RoutineDefinitionRules
 import kotlinx.datetime.LocalTime
@@ -383,7 +386,7 @@ fun RoutineOccurrenceRow(
                 Icon(
                     if (complete) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
                     contentDescription = if (complete) "Undo" else "Complete",
-                    tint = if (complete) MaterialTheme.colorScheme.primary else SmartListIdentity.ROUTINES.color(LocalVicuColors.current.identity),
+                    tint = if (complete) MaterialTheme.colorScheme.primary else routineTint(occurrence.routine.definition),
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -426,7 +429,7 @@ private fun RoutineDefinitionCard(
             Icon(
                 SmartListIdentity.ROUTINES.icon,
                 contentDescription = null,
-                tint = SmartListIdentity.ROUTINES.color(LocalVicuColors.current.identity),
+                tint = routineTint(routine.definition),
                 modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(14.dp))
@@ -464,6 +467,14 @@ private fun RoutineDefinitionCard(
             }
         }
     }
+}
+
+/** The colour of a routine's ring and icon on its card: its own colour, or the Routines colour without one. */
+@Composable
+private fun routineTint(definition: RoutineDefinition): Color {
+    val scheme = MaterialTheme.colorScheme
+    return routineMarkColor(definition.color, scheme.onSurface, listOf(scheme.surfaceContainerLow))
+        ?: SmartListIdentity.ROUTINES.color(LocalVicuColors.current.identity)
 }
 
 @Composable
@@ -543,8 +554,9 @@ private fun followUpText(minutes: Int): String =
     FollowUpOptions.firstOrNull { it.first == minutes }?.second ?: "$minutes min"
 
 /**
- * The routine editor: a name, one to five times (each with its reminder and follow-up) and how it
- * repeats. Nothing else is chosen; the repository writes what older app versions still read.
+ * The routine editor: a name, one to five times (each with its reminder and follow-up), how it
+ * repeats and its colour. Nothing else is chosen; the repository writes what older app versions
+ * still read.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -557,6 +569,8 @@ private fun RoutineEditorDialog(
     val definition = routine?.definition
     val dateFormat = LocalDateFormat.current
     var name by remember(routine) { mutableStateOf(definition?.name.orEmpty()) }
+    // Empty is no colour of its own; a colour picked on the desktop is kept as it is.
+    var color by remember(routine) { mutableStateOf(definition?.color.orEmpty()) }
     var times by remember(routine) {
         mutableStateOf(
             definition?.slots.orEmpty().sortedBy { it.reminderMinutes }.mapIndexed { index, slot ->
@@ -727,6 +741,10 @@ private fun RoutineEditorDialog(
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(14.dp))
+                    EditorLabel("COLOR")
+                    IconColorPicker(selectedHex = color, onSelect = { color = it })
                 }
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -765,7 +783,7 @@ private fun RoutineEditorDialog(
                                 RoutineDraft(
                                     name = name,
                                     iconName = definition?.iconName.orEmpty(),
-                                    color = definition?.color.orEmpty(),
+                                    color = color,
                                     schedule = schedule,
                                     slots = slots,
                                 ),

@@ -392,7 +392,7 @@ class FakeProjectDao(initial: List<ProjectEntity> = emptyList()) : ProjectDao {
     fun snapshot(): List<ProjectEntity> = rows.values.toList()
 
     override fun getAll(): Flow<List<ProjectEntity>> = flowOf(emptyList())
-    override fun getAllIncludingArchived(): Flow<List<ProjectEntity>> = flowOf(emptyList())
+    override fun getAllIncludingArchived(): Flow<List<ProjectEntity>> = kotlinx.coroutines.flow.flow { emit(rows.values.toList()) }
     override fun getById(id: Long): Flow<ProjectEntity?> = flowOf(null)
     override fun getChildren(parentId: Long): Flow<List<ProjectEntity>> = flowOf(emptyList())
     override suspend fun getAllSync(): List<ProjectEntity> = rows.values.filter { !it.isArchived }

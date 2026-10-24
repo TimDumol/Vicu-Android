@@ -1,5 +1,8 @@
 package com.rendyhd.vicu.ui.screens.project
 
+import com.rendyhd.vicu.ui.screens.routines.RoutineSharing
+import com.rendyhd.vicu.ui.screens.routines.rememberSharedRoutineLookup
+import com.rendyhd.vicu.ui.screens.routines.rememberSharedRoutineNames
 import com.rendyhd.vicu.voice.TaskDefaults
 import com.rendyhd.vicu.ui.components.fab.FabDropTarget
 import com.rendyhd.vicu.ui.components.fab.fabDropTarget
@@ -103,6 +106,7 @@ fun ProjectScreen(
     // A screen navigated to fades in once this is true (ScreenReveal).
     ScreenReady(!state.isLoading)
     val menu by viewModel.menu.collectAsStateWithLifecycle()
+    val sharedRoutines = rememberSharedRoutineLookup()
     val exit by viewModel.exit.collectAsStateWithLifecycle()
     val reviewUndo by viewModel.reviewUndo.collectAsStateWithLifecycle()
     // The options menu's open dialog, by name so a rotation keeps it.
@@ -173,7 +177,8 @@ fun ProjectScreen(
                                         ProjectMenuEntry.SET_INBOX -> viewModel.setAsInbox()
                                         ProjectMenuEntry.MARK_REVIEWED -> viewModel.markReviewed()
                                         ProjectMenuEntry.ARCHIVE -> openDialog = ProjectDialog.ARCHIVE.name
-                                        ProjectMenuEntry.DELETE -> if (menu.confirmBeforeDelete) {
+                                        // A project holding shared routines is always asked about (6.9).
+                                        ProjectMenuEntry.DELETE -> if (RoutineSharing.asksBeforeDeleting(menu.confirmBeforeDelete, menu.project?.let { sharedRoutines(it.id) }.orEmpty())) {
                                             openDialog = ProjectDialog.DELETE.name
                                         } else {
                                             viewModel.delete()
@@ -387,6 +392,7 @@ fun ProjectScreen(
                     dismissDialog()
                 },
                 onDismiss = dismissDialog,
+                sharedRoutineNames = rememberSharedRoutineNames(menuProject.id),
             )
             ProjectDialog.DELETE -> DeleteProjectDialog(
                 project = menuProject,
@@ -395,6 +401,7 @@ fun ProjectScreen(
                     dismissDialog()
                 },
                 onDismiss = dismissDialog,
+                sharedRoutineNames = rememberSharedRoutineNames(menuProject.id),
             )
             null -> Unit
         }

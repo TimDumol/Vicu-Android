@@ -29,6 +29,20 @@ This document describes the apps before 2.2.0. That release (branch `feat/synced
 - Gap 8 (unknown routine fields), gap 9 (discard keeps unsynced custom-list changes) and gap 11
   (an account switch leaves the old session's values) are fixed.
 
+## Changes with shared routines
+
+Branch `feat/shared-routines` (design `docs/shared-routines.md`, contract sections 6.8 and 6.9):
+
+- A routine can be **shared** through a project the user already shares (`definition.shared`, in
+  the routine itself). Its carrier and archive parts then live in that project instead of the
+  Inbox, and the people of that project read and write it.
+- Two new **per-person synced preferences** in the preferences carrier (contract 11.3): turning
+  off the reminders of a routine someone shared with you (`routine_reminders.<routineId>`, value
+  `"off"`, null to turn them on again) and hiding it for yourself (`routine_hidden.<routineId>`,
+  `true`, null to show it again). `RoutinePersonalPreferences` reads and writes them; Settings,
+  General, Routines lists the hidden ones. They are the account's own: they follow it to every
+  device and never change the routine for the other person.
+
 ## Summary
 
 | Where | What | Reaches the desktop and other devices | Survives sign-out | In a backup |

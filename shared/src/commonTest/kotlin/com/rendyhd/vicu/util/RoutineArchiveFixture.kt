@@ -3,6 +3,7 @@ package com.rendyhd.vicu.util
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.model.RoutineDefinition
 import com.rendyhd.vicu.domain.model.RoutineKind
+import com.rendyhd.vicu.domain.model.RoutineLoggedBy
 import com.rendyhd.vicu.domain.model.RoutineOccurrenceRecord
 import com.rendyhd.vicu.domain.model.RoutinePayload
 import com.rendyhd.vicu.domain.model.RoutineSchedule
@@ -26,6 +27,8 @@ object RoutineArchiveFixture {
         val modifiedBy: String,
         val loggedAt: String = "",
         val timeZoneId: String = "UTC",
+        val note: String = "",
+        val loggedBy: RoutineLoggedBy? = null,
     )
 
     @Serializable
@@ -82,10 +85,35 @@ object RoutineArchiveFixture {
     )
 
     @Serializable
+    data class WriteKeepVector(val name: String, val local: Side, val remote: Side, val expect: Map<String, String>)
+
+    @Serializable
+    data class VisibleCarrier(val id: Long, val createdBy: Long, val routineId: String, val shared: Boolean = false)
+
+    @Serializable
+    data class VisiblePart(val id: Long, val createdBy: Long, val routineId: String)
+
+    @Serializable
+    data class SharedVisibilityVector(
+        val name: String,
+        val me: Long,
+        val carriers: List<VisibleCarrier>,
+        val parts: List<VisiblePart>,
+        val useCarriers: List<Long>,
+        val useParts: List<Long>,
+    )
+
+    @Serializable
+    data class LoggedByVector(val name: String, val record: Compact, val expectUserId: Long?)
+
+    @Serializable
     data class Fixture(
         val contractVersion: Int,
         val baseDefinition: RoutineDefinition,
         val merge: List<MergeVector>,
+        val writeKeep: List<WriteKeepVector>,
+        val sharedVisibility: List<SharedVisibilityVector>,
+        val loggedBy: List<LoggedByVector>,
         val definitionMerge: List<DefinitionMergeVector>,
         val prune: List<PruneVector>,
         val archiveRead: List<ArchiveReadVector>,
@@ -128,7 +156,8 @@ object RoutineArchiveFixture {
         loggedAt = compact.loggedAt,
         modifiedAt = compact.modifiedAt,
         modifiedBy = compact.modifiedBy,
-        note = "",
+        note = compact.note,
+        loggedBy = compact.loggedBy,
     )
 
     fun toMap(list: List<Compact>): Map<String, RoutineOccurrenceRecord> =

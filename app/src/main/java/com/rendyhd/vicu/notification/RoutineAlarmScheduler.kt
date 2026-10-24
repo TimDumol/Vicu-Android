@@ -34,7 +34,8 @@ class RoutineAlarmScheduler(
         if (!prefsStore.remindersEnabled.first() || !prefsStore.enabled.first()) return
 
         val requestCodes = mutableSetOf<String>()
-        val routines = repository.observeActive().first()
+        // Not the routines this account hid or turned off, nor read-only ones (cross-app semantics 6.9).
+        val routines = repository.observeReminderRoutines().first()
         RoutineAlarmPlanner.plan(routines, time.now(), time.zone(), HORIZON_DAYS).forEach { alarm ->
             schedule(alarm.occurrenceKey, alarm.title, alarm.date, alarm.slotId, alarm.triggerAt.toEpochMilliseconds(), alarm.followUp)
             requestCodes += requestCode(alarm.occurrenceKey, alarm.followUp).toString()

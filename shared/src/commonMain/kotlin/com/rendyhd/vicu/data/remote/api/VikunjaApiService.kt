@@ -21,6 +21,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.contentType
 import io.ktor.http.encodeURLPathPart
 import com.rendyhd.vicu.data.remote.ApiTokenPermission
@@ -59,6 +60,10 @@ class VikunjaApiService(
         const val ERROR_ALREADY_SUBSCRIBED = 12002L
         const val ERROR_COMMENT_DOES_NOT_EXIST = 4015L
         private val MERGE_PATCH = ContentType.parse("application/merge-patch+json")
+        private val JSON_PATCH = ContentType.parse("application/json-patch+json")
+
+        /** Vikunja's answer to a JSON Patch it could not apply, such as a failed `test` operation. */
+        const val PATCH_NOT_APPLIED = 422
 
         /**
          * Requests that change data on the server leave one at a time, whatever task they are
@@ -131,6 +136,21 @@ class VikunjaApiService(
 
     suspend fun updateTask(id: Long, patch: JsonObject): TaskDto {
         val response = sendMergePatch("tasks/$id", patch)
+        return if (response.isUnchanged()) getTask(id) else response.bodyOrThrow()
+    }
+
+    /**
+     * A JSON Patch (RFC 6902) of a task. Vikunja applies all of [operations] or none: a `test`
+     * operation that does not hold answers [PATCH_NOT_APPLIED], which makes a write conditional on
+     * what was read (routine carriers, docs/cross-app-semantics-v1.md section 6.8). A patch that
+     * changes nothing answers 304, and the task is read back as for a merge patch.
+     */
+    suspend fun patchTask(id: Long, operations: JsonArray): TaskDto {
+        val response = serialWrite {
+            client.patch("tasks/$id") {
+                setBody(TextContent(json.encodeToString(JsonArray.serializer(), operations), JSON_PATCH))
+            }
+        }
         return if (response.isUnchanged()) getTask(id) else response.bodyOrThrow()
     }
 

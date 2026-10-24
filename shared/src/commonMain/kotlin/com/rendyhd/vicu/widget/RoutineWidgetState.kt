@@ -21,6 +21,15 @@ data class RoutineWidgetItem(
     /** The time of the occurrence as the widget shows it (the name is kept for the iOS widget's JSON). */
     val slotLabel: String,
     val status: OccurrenceStatus,
+    /** The routine's own colour as it stores it (#RRGGBB); empty without one. */
+    val color: String = "",
+    /**
+     * [color] as the check ring of the iOS widget on its light and dark background, worked out by
+     * [WidgetSnapshots.routineDay]; empty without a colour. The Android widget works its own out
+     * from [color], because it can follow the wallpaper colours.
+     */
+    val markLight: String = "",
+    val markDark: String = "",
 )
 
 @Serializable
@@ -68,6 +77,7 @@ data class RoutineWidgetState(
                         format,
                     ),
                     status = occurrence.status,
+                    color = occurrence.routine.definition.color,
                 )
             },
         )

@@ -2,6 +2,16 @@ package com.rendyhd.vicu.widget
 
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
+import com.rendyhd.vicu.domain.model.Routine
+import com.rendyhd.vicu.domain.model.RoutineDay
+import com.rendyhd.vicu.domain.model.RoutineDefinition
+import com.rendyhd.vicu.domain.model.RoutineKind
+import com.rendyhd.vicu.domain.model.RoutineOccurrence
+import com.rendyhd.vicu.domain.model.RoutinePayload
+import com.rendyhd.vicu.domain.model.RoutinePeriod
+import com.rendyhd.vicu.domain.model.RoutineSchedule
+import com.rendyhd.vicu.domain.model.RoutineSlot
+import com.rendyhd.vicu.util.DateDisplayFormat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -59,7 +69,7 @@ class RoutineWidgetStateTest {
     fun widgetStateSerializationRoundTrips() {
         val state = RoutineWidgetState(
             date = DATE,
-            occurrences = listOf(item("routine-1", "morning")),
+            occurrences = listOf(item("routine-1", "morning").copy(color = "#e8384f")),
         )
         val prefs = mutablePreferencesOf(
             RoutineWidgetStateDefinition.KEY_STATE to
@@ -67,6 +77,30 @@ class RoutineWidgetStateTest {
         )
 
         assertEquals(state, RoutineWidgetStateDefinition.parseState(prefs))
+    }
+
+    @Test
+    fun widgetItemsCarryTheRoutineColour() {
+        val slot = RoutineSlot(id = "morning", label = "08:00", period = RoutinePeriod.MORNING, reminderMinutes = 8 * 60)
+        val definition = RoutineDefinition(
+            id = "routine-1",
+            name = "Vitamins",
+            kind = RoutineKind.HEALTH,
+            color = "#AF52DE",
+            schedule = RoutineSchedule.Calendar(anchorDate = DATE),
+            slots = listOf(slot),
+            activeFrom = DATE,
+            createdAt = "",
+            updatedAt = "",
+            updatedBy = "",
+        )
+        val routine = Routine(taskId = 1, payload = RoutinePayload(definition = definition))
+        val day = RoutineDay(DATE, listOf(RoutineOccurrence(routine, "routine-1:$DATE:morning", slot, DATE, OccurrenceStatus.PENDING)))
+
+        val state = RoutineWidgetState.from(day, DateDisplayFormat("en-GB", hour12 = false))
+
+        assertEquals("#AF52DE", state.occurrences.single().color)
+        assertEquals("08:00", state.occurrences.single().slotLabel)
     }
 
     private fun item(

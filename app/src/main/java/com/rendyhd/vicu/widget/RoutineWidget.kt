@@ -28,6 +28,7 @@ import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
+import androidx.glance.color.ColorProvider as DayNightColorProvider
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -43,12 +44,14 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import com.rendyhd.vicu.MainActivity
 import com.rendyhd.vicu.putViewTarget
 import com.rendyhd.vicu.ui.navigation.ViewTarget
 import com.rendyhd.vicu.R
 import com.rendyhd.vicu.domain.model.OccurrenceStatus
 import com.rendyhd.vicu.domain.repository.RoutineRepository
+import com.rendyhd.vicu.ui.theme.routineMarkColor
 import com.rendyhd.vicu.util.DateDisplayFormat
 import com.rendyhd.vicu.util.DayClock
 import kotlinx.coroutines.flow.first
@@ -65,15 +68,17 @@ class RoutineWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(setOf(COMPACT, LARGE))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val colors = loadWidgetColors(context)
+        val schemes = loadWidgetSchemes(context)
+        val colors = schemes.toColorProviders()
+        val rings = RoutineRingColors(schemes)
         provideContent {
             val prefs = currentState<Preferences>()
             val state = RoutineWidgetStateDefinition.parseState(prefs)
             GlanceTheme(colors = colors) {
                 if (androidx.glance.LocalSize.current.height < 120.dp) {
-                    CompactRoutineWidget(state)
+                    CompactRoutineWidget(state, rings)
                 } else {
-                    LargeRoutineWidget(state)
+                    LargeRoutineWidget(state, rings)
                 }
             }
         }
@@ -145,8 +150,22 @@ class ToggleRoutineWidgetAction : ActionCallback {
     }
 }
 
+/**
+ * The check ring of a routine in its own colour, day and night, moved only as far as it takes to
+ * read on the widget. Glance draws the widget background from secondaryContainer with its tone
+ * moved 5 lighter (light) or 10 darker (dark), which lies between surface and secondaryContainer
+ * in both themes, so reading on those two covers it.
+ */
+private class RoutineRingColors(private val schemes: WidgetSchemes) {
+    fun of(hex: String): ColorProvider? {
+        val day = schemes.light.let { routineMarkColor(hex, it.onSurface, listOf(it.surface, it.secondaryContainer)) }
+        val night = schemes.dark.let { routineMarkColor(hex, it.onSurface, listOf(it.surface, it.secondaryContainer)) }
+        return if (day != null && night != null) DayNightColorProvider(day = day, night = night) else null
+    }
+}
+
 @Composable
-private fun CompactRoutineWidget(state: RoutineWidgetState) {
+private fun CompactRoutineWidget(state: RoutineWidgetState, rings: RoutineRingColors) {
     val next = state.visibleOccurrences.firstOrNull { it.status == OccurrenceStatus.PENDING }
         ?: state.visibleOccurrences.firstOrNull()
     Row(
@@ -174,12 +193,12 @@ private fun CompactRoutineWidget(state: RoutineWidgetState) {
                 maxLines = 1,
             )
         }
-        if (next != null) RoutineWidgetCheckbox(next)
+        if (next != null) RoutineWidgetCheckbox(next, rings)
     }
 }
 
 @Composable
-private fun LargeRoutineWidget(state: RoutineWidgetState) {
+private fun LargeRoutineWidget(state: RoutineWidgetState, rings: RoutineRingColors) {
     val visibleOccurrences = state.visibleOccurrences
     Column(
         modifier = GlanceModifier.fillMaxSize().cornerRadius(16.dp)
@@ -230,7 +249,7 @@ private fun LargeRoutineWidget(state: RoutineWidgetState) {
                             modifier = GlanceModifier.fillMaxWidth().padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            RoutineWidgetCheckbox(occurrence)
+                            RoutineWidgetCheckbox(occurrence, rings)
                             Spacer(GlanceModifier.width(12.dp))
                             Column(modifier = GlanceModifier.defaultWeight()) {
                                 Text(
@@ -253,7 +272,7 @@ private fun LargeRoutineWidget(state: RoutineWidgetState) {
 }
 
 @Composable
-private fun RoutineWidgetCheckbox(occurrence: RoutineWidgetItem) {
+private fun RoutineWidgetCheckbox(occurrence: RoutineWidgetItem, rings: RoutineRingColors) {
     val completed = occurrence.status == OccurrenceStatus.COMPLETED
     Box(
         modifier = GlanceModifier.size(36.dp).cornerRadius(18.dp).clickable(
@@ -272,7 +291,7 @@ private fun RoutineWidgetCheckbox(occurrence: RoutineWidgetItem) {
             provider = ImageProvider(if (completed) R.drawable.ic_widget_circle_checked else R.drawable.ic_widget_circle_unchecked),
             contentDescription = if (completed) "Undo" else "Complete",
             modifier = GlanceModifier.size(22.dp),
-            colorFilter = if (completed) null else ColorFilter.tint(GlanceTheme.colors.outline),
+            colorFilter = if (completed) null else ColorFilter.tint(rings.of(occurrence.color) ?: GlanceTheme.colors.outline),
         )
     }
 }

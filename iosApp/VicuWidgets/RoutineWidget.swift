@@ -152,7 +152,7 @@ struct RoutineWidgetView: View {
             Button(intent: RoutineActionIntent(item: item, complete: !item.completed)) {
                 Image(systemName: item.completed ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 18))
-                    .foregroundStyle(item.completed ? colors.done : colors.outline)
+                    .foregroundStyle(item.completed ? colors.done : item.ring(colorScheme) ?? colors.outline)
                     .frame(width: 24, height: family == .systemSmall ? 22 : 28)
                     .contentShape(Rectangle())
             }
@@ -173,6 +173,14 @@ struct RoutineWidgetView: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+private extension RoutineWidgetItem {
+    /// The check ring in the routine's own colour for the appearance; nil without one.
+    func ring(_ scheme: ColorScheme) -> Color? {
+        guard let hex = scheme == .dark ? markDark : markLight, !hex.isEmpty else { return nil }
+        return Color(hex: hex)
     }
 }
 

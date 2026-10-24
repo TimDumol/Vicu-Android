@@ -85,6 +85,10 @@ struct RoutineWidgetItem: Codable, Hashable, Identifiable {
     let slotLabel: String
     /// PENDING, COMPLETED, SKIPPED or NOT_LOGGED.
     var status: String
+    /// The check ring in the routine's own colour on the light and dark background (#RRGGBB);
+    /// empty, or missing in a snapshot from an older app, without one.
+    var markLight: String? = nil
+    var markDark: String? = nil
 
     var id: String { key }
     var completed: Bool { status == "COMPLETED" }

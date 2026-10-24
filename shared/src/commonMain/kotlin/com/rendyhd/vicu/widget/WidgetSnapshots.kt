@@ -9,6 +9,7 @@ import com.rendyhd.vicu.ui.theme.VicuDarkColorScheme
 import com.rendyhd.vicu.ui.theme.VicuDarkColors
 import com.rendyhd.vicu.ui.theme.VicuLightColorScheme
 import com.rendyhd.vicu.ui.theme.VicuLightColors
+import com.rendyhd.vicu.ui.theme.routineMarkColor
 import com.rendyhd.vicu.util.ClockDay
 import com.rendyhd.vicu.util.DateContext
 import com.rendyhd.vicu.util.DateDisplay
@@ -218,6 +219,20 @@ object WidgetSnapshots {
         totalCount = state.totalCount,
         error = state.error,
     )
+
+    /** [state] with the check ring of each routine in its own colour, on the widget's light and dark background. */
+    fun routineDay(state: RoutineWidgetState): RoutineWidgetState = state.copy(
+        occurrences = state.occurrences.map { item ->
+            item.copy(
+                markLight = routineMark(item.color, VicuLightColorScheme),
+                markDark = routineMark(item.color, VicuDarkColorScheme),
+            )
+        },
+    )
+
+    // The widget's background is the scheme's surface (WidgetPalette.background).
+    private fun routineMark(color: String, scheme: ColorScheme): String =
+        routineMarkColor(color, scheme.onSurface, listOf(scheme.surface))?.let(::hex).orEmpty()
 
     fun palettes(): Pair<WidgetPalette, WidgetPalette> =
         palette(VicuLightColorScheme, VicuLightColors) to palette(VicuDarkColorScheme, VicuDarkColors)

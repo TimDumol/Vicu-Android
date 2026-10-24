@@ -4,25 +4,32 @@ import com.rendyhd.vicu.auth.CurrentUser
 import com.rendyhd.vicu.data.local.SyncCursorStore
 import com.rendyhd.vicu.data.local.dao.PendingActionDao
 import com.rendyhd.vicu.data.local.dao.TaskDao
+import com.rendyhd.vicu.data.local.entity.PendingActionEntity
 import com.rendyhd.vicu.data.local.entity.TaskEntity
 import com.rendyhd.vicu.data.mapper.TaskMapper
+import com.rendyhd.vicu.data.remote.createApiJson
 import com.rendyhd.vicu.data.remote.api.TaskDto
 import com.rendyhd.vicu.data.remote.api.VikunjaApiException
 import com.rendyhd.vicu.data.remote.api.VikunjaApiService
+import com.rendyhd.vicu.data.repository.RoutineCarrierWriter
 import com.rendyhd.vicu.domain.model.Task
 import com.rendyhd.vicu.domain.repository.PlatformRepositoryHooks
 import com.rendyhd.vicu.util.HiddenTasks
 import com.rendyhd.vicu.util.DateUtils
 import com.rendyhd.vicu.util.Logger
 import com.rendyhd.vicu.util.RoutineEnvelope
+import com.rendyhd.vicu.util.SharedRoutines
 import com.rendyhd.vicu.util.SystemTimeSource
 import com.rendyhd.vicu.util.TimeSource
 import com.rendyhd.vicu.worker.MissingResourceCheck
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.time.Instant
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Whether a change to a cached task can change which reminder alarms it needs: its reminders, the
@@ -68,8 +75,16 @@ class TaskRefresher(
     private val platformHooks: PlatformRepositoryHooks,
     private val cursorStore: SyncCursorStore,
     private val time: TimeSource = SystemTimeSource,
-    /** Whose routine carriers are whose: another user's, in a shared project, never enter the cache. */
+    /**
+     * Whose routine carriers are whose: another user's, in a shared project, enter the cache only
+     * when its owner shared it (cross-app semantics 6.9).
+     */
     private val currentUser: CurrentUser = CurrentUser.fixed(null),
+    /**
+     * This device's id in routine records. With it a refresh writes again the routine changes
+     * the server lost to a write made at the same moment (cross-app semantics 6.8).
+     */
+    private val routineDeviceId: (suspend () -> String)? = null,
 ) {
     companion object {
         private const val TAG = "TaskRefresher"
@@ -88,7 +103,20 @@ class TaskRefresher(
 
         /** More changed alarms than this are cheaper as one full pass than as one call each. */
         private const val ALARM_BATCH_LIMIT = 100
+
+        /**
+         * How often an incremental refresh asks whether the cached routines other people shared
+         * can still be read. Losing access never shows up as a change: the task just stops coming.
+         */
+        val SHARED_CARRIER_CHECK_INTERVAL = 10.minutes
     }
+
+    /** Reads routine payloads, to see whether another user's carrier is shared. */
+    private val json = createApiJson()
+    private val carrierWriter = RoutineCarrierWriter(api, json)
+
+    /** When the cached shared routines were last checked; guarded by [mutex]. */
+    private var sharedCheckedAt: Instant? = null
 
     /** What a refresh did. [carriersAuthoritative]: the cached routine carriers now match the server's. */
     data class Outcome(
@@ -135,6 +163,7 @@ class TaskRefresher(
         val dtos = api.getAllTasks(mapOf("filter" to "updated >= '$from'"), expandSubtasks = false)
         val acc = Accumulator()
         merge(dtos, acc)
+        checkSharedCarriers(now, acc)
         finish(acc)
         val newest = (dtos.mapNotNull { DateUtils.parseIsoDate(it.updated) } + since).max()
         cursorStore.commit(ticket, newest.toString())
@@ -202,7 +231,7 @@ class TaskRefresher(
         // and another user's carriers from a shared project too.
         val cachedCarriers = taskDao.getRoutineCarriersSync()
         val me = currentUser.knownId()
-        val foreign = cachedCarriers.filter { it.id > 0L && !isOwnRow(it, me) }.map { it.id }
+        val foreign = cachedCarriers.filter { it.id > 0L && !readsRow(it, me) }.map { it.id }
         remove(cachedCarriers.filter { RoutineEnvelope.hasArchiveMarker(it.description) }.map { it.id } + foreign, acc)
 
         // Cached routine carriers the search did not return may be deleted on the server, or the
@@ -231,14 +260,60 @@ class TaskRefresher(
             } catch (c: CancellationException) {
                 throw c
             } catch (e: VikunjaApiException) {
-                if (missing.taskGone(entity.id, e)) remove(listOf(entity.id), acc)
+                // A shared routine nobody let this account read any more (its project stopped
+                // being shared with it, or the routine moved out) is gone for this account.
+                val noAccess = e.httpStatus == 403 && !e.tokenPermission && isSharedRow(entity)
+                if (noAccess || missing.taskGone(entity.id, e)) remove(listOf(entity.id), acc)
             } catch (e: Exception) {
                 Logger.w(TAG, "Could not check routine carrier ${entity.id}: ${e.message}")
             }
         }
     }
 
+    /**
+     * Every [SHARED_CARRIER_CHECK_INTERVAL], asks for each cached shared routine another user owns
+     * that this refresh did not bring: when its owner stops sharing it, or the project stops being
+     * shared with this account, the task stops coming without any change to see.
+     */
+    private suspend fun checkSharedCarriers(now: Instant, acc: Accumulator) {
+        val elapsed = sharedCheckedAt?.let { now - it }
+        // A clock that moved back says nothing about when the last check ran.
+        if (elapsed != null && elapsed.isPositive() && elapsed < SHARED_CARRIER_CHECK_INTERVAL) return
+        sharedCheckedAt = now
+        val me = currentUser.knownId() ?: return
+        val protectedIds = pendingActionDao.getTaskIdsWithPendingActions().toSet()
+        val shared = taskDao.getRoutineCarriersSync().filter {
+            it.id > 0L && it.createdById > 0L && it.createdById != me && it.id !in protectedIds &&
+                !RoutineEnvelope.hasArchiveMarker(it.description) && isSharedRow(it)
+        }
+        verifyCarriers(shared, acc)
+    }
+
     // ---- targeted refresh and completed pages -------------------------------------------------------
+
+    /**
+     * Reads one routine carrier into the cache (before a shared routine's reminder rings). A
+     * carrier this account can no longer read leaves the cache. False when the server could not
+     * be asked.
+     */
+    suspend fun refreshCarrier(taskId: Long): Boolean = mutex.withLock {
+        val entity = taskDao.getByIdSync(taskId) ?: return@withLock false
+        val acc = Accumulator()
+        val asked = try {
+            merge(listOf(api.getTask(taskId)), acc)
+            true
+        } catch (c: CancellationException) {
+            throw c
+        } catch (e: VikunjaApiException) {
+            if (e.httpStatus == 403 && !e.tokenPermission && isSharedRow(entity)) remove(listOf(taskId), acc)
+            e.httpStatus == 403 || e.httpStatus == 404
+        } catch (e: Exception) {
+            Logger.w(TAG, "Could not read routine carrier $taskId: ${e.message}")
+            false
+        }
+        finish(acc)
+        asked
+    }
 
     /** Fetches the tasks [filters] match (a search, a custom list) and merges them. Deletes nothing. */
     suspend fun refreshMatching(filters: Map<String, String>) = mutex.withLock {
@@ -307,29 +382,45 @@ class TaskRefresher(
         var removed = 0
     }
 
-    /** True for a cached routine carrier of [me]'s, or when either side is not known. */
-    private fun isOwnRow(entity: TaskEntity, me: Long?): Boolean =
-        me == null || entity.createdById <= 0L || entity.createdById == me
+    /** True for a cached routine carrier this account reads: its own, or a shared one (6.9). */
+    private fun readsRow(entity: TaskEntity, me: Long?): Boolean =
+        SharedRoutines.readsCarrier(entity.createdById, me, shared = false) || isSharedRow(entity)
+
+    private fun isSharedRow(entity: TaskEntity): Boolean = isShared(entity.description)
+
+    private fun isShared(description: String): Boolean =
+        RoutineEnvelope.parse(description, json).payload?.definition?.shared == true
+
+    /** True for a routine carrier on the server this account reads; false for anything else. */
+    private fun readsCarrier(dto: TaskDto, me: Long?): Boolean =
+        RoutineEnvelope.hasCarrierMarker(dto.description) &&
+            (SharedRoutines.readsCarrier(dto.createdBy?.id ?: 0L, me, shared = false) || isShared(dto.description))
 
     /**
      * Stores what the server returned, except rows with queued changes and hidden tasks. Of the
-     * hidden tasks only the user's own routine carriers are cached (the routines live there); archive
-     * parts are read on demand, the custom-list and preferences carriers belong to their own sync,
-     * and a kind this version does not know, or another user's carrier, is no business of the cache.
+     * hidden tasks only the routine carriers this account reads are cached (the routines live
+     * there): its own, and the ones other users shared (cross-app semantics 6.9). Archive parts
+     * are read on demand, the custom-list and preferences carriers belong to their own sync, and
+     * a kind this version does not know, or another user's private carrier, is no business of
+     * the cache. A cached routine its owner stopped sharing leaves it.
      */
     private suspend fun merge(dtos: List<TaskDto>, acc: Accumulator) {
         val me = currentUser.knownId()
-        val visible = dtos.filterNot {
-            HiddenTasks.isHidden(it.description) && !(
-                RoutineEnvelope.hasCarrierMarker(it.description) &&
-                    (me == null || it.createdBy == null || it.createdBy.id <= 0L || it.createdBy.id == me)
-                )
+        val (visible, hidden) = dtos.partition {
+            !HiddenTasks.isHidden(it.description) || readsCarrier(it, me)
+        }
+        val unshared = hidden.filter { RoutineEnvelope.hasCarrierMarker(it.description) }.map { it.id }
+        if (unshared.isNotEmpty()) {
+            val protectedIds = pendingActionDao.getTaskIdsWithPendingActions().toSet()
+            val cached = taskDao.getByIds(unshared).map { it.id }.filter { it !in protectedIds }
+            if (cached.isNotEmpty()) remove(cached, acc)
         }
         if (visible.isEmpty()) return
         val entities = visible.map { with(taskMapper) { it.toEntity() } }.distinctBy { it.id }
         val protectedIds = pendingActionDao.getTaskIdsWithPendingActions().toSet()
         val existing = taskDao.getByIds(entities.map { it.id }).associateBy { it.id }
         val changed = entities.filter { it.id !in protectedIds && existing[it.id] != it }
+            .map { writeLostRoutineChanges(it, existing[it.id]) }
         if (changed.isEmpty()) return
         taskDao.upsertAll(changed)
         for (entity in changed) {
@@ -340,6 +431,53 @@ class TaskRefresher(
             if (remindersAffected(old, entity)) acc.alarmTasks += with(taskMapper) { entity.toDomain() }
         }
         acc.changed += changed.size
+    }
+
+    /**
+     * A routine carrier the server sends back without this device's recent changes, which the
+     * cached row still has, lost them to a write made at the same moment by another device or
+     * person (cross-app semantics 6.8). They are written again, merged with the server's copy;
+     * when that fails the merge is kept here and queued for the sync.
+     */
+    private suspend fun writeLostRoutineChanges(entity: TaskEntity, old: TaskEntity?): TaskEntity {
+        val deviceId = routineDeviceId ?: return entity
+        if (old == null || !RoutineEnvelope.hasCarrierMarker(old.description)) return entity
+        val local = RoutineEnvelope.parse(old.description, json).payload ?: return entity
+        val server = RoutineEnvelope.parse(entity.description, json)
+        val serverPayload = server.payload ?: return entity
+        val lost = SharedRoutines.lostOwnChanges(
+            local = local,
+            server = serverPayload,
+            deviceId = deviceId(),
+            since = time.now() - SharedRoutines.REASSERT_WINDOW,
+        ) ?: return entity
+        Logger.w(TAG, "Routine carrier ${entity.id} lost changes of this device; writing them again")
+        val description = RoutineEnvelope.upsert(server.body, lost, json)
+        return try {
+            carrierWriter.write(entity.id, description).task?.let { with(taskMapper) { it.toEntity() } } ?: entity
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(TAG, "Could not write routine carrier ${entity.id} again: ${e.message}")
+            val merged = try {
+                RoutineEnvelope.mergeForWrite(RoutineEnvelope.parse(description, json), server)
+            } catch (_: RoutineEnvelope.UnreadableCarrierException) {
+                null
+            } ?: return entity
+            val now = time.now().toString()
+            pendingActionDao.queuePatchActionMerging(
+                PendingActionEntity(
+                    entityType = "task",
+                    entityId = entity.id,
+                    actionType = "update",
+                    payload = buildJsonObject { put("description", RoutineEnvelope.upsert(server.body, merged, json)) }.toString(),
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            platformHooks.triggerSync()
+            entity.copy(description = RoutineEnvelope.upsert(server.body, merged, json))
+        }
     }
 
     private suspend fun remove(ids: List<Long>, acc: Accumulator) {

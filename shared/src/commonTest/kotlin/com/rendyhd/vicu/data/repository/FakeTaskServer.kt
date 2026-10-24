@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -33,6 +34,8 @@ class FakeTaskServer {
         var projectId: Long,
         /** When the task was made; empty for seeded rows unless a test sets it. */
         var created: String = "",
+        /** The user who created it (`created_by`); 0 leaves the field out. */
+        var createdBy: Long = 0,
     )
 
     data class Recorded(val method: String, val path: String, val query: Map<String, String>, val body: String?) {
@@ -53,13 +56,29 @@ class FakeTaskServer {
     /** Runs after a create or update changed [Row], before the answer is sent (a misbehaving server). */
     var afterWrite: (Row) -> Unit = {}
 
-    fun seed(id: Long, title: String, description: String, done: Boolean = true, projectId: Long = 5, created: String = ""): Row =
-        Row(id, title, description, done, projectId, created).also { rows[id] = it }
+    fun seed(
+        id: Long,
+        title: String,
+        description: String,
+        done: Boolean = true,
+        projectId: Long = 5,
+        created: String = "",
+        createdBy: Long = 0,
+    ): Row = Row(id, title, description, done, projectId, created, createdBy).also { rows[id] = it }
+
+    /** The user new tasks are created by; 0 leaves `created_by` out. */
+    var currentUserId: Long = 0
 
     fun row(id: Long): Row = checkNotNull(rows[id]) { "No task $id on the fake server" }
 
     /** The tasks whose description holds a routine archive marker. */
     fun archiveRows(): List<Row> = rows.values.filter { it.description.contains("<!-- vicu-routine:archive:") }
+
+    /** The paths of the JSON Patch replace operations the fake keeps no field for (due date, ...). */
+    val jsonPatchReplaced = mutableListOf<String>()
+
+    private fun isJsonPatch(request: HttpRequestData): Boolean =
+        request.body.contentType?.withoutParameters()?.toString() == "application/json-patch+json"
 
     fun requestsLike(method: String, pathPrefix: String): List<Recorded> =
         requests.filter { it.method == method && it.path.startsWith(pathPrefix) }
@@ -71,6 +90,7 @@ class FakeTaskServer {
         put("done", done)
         put("project_id", projectId)
         if (created.isNotEmpty()) put("created", created)
+        if (createdBy > 0L) put("created_by", buildJsonObject { put("id", createdBy) })
     }.toString()
 
     fun handle(scope: MockRequestHandleScope, request: HttpRequestData): HttpResponseData = with(scope) {
@@ -109,10 +129,51 @@ class FakeTaskServer {
                     done = fields["done"]?.jsonPrimitive?.booleanOrNull ?: false,
                     projectId = createIn,
                     created = DateUtils.nowIso(),
+                    createdBy = currentUserId,
                 )
                 rows[row.id] = row
                 afterWrite(row)
                 respond(row.toJson(), HttpStatusCode.Created, authTestJsonHeaders)
+            }
+            request.method.value == "PATCH" && taskId != null && isJsonPatch(request) -> {
+                val row = rows[taskId] ?: return@with respond("", HttpStatusCode.NotFound)
+                // RFC 6902 as Vikunja applies it: all operations or none, 422 when a test fails.
+                val operations = Json.parseToJsonElement(checkNotNull(body)).jsonArray.map { it.jsonObject }
+                val tests = operations.filter { it["op"]?.jsonPrimitive?.content == "test" }
+                for (test in tests) {
+                    val field = test["path"]!!.jsonPrimitive.content.removePrefix("/")
+                    val expected = test["value"]?.jsonPrimitive?.contentOrNull
+                    val actual = when (field) {
+                        "description" -> row.description
+                        "title" -> row.title
+                        else -> error("The fake server tests only description and title, not $field")
+                    }
+                    if (actual != expected) {
+                        return@with respond(
+                            """{"title":"Unprocessable Entity","detail":"Unable to apply patch"}""",
+                            HttpStatusCode.UnprocessableEntity,
+                            authTestJsonHeaders,
+                        )
+                    }
+                }
+                val before = row.toJson()
+                for (operation in operations - tests.toSet()) {
+                    check(operation["op"]?.jsonPrimitive?.content == "replace") { "Only test and replace: $operation" }
+                    val value = operation["value"]
+                    when (operation["path"]!!.jsonPrimitive.content.removePrefix("/")) {
+                        "title" -> row.title = value!!.jsonPrimitive.content
+                        "description" -> row.description = value!!.jsonPrimitive.content
+                        "done" -> row.done = value!!.jsonPrimitive.booleanOrNull!!
+                        "project_id" -> row.projectId = value!!.jsonPrimitive.content.toLong()
+                        else -> jsonPatchReplaced += operation["path"]!!.jsonPrimitive.content
+                    }
+                }
+                afterWrite(row)
+                if (row.toJson() == before) {
+                    respond("", HttpStatusCode.NotModified)
+                } else {
+                    respond(row.toJson(), HttpStatusCode.OK, authTestJsonHeaders)
+                }
             }
             request.method.value == "PATCH" && taskId != null -> {
                 val row = rows[taskId] ?: return@with respond("", HttpStatusCode.NotFound)

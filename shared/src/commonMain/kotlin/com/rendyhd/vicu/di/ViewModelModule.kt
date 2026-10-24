@@ -13,6 +13,7 @@ import com.rendyhd.vicu.ui.screens.project.ProjectViewModel
 import com.rendyhd.vicu.ui.screens.review.ReviewViewModel
 import com.rendyhd.vicu.ui.screens.routines.RoutinesViewModel
 import com.rendyhd.vicu.ui.screens.search.SearchViewModel
+import com.rendyhd.vicu.ui.screens.settings.HiddenRoutinesViewModel
 import com.rendyhd.vicu.ui.screens.settings.SettingsViewModel
 import com.rendyhd.vicu.ui.screens.setup.SetupViewModel
 import com.rendyhd.vicu.ui.screens.tag.TagViewModel
@@ -37,6 +38,7 @@ val viewModelModule = module {
     viewModelOf(::ProjectViewModel)
     viewModelOf(::ReviewViewModel)
     viewModelOf(::RoutinesViewModel)
+    viewModelOf(::HiddenRoutinesViewModel)
     viewModelOf(::SearchViewModel)
     // More constructor parameters than viewModelOf takes (22), so spelled out.
     viewModel {

@@ -45,6 +45,12 @@ the device.
 - **They are ordinary tasks to Vikunja.** The web UI shows them with done tasks and in its
   search, the server counts them in a project's done tasks, and a member of a shared project
   sees the ones in it.
+- **A shared routine is the one exception to "only your own"** (contract 6.9): a routine carrier
+  another user created is read, merged and written when its definition has `shared: true`, and
+  every archive part of a routine the app reads counts, whoever wrote it (a member's part stays
+  with the routine after its owner stops sharing). Every other kind, and other users' private
+  routines, stay ignored. Routine carrier and part writes are JSON Patches that test the
+  description they read, read back to catch a write made at the same moment (contract 6.8).
 
 ## Finding them
 

@@ -1,5 +1,7 @@
 package com.rendyhd.vicu.domain.model
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -70,6 +72,7 @@ data class RoutineSlot(
     @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class RoutineDefinition(
     val id: String,
@@ -87,9 +90,22 @@ data class RoutineDefinition(
     val createdAt: String,
     val updatedAt: String,
     val updatedBy: String,
+    /**
+     * Shared through the project its carrier is in (docs/cross-app-semantics-v1.md, section 6.9).
+     * Only the owner changes it. Left out of the payload while false.
+     */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val shared: Boolean = false,
     @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
 )
 
+/** Who logged an occurrence of a shared routine, and on which device (section 6.9). */
+@Serializable
+data class RoutineLoggedBy(
+    val userId: Long,
+    val deviceId: String,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class RoutineOccurrenceRecord(
     val key: String,
@@ -103,8 +119,17 @@ data class RoutineOccurrenceRecord(
     val modifiedAt: String,
     val modifiedBy: String,
     val note: String = "",
+    /** Set by a person's change to an occurrence of a shared routine; see [loggedByUserId]. */
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val loggedBy: RoutineLoggedBy? = null,
     @SerialName(UNKNOWN_FIELDS_KEY) val unknown: JsonObject = NO_UNKNOWN_FIELDS,
-)
+) {
+    /**
+     * The person to name for this record, or null. Only when [loggedBy] was written with this
+     * record: a version that does not know it keeps the old one when it logs the slot again.
+     */
+    val loggedByUserId: Long?
+        get() = loggedBy?.takeIf { it.deviceId == modifiedBy && it.userId > 0L }?.userId
+}
 
 @Serializable
 data class RoutinePayload(
@@ -141,6 +166,10 @@ internal object RoutineArchivePartSerializer : UnknownFieldsSerializer<RoutineAr
 data class Routine(
     val taskId: Long,
     val payload: RoutinePayload,
+    /** The project its carrier is in; 0 when not known (a routine built in a test). */
+    val projectId: Long = 0,
+    /** Who created the carrier (`created_by`): the routine's owner. 0 when not known yet. */
+    val ownerId: Long = 0,
 ) {
     val definition: RoutineDefinition get() = payload.definition
 }
@@ -153,6 +182,8 @@ data class RoutineOccurrence(
     val status: OccurrenceStatus,
     val loggedAt: String = "",
     val note: String = "",
+    /** Who logged it, on a shared routine (section 6.9); null when nobody is to be named. */
+    val loggedByUserId: Long? = null,
 )
 
 data class RoutineDay(

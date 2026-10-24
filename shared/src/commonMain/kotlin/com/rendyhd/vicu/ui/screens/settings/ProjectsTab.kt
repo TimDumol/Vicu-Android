@@ -28,6 +28,8 @@ import com.rendyhd.vicu.ui.navigation.buildProjectTree
 import com.rendyhd.vicu.ui.navigation.moveProjectRow
 import com.rendyhd.vicu.ui.navigation.siblingIds
 import com.rendyhd.vicu.ui.navigation.visibleProjectRows
+import com.rendyhd.vicu.ui.screens.routines.RoutineSharing
+import com.rendyhd.vicu.ui.screens.routines.rememberSharedRoutineLookup
 import com.rendyhd.vicu.util.moveIdBy
 import sh.calvin.reorderable.ReorderableLazyListState
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -61,6 +63,7 @@ internal fun ProjectsTab(
     listState: LazyListState,
 ) {
     val haptic = LocalHapticFeedback.current
+    val sharedRoutines = rememberSharedRoutineLookup()
     var liveRows by remember { mutableStateOf<List<ProjectRow>?>(null) }
     val rows = liveRows ?: projectRows
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
@@ -88,8 +91,9 @@ internal fun ProjectsTab(
             },
             viewModel = viewModel,
             openDialog = openDialog,
+            sharedRoutines = sharedRoutines,
         )
-        archivedProjectsSection(state, archivedExpanded, onArchivedExpandedChange, viewModel, openDialog)
+        archivedProjectsSection(state, archivedExpanded, onArchivedExpandedChange, viewModel, openDialog, sharedRoutines)
         item(key = "projects_divider") {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         }
@@ -103,14 +107,18 @@ internal fun ProjectsTab(
     }
 }
 
-/** Deletes [project], asking first when "Confirm before deleting" is on. */
+/**
+ * Deletes [project], asking first when "Confirm before deleting" is on, and always when it holds
+ * shared routines ([sharedRoutines]), which go for everyone (section 6.9).
+ */
 private fun deleteProject(
     project: Project,
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     openDialog: (SettingsDialog) -> Unit,
+    sharedRoutines: (Long) -> List<String>,
 ) {
-    if (state.behaviorPrefs.confirmBeforeDelete) {
+    if (RoutineSharing.asksBeforeDeleting(state.behaviorPrefs.confirmBeforeDelete, sharedRoutines(project.id))) {
         openDialog(SettingsDialog.DeleteProject(project.id))
     } else {
         viewModel.deleteProject(project.id)
@@ -143,6 +151,7 @@ private fun LazyListScope.projectsSection(
     onDragStopped: (projectId: Long) -> Unit,
     viewModel: SettingsViewModel,
     openDialog: (SettingsDialog) -> Unit,
+    sharedRoutines: (Long) -> List<String>,
 ) {
     item(key = "projects_header") {
         SectionTitle(
@@ -195,7 +204,7 @@ private fun LazyListScope.projectsSection(
                     onAddSubproject = { openDialog(SettingsDialog.SubprojectEditor(project.id)) },
                     onSetInbox = { viewModel.setInboxProject(project.id) },
                     onArchive = { openDialog(SettingsDialog.ArchiveProject(project.id)) },
-                    onDelete = { deleteProject(project, state, viewModel, openDialog) },
+                    onDelete = { deleteProject(project, state, viewModel, openDialog, sharedRoutines) },
                 ),
                 modifier = Modifier.moveCustomActions(
                     onMoveUp = moveIdBy(levelIds, project.id, -1)
@@ -215,6 +224,7 @@ private fun LazyListScope.archivedProjectsSection(
     onExpandedChange: (Boolean) -> Unit,
     viewModel: SettingsViewModel,
     openDialog: (SettingsDialog) -> Unit,
+    sharedRoutines: (Long) -> List<String>,
 ) {
     if (state.archivedProjects.isEmpty()) return
 
@@ -240,7 +250,7 @@ private fun LazyListScope.archivedProjectsSection(
                     if (project.id != state.inboxProjectId) {
                         add(
                             RowMenuItem("Delete", destructive = true, onClick = {
-                                deleteProject(project, state, viewModel, openDialog)
+                                deleteProject(project, state, viewModel, openDialog, sharedRoutines)
                             }),
                         )
                     }

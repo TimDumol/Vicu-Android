@@ -6,6 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * One synced setting (docs/cross-app-semantics-v1.md, section 11). [value] is any JSON; null means
@@ -51,4 +52,46 @@ object SyncedPrefKeys {
     /** The project of a `task_order.project.<id>` key, or null for any other key. */
     fun taskOrderProject(key: String): Long? =
         if (key.startsWith(TASK_ORDER_PROJECT_PREFIX)) key.removePrefix(TASK_ORDER_PROJECT_PREFIX).toLongOrNull() else null
+
+    private const val ROUTINE_REMINDERS_PREFIX = "routine_reminders."
+    private const val ROUTINE_HIDDEN_PREFIX = "routine_hidden."
+
+    /** `"off"`: no reminders of that shared routine on this account (section 6.9). */
+    fun routineRemindersOf(routineId: String): String = "$ROUTINE_REMINDERS_PREFIX$routineId"
+
+    /** `true`: that shared routine is hidden on this account (section 6.9). */
+    fun routineHiddenOf(routineId: String): String = "$ROUTINE_HIDDEN_PREFIX$routineId"
+
+    /** The routine of a `routine_reminders.<id>` key, or null for any other key. */
+    fun routineRemindersRoutine(key: String): String? =
+        key.takeIf { it.startsWith(ROUTINE_REMINDERS_PREFIX) }?.removePrefix(ROUTINE_REMINDERS_PREFIX)?.takeIf { it.isNotEmpty() }
+
+    /** The routine of a `routine_hidden.<id>` key, or null for any other key. */
+    fun routineHiddenRoutine(key: String): String? =
+        key.takeIf { it.startsWith(ROUTINE_HIDDEN_PREFIX) }?.removePrefix(ROUTINE_HIDDEN_PREFIX)?.takeIf { it.isNotEmpty() }
+}
+
+/**
+ * This account's own choices about the routines others shared with it (section 6.9): never part of
+ * a routine, so they reach every device of the account and nobody else.
+ */
+data class RoutinePersonalSettings(
+    /** Routines whose reminders are off on this account. */
+    val remindersOff: Set<String> = emptySet(),
+    /** Routines hidden on this account. */
+    val hidden: Set<String> = emptySet(),
+) {
+    companion object {
+        /** Reads the entries; any other value than `"off"` and `true` acts as the default (section 11.3). */
+        fun fromEntries(entries: Map<String, JsonElement?>): RoutinePersonalSettings {
+            val off = mutableSetOf<String>()
+            val hidden = mutableSetOf<String>()
+            for ((key, value) in entries) {
+                val primitive = value as? JsonPrimitive ?: continue
+                SyncedPrefKeys.routineRemindersRoutine(key)?.let { if (primitive.isString && primitive.content == "off") off += it }
+                SyncedPrefKeys.routineHiddenRoutine(key)?.let { if (!primitive.isString && primitive.content == "true") hidden += it }
+            }
+            return RoutinePersonalSettings(off, hidden)
+        }
+    }
 }

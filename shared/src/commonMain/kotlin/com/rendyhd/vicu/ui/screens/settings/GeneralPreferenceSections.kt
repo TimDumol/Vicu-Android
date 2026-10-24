@@ -27,6 +27,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rendyhd.vicu.domain.model.BottomBarSlot
 import com.rendyhd.vicu.util.parser.SyntaxMode
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 
 internal fun LazyListScope.bottomBarSection(
     state: SettingsUiState,
@@ -186,6 +193,7 @@ internal fun LazyListScope.routinesSection(
                 onCheckedChange = viewModel::setRoutinesShowInToday,
             )
         }
+        item(key = "routines_hidden") { HiddenSharedRoutines() }
     }
     item(key = "routines_divider") {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -451,5 +459,32 @@ internal fun LazyListScope.behaviorSection(
 
     item(key = "behavior_divider") {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+    }
+}
+
+/** The routines others shared with this account that it hid, each with Show (cross-app semantics 6.9). */
+@Composable
+private fun HiddenSharedRoutines(viewModel: HiddenRoutinesViewModel = koinViewModel()) {
+    val hidden by viewModel.hidden.collectAsStateWithLifecycle()
+    if (hidden.isEmpty()) return
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text("Hidden shared routines", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            "Routines someone shared with you that you hid. They stay shared; only you do not see them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        hidden.forEach { routine ->
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(routine.definition.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                TextButton(
+                    onClick = { viewModel.show(routine) },
+                    modifier = Modifier.semantics { contentDescription = "Show ${routine.definition.name}" },
+                ) { Text("Show") }
+            }
+        }
     }
 }
